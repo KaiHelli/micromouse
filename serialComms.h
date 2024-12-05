@@ -37,7 +37,7 @@ void setupUART1(void);
 int8_t putsUART1(char *buffer);
 int8_t getUART1Status(void);        
 int8_t putsUART1Sync(char *buffer);
-void putsUART1_ref(char *buffer);
+void putsUART1Reference(char *buffer);
 
 #define UART_BUFFER_SIZE 256       // Define the size of the internal buffer
 #define UART_BUFFER_BUSY -1               // Error code for buffer busy

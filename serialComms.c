@@ -21,7 +21,6 @@ volatile int8_t txInProgress = 0;            // Flag indicating if a transmissio
 typedef enum {
     STATE_IDLE,
     STATE_READ_NUM,
-    STATE_DISCARD
 } RxState;
 
 /*
@@ -62,8 +61,8 @@ void setupUART1(void)
 	U1STAbits.URXISEL=0; //generate a receive interrupt as soon as a character has arrived
 	U1STAbits.UTXEN=1; //enable the transmission of data
     
-    U1STAbits.UTXISEL0=0; // generate a transmit interrupt as soon as one location is empty in the transmit buffer
-    U1STAbits.UTXISEL1=0;
+    U1STAbits.UTXISEL1=0; // generate a transmit interrupt as soon as one location is empty in the transmit buffer
+    U1STAbits.UTXISEL0=0; 
     
     
 	IEC0bits.U1RXIE=1; //enable the receive interrupt
@@ -116,57 +115,43 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 
 void controlPWMCycle(char c)
 {
-    
+    static char rxBuffer[32];
+    static int rxIndex = 0;
     static RxState rxState = STATE_IDLE;
-    static int currentNumber = 0; // The parsed number
-    
+
     switch (rxState) {
-    case STATE_IDLE:
-        if (c == '<') {
-            // Start of a new command
-            rxState = STATE_READ_NUM;
-            currentNumber = 0;
-        }
-        break;
+        case STATE_IDLE:
+            if (c == '<') {
+                // Start of a new command
+                rxIndex = 0;
+                rxState = STATE_READ_NUM;
+            }
+            break;
 
-    case STATE_READ_NUM:
-        if (isdigit(c)) {
-            // Convert ASCII to number
-            uint16_t digit = c - '0';
+        case STATE_READ_NUM:
+            if (c == '>') {
+                // End of the message, process the number if within bounds
+                // Null-terminate the buffer
+                rxBuffer[rxIndex] = '\0';
+                float value;
 
-            // We ignore leading zeros.
-            if (currentNumber > 0 || digit > 0) {
-                currentNumber = currentNumber * 10 + digit;
-
-                if (currentNumber > MAX_NUMBER) {
-                    // Malformed: Number exceeds maximum
-                    rxState = STATE_DISCARD;
+                // Use sscanf to parse the number (supporting both integers and floats)
+                if (sscanf(rxBuffer, "%f", &value) == 1 && value >= MIN_NUMBER && value <= MAX_NUMBER) {
+                    P1DC1 = (1 - value / 100) * MYPWM_MAX;
                 }
+                // Reset state
+                rxState = STATE_IDLE;
+            } else if (rxIndex < sizeof(rxBuffer) - 1) {
+                // Accumulate character if there is space in the buffer
+                rxBuffer[rxIndex++] = c;
+            } else {
+                // Buffer overflow, discard the command
+                rxState = STATE_IDLE;
             }
-            
             break;
-        } 
-        
-        if (c == '>') {
-            // End of the message, process the number if within bounds
-            if (currentNumber >= MIN_NUMBER && currentNumber <= MAX_NUMBER) {
-                P1DC1 =  (1 - (float) currentNumber/100) * MYPWM_MAX;
-            }
-            rxState = STATE_DISCARD;
-            break;
-        } 
-        
-        // Malformed: Invalid character
-        rxState = STATE_DISCARD;
-        break;
-    }
-    
-    // In case we are now in a discard state, reset the state machine.
-    if (rxState == STATE_DISCARD) {
-        rxState = STATE_IDLE;
-        currentNumber = 0;
     }
 }
+
 
 void controlLED(uint16_t rxData) {                                                                                                                                                                        
     // aa-----s
@@ -200,47 +185,51 @@ void __attribute__((interrupt, no_auto_psv)) _U1TXInterrupt(void)
         U1TXREG = txBuffer[txIndex++];
     } else {
         // All characters are sent; disable interrupt and reset state
-        IEC0bits.U1TXIE = 0;
         txInProgress = 0;
-        txIndex = 0;
+        IEC0bits.U1TXIE = 0;
     }
 }
 
 int8_t putsUART1(char *buffer)
 {
+    // Disable UART Transmit Interrupt to prevent race conditions
+    IEC0bits.U1TXIE = 0;
+    
     // Check if a transmission is already in progress
     if (txInProgress) {
+        IEC0bits.U1TXIE = 1;
         return UART_BUFFER_BUSY; // Indicate that the UART is busy
     }
     
     // Check if the UART is configured for 8-bit data
     if (U1MODEbits.PDSEL == 3) {
+        IEC0bits.U1TXIE = 1;
         return UART_UNSUPPORTED_MODE; // Error: 9-bit data mode not supported
     }
 
     // Calculate the length of the input buffer
     size_t length = strlen(buffer);
     if (length >= UART_BUFFER_SIZE) {
-        // Buffer overflow
-        return UART_BUFFER_OVERFLOW;
+        IEC0bits.U1TXIE = 1;
+        return UART_BUFFER_OVERFLOW; // Error: Buffer overflow
+    }
+    
+    // In case there is nothing to send, return.
+    if (length == 0) {
+        IEC0bits.U1TXIE = 1;
+        return 0; // Nothing to send
     }
 
-    // Disable UART Transmit Interrupt to prevent race conditions
-    IEC0bits.U1TXIE = 0;
-    
     // Copy data to the internal buffer
-    strncpy((char *) txBuffer, buffer, length); // Copy data safely
+    strncpy((char *) txBuffer, buffer, length);
     
     txLength = length;
     txIndex = 0;
     txInProgress = 1;
     
-    // Fill the UART transmit register (U1TXREG) with as many characters as it can handle
-    while ((txIndex < txLength) && (!U1STAbits.UTXBF)) {
-        U1TXREG = txBuffer[txIndex++];
-    }
-
-    // Enable UART Transmit Interrupt for the remaining data
+    // Re-enable UART Transmit Interrupt
+    // This will persistently trigger the UART IF as long as there is a spot in
+    // the FIFO buffer.
     IEC0bits.U1TXIE = 1;
 
     // Indicate success
@@ -270,7 +259,7 @@ int8_t putsUART1Sync(char *buffer)
 }
 
 
-void putsUART1_ref(char *buffer)
+void putsUART1Reference(char *buffer)
 {
     char * temp_ptr = (char *) buffer;
 

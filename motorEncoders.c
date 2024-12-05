@@ -122,7 +122,7 @@ long getPositionInCounts_1()
 
 int getVelocityInCountsPerSample_1()
 {
-    static long oldPosition;
+    static long oldPosition = 0;
     long currentPosition;
     int velocity;
 

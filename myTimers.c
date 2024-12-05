@@ -274,6 +274,8 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 /* ISR for Timer3 or when Timer2 and Timer3 are combined */
 void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 {
+    IFS0bits.T3IF = 0;           // reset Timer 3 interrupt flag
+    
     static long lastCount = 0;
     static long count = 0;
     
@@ -285,7 +287,7 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 
         snprintf(countStr, 20, "%ld\r\n", count);
 
-        putsUART1_ref(countStr);
+        putsUART1(countStr);
     } 
     
     lastCount = count;

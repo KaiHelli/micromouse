@@ -112,10 +112,10 @@ int16_t main()
     //initTimerInMs(50, 2); //creates a 10ms timer interrupt
     //startTimer2();
     
-    initTimerInMs(250, 3); //creates a 10ms timer interrupt
+    initTimerInMs(100, 3); //creates a 10ms timer interrupt
     startTimer3();
     
-    //initTimerInMs(1000, 32); //creates a 10ms timer interrupt
+    //initTimerInMs(250, 32); //creates a 10ms timer interrupt
     //startTimer32_combined();
     
     LED4 = LEDOFF;

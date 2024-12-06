@@ -111,7 +111,7 @@ int16_t main()
     // initTimerInMs(50, 2); //creates a 10ms timer interrupt
     // startTimer2();
 
-    initTimerInMs(100, 3); // creates a 10ms timer interrupt
+    initTimerInMs(10, 3); // creates a 10ms timer interrupt
     startTimer3();
 
     // initTimerInMs(250, 32); //creates a 10ms timer interrupt

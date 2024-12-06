@@ -56,7 +56,6 @@ void setupUART1(void)
     IPC3bits.U1TXIP = 5; // set the TX interrupt priority
 
     U1STAbits.URXISEL = 0; // generate a receive interrupt as soon as a character has arrived
-    U1STAbits.UTXEN = 1; // enable the transmission of data
 
     U1STAbits.UTXISEL1 = 0; // generate a transmit interrupt as soon as one location is empty in the transmit buffer
     U1STAbits.UTXISEL0 = 0;
@@ -66,8 +65,7 @@ void setupUART1(void)
 
     // FINALLY,
     U1MODEbits.UARTEN = 1; // switch the uart on
-
-    U1STAbits.UTXEN = 1; // enable transmission
+    U1STAbits.UTXEN = 1; // enable the transmission of data; must be set after UARTEN
 
     //  U1MODE = 0x8000; /* Reset UART to 8-n-1, alt pins, and enable */
     //	U1STA  = 0x0440; /* Reset status register and enable TX & RX*/
@@ -175,10 +173,12 @@ void __attribute__((interrupt, no_auto_psv)) _U1TXInterrupt(void)
 {
     IFS0bits.U1TXIF = 0; // Clear the interrupt flag
 
-    if (txIndex < txLength) {
-        // Send the next character
+    // Fill the buffer if there are characters left and buffer is not full
+    while (txIndex < txLength && !U1STAbits.UTXBF) {
         U1TXREG = txBuffer[txIndex++];
-    } else {
+    }
+    
+    if (txIndex == txLength) {
         // All characters are sent; disable interrupt and reset state
         txInProgress = 0;
         IEC0bits.U1TXIE = 0;
@@ -222,10 +222,9 @@ int8_t putsUART1(char* buffer)
     txIndex = 0;
     txInProgress = 1;
 
-    // Re-enable UART Transmit Interrupt
-    // This will persistently trigger the UART IF as long as there is a spot in
-    // the FIFO buffer.
+    // Re-enable UART Transmit Interrupt and trigger the first interrupt
     IEC0bits.U1TXIE = 1;
+    IFS0bits.U1TXIF = 1;
 
     // Indicate success
     return 0;

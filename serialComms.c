@@ -177,7 +177,7 @@ void __attribute__((interrupt, no_auto_psv)) _U1TXInterrupt(void)
     while (txIndex < txLength && !U1STAbits.UTXBF) {
         U1TXREG = txBuffer[txIndex++];
     }
-    
+
     if (txIndex == txLength) {
         // All characters are sent; disable interrupt and reset state
         txInProgress = 0;

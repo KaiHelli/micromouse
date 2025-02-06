@@ -17578,21 +17578,21 @@ Only in case lower resistance is needed</text>
 <pinref part="UART_BT" gate="G$1" pin="UART_RX"/>
 </segment>
 <segment>
-<pinref part="UC" gate="G$1" pin="SOSCI/RP4/CN1/RB4"/>
-<wire x1="114.3" y1="220.98" x2="116.84" y2="220.98" width="0.1524" layer="91"/>
-<label x="116.84" y="220.98" size="1.27" layer="95" xref="yes"/>
+<pinref part="UC" gate="G$1" pin="RP20/CN25/PMA4/RC4"/>
+<wire x1="114.3" y1="231.14" x2="116.84" y2="231.14" width="0.1524" layer="91"/>
+<label x="116.84" y="231.14" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="UART_RX" class="0">
 <segment>
-<pinref part="UC" gate="G$1" pin="PGED3/ASDA1/RP5/CN27/PMD7/RB5"/>
-<wire x1="114.3" y1="241.3" x2="116.84" y2="241.3" width="0.1524" layer="91"/>
-<label x="116.84" y="241.3" size="1.27" layer="95" xref="yes"/>
-</segment>
-<segment>
 <pinref part="RX_SEL" gate="A" pin="2"/>
 <wire x1="-116.84" y1="198.12" x2="-109.22" y2="198.12" width="0.1524" layer="91"/>
 <label x="-109.22" y="198.12" size="1.27" layer="95" xref="yes"/>
+</segment>
+<segment>
+<pinref part="UC" gate="G$1" pin="RP21/CN26/PMA3/RC5"/>
+<wire x1="114.3" y1="233.68" x2="116.84" y2="233.68" width="0.1524" layer="91"/>
+<label x="116.84" y="233.68" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="N$7" class="0">
@@ -17876,28 +17876,28 @@ Only in case lower resistance is needed</text>
 <label x="15.24" y="226.06" size="1.27" layer="95" rot="MR0" xref="yes"/>
 </segment>
 </net>
-<net name="PG_ED1" class="0">
+<net name="PG_ED3" class="0">
 <segment>
 <wire x1="167.64" y1="241.3" x2="172.72" y2="241.3" width="0.1524" layer="91"/>
 <label x="172.72" y="241.3" size="1.27" layer="95" xref="yes"/>
 <pinref part="UC_PROG" gate="A" pin="4"/>
 </segment>
 <segment>
-<pinref part="UC" gate="G$1" pin="PGED1/AN2/C2IN-/RP0/CN4/RB0"/>
-<wire x1="17.78" y1="198.12" x2="15.24" y2="198.12" width="0.1524" layer="91"/>
-<label x="15.24" y="198.12" size="1.27" layer="95" rot="MR0" xref="yes"/>
+<pinref part="UC" gate="G$1" pin="PGED3/ASDA1/RP5/CN27/PMD7/RB5"/>
+<wire x1="114.3" y1="241.3" x2="116.84" y2="241.3" width="0.1524" layer="91"/>
+<label x="116.84" y="241.3" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
-<net name="PG_EC1" class="0">
+<net name="PG_EC3" class="0">
 <segment>
 <wire x1="167.64" y1="238.76" x2="172.72" y2="238.76" width="0.1524" layer="91"/>
 <label x="172.72" y="238.76" size="1.27" layer="95" xref="yes"/>
 <pinref part="UC_PROG" gate="A" pin="5"/>
 </segment>
 <segment>
-<pinref part="UC" gate="G$1" pin="PGEC1/AN3/C2IN+/RP1/CN5/RB1"/>
-<wire x1="17.78" y1="195.58" x2="15.24" y2="195.58" width="0.1524" layer="91"/>
-<label x="15.24" y="195.58" size="1.27" layer="95" rot="MR0" xref="yes"/>
+<pinref part="UC" gate="G$1" pin="PGEC3/ASCL1/RP6/CN24/PMD6/RB6"/>
+<wire x1="114.3" y1="243.84" x2="116.84" y2="243.84" width="0.1524" layer="91"/>
+<label x="116.84" y="243.84" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="N$2" class="0">

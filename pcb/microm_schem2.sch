@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.01" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="2" name="Route2" color="1" fill="3" visible="no" active="no"/>
@@ -65,7 +65,7 @@
 <layer number="90" name="Modules" color="5" fill="1" visible="yes" active="yes"/>
 <layer number="91" name="Nets" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="92" name="Busses" color="1" fill="1" visible="yes" active="yes"/>
-<layer number="93" name="Pins" color="2" fill="1" visible="no" active="yes"/>
+<layer number="93" name="Pins" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="94" name="Symbols" color="4" fill="1" visible="yes" active="yes"/>
 <layer number="95" name="Names" color="7" fill="1" visible="yes" active="yes"/>
 <layer number="96" name="Values" color="7" fill="1" visible="yes" active="yes"/>
@@ -16328,7 +16328,7 @@ mode, 19.55 kHz for Center-Aligned mode&lt;br&gt;
 <part name="GND12" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
 <part name="GND13" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
 <part name="MOTOR_CTL" library="SamacSys_Parts" library_urn="urn:adsk.eagle:library:46782684" deviceset="TB6612FNG,C,8,EL" device="" package3d_urn="urn:adsk.eagle:package:46782748/2"/>
-<part name="D2" library="SamacSys_Parts" library_urn="urn:adsk.eagle:library:46782684" deviceset="PMEG4010ER,115" device="" package3d_urn="urn:adsk.eagle:package:46782754/2"/>
+<part name="D1" library="SamacSys_Parts" library_urn="urn:adsk.eagle:library:46782684" deviceset="PMEG4010ER,115" device="" package3d_urn="urn:adsk.eagle:package:46782754/2"/>
 <part name="R14" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="R0805" package3d_urn="urn:adsk.eagle:package:23553/2" value="1kΩ"/>
 <part name="R13" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="R0805" package3d_urn="urn:adsk.eagle:package:23553/2" value="10kΩ"/>
 <part name="R12" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="R0805" package3d_urn="urn:adsk.eagle:package:23553/2" value="10kΩ"/>
@@ -16443,6 +16443,7 @@ mode, 19.55 kHz for Center-Aligned mode&lt;br&gt;
 <part name="R8" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="R0805" package3d_urn="urn:adsk.eagle:package:23553/2" value="680Ω"/>
 <part name="GPIO1" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X3" device="" package3d_urn="urn:adsk.eagle:package:22458/2"/>
 <part name="GPIO2" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X2" device="" package3d_urn="urn:adsk.eagle:package:22435/2"/>
+<part name="C25" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C0805" package3d_urn="urn:adsk.eagle:package:23617/2" value="1uF"/>
 </parts>
 <sheets>
 <sheet>
@@ -16532,7 +16533,7 @@ Only if lower resistance is needed</text>
 <instances>
 <instance part="μC" gate="G$1" x="68.58" y="223.52" smashed="yes">
 <attribute name="VALUE" x="22.86" y="190.5" size="1.778" layer="96"/>
-<attribute name="NAME" x="22.86" y="251.46" size="1.778" layer="95"/>
+<attribute name="NAME" x="22.86" y="254" size="1.778" layer="95"/>
 </instance>
 <instance part="GND2" gate="1" x="223.52" y="231.14" smashed="yes">
 <attribute name="VALUE" x="220.98" y="228.6" size="1.778" layer="96"/>
@@ -16632,7 +16633,7 @@ Only if lower resistance is needed</text>
 <attribute name="NAME" x="3.81" y="167.64" size="1.778" layer="95" align="center-left"/>
 <attribute name="VALUE" x="3.81" y="165.1" size="1.778" layer="96" align="center-left"/>
 </instance>
-<instance part="D2" gate="G$1" x="243.84" y="182.88" smashed="yes" rot="R90">
+<instance part="D1" gate="G$1" x="243.84" y="182.88" smashed="yes" rot="R90">
 <attribute name="NAME" x="237.49" y="185.42" size="1.778" layer="95" rot="R90" align="center-left"/>
 <attribute name="VALUE" x="240.03" y="185.42" size="1.778" layer="96" rot="R90" align="center-left"/>
 </instance>
@@ -16814,22 +16815,22 @@ Only if lower resistance is needed</text>
 <instance part="GND30" gate="1" x="175.26" y="185.42" smashed="yes">
 <attribute name="VALUE" x="172.72" y="182.88" size="1.778" layer="96"/>
 </instance>
-<instance part="+3V17" gate="G$1" x="165.862" y="140.97" smashed="yes">
-<attribute name="VALUE" x="163.322" y="138.43" size="1.778" layer="96" rot="R90"/>
+<instance part="+3V17" gate="G$1" x="167.64" y="143.51" smashed="yes">
+<attribute name="VALUE" x="165.1" y="140.97" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="GND31" gate="1" x="170.942" y="140.462" smashed="yes" rot="R180">
-<attribute name="VALUE" x="173.482" y="143.002" size="1.778" layer="96" rot="R180"/>
+<instance part="GND31" gate="1" x="178.562" y="140.462" smashed="yes" rot="R180">
+<attribute name="VALUE" x="181.102" y="143.002" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="IMU_1" gate="A" x="173.482" y="162.56" smashed="yes" rot="R90">
-<attribute name="NAME" x="162.687" y="156.21" size="1.778" layer="95" rot="R90"/>
-<attribute name="VALUE" x="183.642" y="156.21" size="1.778" layer="96" rot="R90"/>
+<instance part="IMU_1" gate="A" x="181.102" y="162.56" smashed="yes" rot="R90">
+<attribute name="NAME" x="170.307" y="156.21" size="1.778" layer="95" rot="R90"/>
+<attribute name="VALUE" x="191.262" y="156.21" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="IMU_2" gate="A" x="173.482" y="121.92" smashed="yes" rot="MR270">
-<attribute name="NAME" x="162.687" y="128.27" size="1.778" layer="95" rot="MR270"/>
-<attribute name="VALUE" x="183.642" y="128.27" size="1.778" layer="96" rot="MR270"/>
+<instance part="IMU_2" gate="A" x="181.102" y="121.92" smashed="yes" rot="MR270">
+<attribute name="NAME" x="170.307" y="128.27" size="1.778" layer="95" rot="MR270"/>
+<attribute name="VALUE" x="191.262" y="128.27" size="1.778" layer="96" rot="MR270"/>
 </instance>
-<instance part="GND32" gate="1" x="173.482" y="153.162" smashed="yes">
-<attribute name="VALUE" x="170.942" y="150.622" size="1.778" layer="96"/>
+<instance part="GND32" gate="1" x="181.102" y="153.162" smashed="yes">
+<attribute name="VALUE" x="178.562" y="150.622" size="1.778" layer="96"/>
 </instance>
 <instance part="UART" gate="A" x="-109.22" y="198.12" smashed="yes">
 <attribute name="NAME" x="-115.57" y="206.375" size="1.778" layer="95"/>
@@ -17055,6 +17056,10 @@ Only if lower resistance is needed</text>
 <attribute name="NAME" x="-59.69" y="175.641" size="1.778" layer="95" rot="R180"/>
 <attribute name="VALUE" x="-59.69" y="175.26" size="1.778" layer="96" rot="R180"/>
 </instance>
+<instance part="C25" gate="G$1" x="170.18" y="134.62" smashed="yes" rot="R90">
+<attribute name="NAME" x="169.545" y="137.414" size="1.778" layer="95"/>
+<attribute name="VALUE" x="169.799" y="130.556" size="1.778" layer="96"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -17211,12 +17216,17 @@ Only if lower resistance is needed</text>
 <segment>
 <pinref part="IMU_2" gate="A" pin="3"/>
 <pinref part="GND31" gate="1" pin="GND"/>
-<wire x1="170.942" y1="124.46" x2="170.942" y2="137.922" width="0.1524" layer="91"/>
+<wire x1="178.562" y1="124.46" x2="178.562" y2="134.874" width="0.1524" layer="91"/>
+<pinref part="C25" gate="G$1" pin="2"/>
+<wire x1="178.562" y1="134.874" x2="178.562" y2="137.922" width="0.1524" layer="91"/>
+<wire x1="175.26" y1="134.62" x2="178.562" y2="134.62" width="0.1524" layer="91" style="longdash"/>
+<wire x1="178.562" y1="134.62" x2="178.562" y2="134.874" width="0.1524" layer="91" style="longdash"/>
+<junction x="178.562" y="134.874"/>
 </segment>
 <segment>
 <pinref part="IMU_1" gate="A" pin="4"/>
 <pinref part="GND32" gate="1" pin="GND"/>
-<wire x1="173.482" y1="160.02" x2="173.482" y2="155.702" width="0.1524" layer="91"/>
+<wire x1="181.102" y1="160.02" x2="181.102" y2="155.702" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="GND10" gate="1" pin="GND"/>
@@ -17446,7 +17456,7 @@ Only if lower resistance is needed</text>
 </segment>
 <segment>
 <pinref part="+3V4" gate="G$1" pin="+3V3"/>
-<pinref part="D2" gate="G$1" pin="A"/>
+<pinref part="D1" gate="G$1" pin="A"/>
 <wire x1="243.84" y1="200.66" x2="243.84" y2="203.2" width="0.1524" layer="91"/>
 </segment>
 <segment>
@@ -17519,11 +17529,6 @@ Only if lower resistance is needed</text>
 <wire x1="-38.1" y1="205.74" x2="-35.56" y2="205.74" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<pinref part="IMU_2" gate="A" pin="1"/>
-<pinref part="+3V17" gate="G$1" pin="+3V3"/>
-<wire x1="165.862" y1="124.46" x2="165.862" y2="138.43" width="0.1524" layer="91"/>
-</segment>
-<segment>
 <pinref part="+3V6" gate="G$1" pin="+3V3"/>
 <pinref part="UART" gate="A" pin="4"/>
 <wire x1="-127" y1="195.58" x2="-111.76" y2="195.58" width="0.1524" layer="91"/>
@@ -17587,6 +17592,15 @@ Only if lower resistance is needed</text>
 <wire x1="208.28" y1="139.7" x2="223.52" y2="139.7" width="0.1524" layer="91"/>
 <wire x1="208.28" y1="144.78" x2="208.28" y2="139.7" width="0.1524" layer="91"/>
 <junction x="208.28" y="139.7"/>
+</segment>
+<segment>
+<pinref part="IMU_2" gate="A" pin="1"/>
+<pinref part="C25" gate="G$1" pin="1"/>
+<wire x1="173.482" y1="124.46" x2="167.64" y2="124.46" width="0.1524" layer="91" style="longdash"/>
+<wire x1="167.64" y1="124.46" x2="167.64" y2="134.62" width="0.1524" layer="91" style="longdash"/>
+<pinref part="+3V17" gate="G$1" pin="+3V3"/>
+<wire x1="167.64" y1="134.62" x2="167.64" y2="140.97" width="0.1524" layer="91" style="longdash"/>
+<junction x="167.64" y="134.62"/>
 </segment>
 </net>
 <net name="OSC2" class="0">
@@ -17675,7 +17689,7 @@ Only if lower resistance is needed</text>
 </net>
 <net name="N$7" class="0">
 <segment>
-<pinref part="D2" gate="G$1" pin="K"/>
+<pinref part="D1" gate="G$1" pin="K"/>
 <wire x1="243.84" y1="182.88" x2="243.84" y2="185.42" width="0.1524" layer="91"/>
 <pinref part="R12" gate="G$1" pin="2"/>
 </segment>
@@ -17779,8 +17793,8 @@ Only if lower resistance is needed</text>
 </segment>
 <segment>
 <pinref part="μC" gate="G$1" pin="RP24/CN20/PMA5/RC8"/>
-<wire x1="17.78" y1="241.3" x2="12.7" y2="241.3" width="0.1524" layer="91"/>
-<label x="12.7" y="241.3" size="1.27" layer="95" rot="MR0" xref="yes"/>
+<wire x1="17.78" y1="241.3" x2="15.24" y2="241.3" width="0.1524" layer="91"/>
+<label x="15.24" y="241.3" size="1.27" layer="95" rot="MR0" xref="yes"/>
 </segment>
 </net>
 <net name="MA_OUT2" class="0">
@@ -17808,8 +17822,8 @@ Only if lower resistance is needed</text>
 </segment>
 <segment>
 <pinref part="μC" gate="G$1" pin="RP25/CN19/PMA6/RC9"/>
-<wire x1="17.78" y1="238.76" x2="12.7" y2="238.76" width="0.1524" layer="91"/>
-<label x="12.7" y="238.76" size="1.27" layer="95" rot="MR0" xref="yes"/>
+<wire x1="17.78" y1="238.76" x2="15.24" y2="238.76" width="0.1524" layer="91"/>
+<label x="15.24" y="238.76" size="1.27" layer="95" rot="MR0" xref="yes"/>
 </segment>
 </net>
 <net name="MB_OUT1" class="0">
@@ -18045,8 +18059,8 @@ Only if lower resistance is needed</text>
 <net name="I2C_SCL" class="0">
 <segment>
 <pinref part="IMU_2" gate="A" pin="4"/>
-<wire x1="173.482" y1="124.46" x2="173.482" y2="129.54" width="0.1524" layer="91"/>
-<label x="173.482" y="129.54" size="1.27" layer="95" rot="R90" xref="yes"/>
+<wire x1="181.102" y1="124.46" x2="181.102" y2="129.54" width="0.1524" layer="91"/>
+<label x="181.102" y="129.54" size="1.27" layer="95" rot="R90" xref="yes"/>
 </segment>
 <segment>
 <pinref part="μC" gate="G$1" pin="SCL1/RP8/CN22/PMD4/RB8"/>
@@ -18067,8 +18081,8 @@ Only if lower resistance is needed</text>
 <net name="I2C_SDA" class="0">
 <segment>
 <pinref part="IMU_2" gate="A" pin="5"/>
-<wire x1="176.022" y1="124.46" x2="176.022" y2="129.54" width="0.1524" layer="91"/>
-<label x="176.022" y="129.54" size="1.27" layer="95" rot="R90" xref="yes"/>
+<wire x1="183.642" y1="124.46" x2="183.642" y2="129.54" width="0.1524" layer="91"/>
+<label x="183.642" y="129.54" size="1.27" layer="95" rot="R90" xref="yes"/>
 </segment>
 <segment>
 <pinref part="μC" gate="G$1" pin="SDA1/RP9/CN21/PMD3/RB9"/>
@@ -18089,8 +18103,8 @@ Only if lower resistance is needed</text>
 <net name="IMU_INT" class="0">
 <segment>
 <pinref part="IMU_2" gate="A" pin="6"/>
-<wire x1="178.562" y1="124.46" x2="178.562" y2="129.54" width="0.1524" layer="91"/>
-<label x="178.562" y="129.54" size="1.27" layer="95" rot="R90" xref="yes"/>
+<wire x1="186.182" y1="124.46" x2="186.182" y2="129.54" width="0.1524" layer="91"/>
+<label x="186.182" y="129.54" size="1.27" layer="95" rot="R90" xref="yes"/>
 </segment>
 <segment>
 <pinref part="μC" gate="G$1" pin="INT0/RP7/CN23/PMD5/RB7"/>

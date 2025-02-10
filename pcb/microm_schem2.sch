@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="mm" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="2" name="Route2" color="1" fill="3" visible="no" active="no"/>
@@ -16390,7 +16390,7 @@ mode, 19.55 kHz for Center-Aligned mode&lt;br&gt;
 <part name="T5V" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X1" device="" package3d_urn="urn:adsk.eagle:package:22485/2"/>
 <part name="T3.3V" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X1" device="" package3d_urn="urn:adsk.eagle:package:22485/2"/>
 <part name="TGND" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X1" device="" package3d_urn="urn:adsk.eagle:package:22485/2"/>
-<part name="I2C" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X4" device="" package3d_urn="urn:adsk.eagle:package:22407/2"/>
+<part name="OLED" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X4" device="" package3d_urn="urn:adsk.eagle:package:22407/2"/>
 <part name="GND19" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
 <part name="+3V18" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="+3V3" device=""/>
 <part name="GND34" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
@@ -16438,6 +16438,7 @@ mode, 19.55 kHz for Center-Aligned mode&lt;br&gt;
 <part name="R6" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="R0805" package3d_urn="urn:adsk.eagle:package:23553/2" value="680Ω"/>
 <part name="LED4" library="led" library_urn="urn:adsk.eagle:library:259" deviceset="LED" device="CHIPLED_0805" package3d_urn="urn:adsk.eagle:package:15821/2" value="red, 2mA, 2.1V"/>
 <part name="R7" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="R0805" package3d_urn="urn:adsk.eagle:package:23553/2" value="680Ω"/>
+<part name="C24" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C0805" package3d_urn="urn:adsk.eagle:package:23617/2" value="1uF"/>
 </parts>
 <sheets>
 <sheet>
@@ -16447,7 +16448,6 @@ mode, 19.55 kHz for Center-Aligned mode&lt;br&gt;
 <text x="162.56" y="256.54" size="2.54" layer="97">Program Header</text>
 <text x="208.28" y="213.36" size="2.54" layer="97">Reset Switch</text>
 <text x="279.4" y="187.96" size="2.54" layer="97">Distance Sensors</text>
-<text x="-137.16" y="111.76" size="2.54" layer="91">TODO:</text>
 <text x="-15.24" y="177.8" size="2.54" layer="97">Motor Control</text>
 <text x="124.46" y="45.72" size="1.778" layer="97">ceramic low-ESR decoupling capacitors</text>
 <text x="-91.44" y="109.22" size="2.54" layer="97">Linear Voltage Regulator</text>
@@ -16499,26 +16499,26 @@ mode, 19.55 kHz for Center-Aligned mode&lt;br&gt;
 <wire x1="266.7" y1="68.58" x2="203.2" y2="68.58" width="0.1524" layer="97" style="longdash"/>
 <wire x1="203.2" y1="68.58" x2="203.2" y2="114.3" width="0.1524" layer="97" style="longdash"/>
 <wire x1="-22.86" y1="261.62" x2="-22.86" y2="187.96" width="0.1524" layer="97" style="longdash"/>
-<wire x1="-22.86" y1="187.96" x2="-127" y2="187.96" width="0.1524" layer="97" style="longdash"/>
-<wire x1="-127" y1="187.96" x2="-127" y2="261.62" width="0.1524" layer="97" style="longdash"/>
-<wire x1="-127" y1="261.62" x2="-22.86" y2="261.62" width="0.1524" layer="97" style="longdash"/>
+<wire x1="-22.86" y1="187.96" x2="-137.16" y2="187.96" width="0.1524" layer="97" style="longdash"/>
+<wire x1="-137.16" y1="187.96" x2="-137.16" y2="261.62" width="0.1524" layer="97" style="longdash"/>
+<wire x1="-137.16" y1="261.62" x2="-22.86" y2="261.62" width="0.1524" layer="97" style="longdash"/>
 <text x="-124.46" y="256.54" size="2.54" layer="97">UART</text>
-<wire x1="-22.86" y1="182.88" x2="-22.86" y2="119.38" width="0.1524" layer="97" style="longdash"/>
-<wire x1="-22.86" y1="119.38" x2="-127" y2="119.38" width="0.1524" layer="97" style="longdash"/>
-<wire x1="-127" y1="119.38" x2="-127" y2="182.88" width="0.1524" layer="97" style="longdash"/>
-<wire x1="-127" y1="182.88" x2="-22.86" y2="182.88" width="0.1524" layer="97" style="longdash"/>
-<text x="-124.46" y="177.8" size="2.54" layer="97">Debug Interfaces</text>
 <text x="114.3" y="86.36" size="1.27" layer="97">2x uC (AVdd/VCAP is separate), 2x QEA</text>
 <text x="106.68" y="170.18" size="1.27" layer="97">Note: Reversed Voltage and QEI PINs 
 as wheel is mounted in reverse position.</text>
-<text x="-45.72" y="180.34" size="1.778" layer="97" rot="R270">I2C Pull-Up Resistors
-Only in case lower resistance is needed</text>
+<text x="241.808" y="157.988" size="1.778" layer="97" rot="R270">I2C Pull-Up Resistors
+Only if lower resistance is needed</text>
 <wire x1="274.32" y1="195.58" x2="274.32" y2="116.84" width="0.1524" layer="97" style="longdash"/>
 <wire x1="274.32" y1="114.3" x2="274.32" y2="68.58" width="0.1524" layer="97" style="longdash"/>
 <wire x1="274.32" y1="68.58" x2="368.3" y2="68.58" width="0.1524" layer="97" style="longdash"/>
 <wire x1="368.3" y1="68.58" x2="368.3" y2="114.3" width="0.1524" layer="97" style="longdash"/>
 <wire x1="368.3" y1="114.3" x2="274.32" y2="114.3" width="0.1524" layer="97" style="longdash"/>
 <text x="279.4" y="109.22" size="2.54" layer="97">Mounting Holes (Sensors / Motors)</text>
+<wire x1="203.2" y1="119.38" x2="203.2" y2="160.02" width="0.1524" layer="97" style="longdash"/>
+<wire x1="203.2" y1="160.02" x2="266.7" y2="160.02" width="0.1524" layer="97" style="longdash"/>
+<wire x1="266.7" y1="160.02" x2="266.7" y2="119.38" width="0.1524" layer="97" style="longdash"/>
+<wire x1="266.7" y1="119.38" x2="203.2" y2="119.38" width="0.1524" layer="97" style="longdash"/>
+<text x="205.74" y="154.94" size="2.54" layer="97">OLED Display</text>
 </plain>
 <instances>
 <instance part="UC" gate="G$1" x="68.58" y="223.52" smashed="yes">
@@ -16715,11 +16715,11 @@ Only in case lower resistance is needed</text>
 <attribute name="NAME" x="-46.99" y="259.08" size="1.778" layer="95" align="center-left"/>
 <attribute name="VALUE" x="-46.99" y="256.54" size="1.778" layer="96" align="center-left"/>
 </instance>
-<instance part="+3V6" gate="G$1" x="-88.9" y="160.02" smashed="yes" rot="R90">
-<attribute name="VALUE" x="-86.36" y="157.48" size="1.778" layer="96" rot="R180"/>
+<instance part="+3V6" gate="G$1" x="-129.54" y="195.58" smashed="yes" rot="R90">
+<attribute name="VALUE" x="-127" y="193.04" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="GND10" gate="1" x="-91.44" y="162.56" smashed="yes" rot="R270">
-<attribute name="VALUE" x="-93.98" y="165.1" size="1.778" layer="96" rot="R270"/>
+<instance part="GND10" gate="1" x="-132.08" y="198.12" smashed="yes" rot="R270">
+<attribute name="VALUE" x="-134.62" y="200.66" size="1.778" layer="96" rot="R270"/>
 </instance>
 <instance part="+3V14" gate="G$1" x="-33.02" y="205.74" smashed="yes" rot="R270">
 <attribute name="VALUE" x="-35.56" y="200.66" size="1.778" layer="96"/>
@@ -16822,9 +16822,9 @@ Only in case lower resistance is needed</text>
 <instance part="GND32" gate="1" x="173.482" y="153.162" smashed="yes">
 <attribute name="VALUE" x="170.942" y="150.622" size="1.778" layer="96"/>
 </instance>
-<instance part="UART" gate="A" x="-68.58" y="162.56" smashed="yes">
-<attribute name="NAME" x="-74.93" y="170.815" size="1.778" layer="95"/>
-<attribute name="VALUE" x="-74.93" y="154.94" size="1.778" layer="96"/>
+<instance part="UART" gate="A" x="-109.22" y="198.12" smashed="yes">
+<attribute name="NAME" x="-115.57" y="206.375" size="1.778" layer="95"/>
+<attribute name="VALUE" x="-115.57" y="190.5" size="1.778" layer="96"/>
 </instance>
 <instance part="R2" gate="G$1" x="10.16" y="73.66" smashed="yes" rot="R270">
 <attribute name="NAME" x="13.4366" y="70.612" size="1.778" layer="95" rot="R90"/>
@@ -16862,15 +16862,15 @@ Only in case lower resistance is needed</text>
 <attribute name="NAME" x="-82.55" y="47.625" size="1.778" layer="95" rot="R180"/>
 <attribute name="VALUE" x="-82.55" y="55.88" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="I2C" gate="A" x="-101.6" y="162.56" smashed="yes">
-<attribute name="NAME" x="-107.95" y="170.815" size="1.778" layer="95"/>
-<attribute name="VALUE" x="-107.95" y="154.94" size="1.778" layer="96"/>
+<instance part="OLED" gate="A" x="226.06" y="137.16" smashed="yes">
+<attribute name="NAME" x="219.71" y="145.415" size="1.778" layer="95"/>
+<attribute name="VALUE" x="219.71" y="129.54" size="1.778" layer="96"/>
 </instance>
-<instance part="GND19" gate="1" x="-119.38" y="162.56" smashed="yes" rot="R270">
-<attribute name="VALUE" x="-121.92" y="165.1" size="1.778" layer="96" rot="R270"/>
+<instance part="GND19" gate="1" x="218.44" y="149.86" smashed="yes" rot="R180">
+<attribute name="VALUE" x="220.98" y="152.4" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="+3V18" gate="G$1" x="-116.84" y="160.02" smashed="yes" rot="R90">
-<attribute name="VALUE" x="-114.3" y="157.48" size="1.778" layer="96" rot="R180"/>
+<instance part="+3V18" gate="G$1" x="205.994" y="149.86" smashed="yes">
+<attribute name="VALUE" x="209.55" y="152.146" size="1.778" layer="96" rot="R180"/>
 </instance>
 <instance part="GND34" gate="1" x="83.82" y="129.54" smashed="yes" rot="R90">
 <attribute name="VALUE" x="86.36" y="127" size="1.778" layer="96" rot="R90"/>
@@ -16924,9 +16924,9 @@ Only in case lower resistance is needed</text>
 <instance part="P+4" gate="1" x="302.26" y="142.24" smashed="yes" rot="R90">
 <attribute name="VALUE" x="300.99" y="140.716" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="RX_SEL" gate="A" x="-119.38" y="198.12" smashed="yes" rot="MR0">
-<attribute name="NAME" x="-113.03" y="203.835" size="1.778" layer="95" rot="MR0"/>
-<attribute name="VALUE" x="-113.03" y="190.5" size="1.778" layer="96" rot="MR0"/>
+<instance part="RX_SEL" gate="A" x="-101.6" y="198.12" smashed="yes" rot="MR0">
+<attribute name="NAME" x="-95.25" y="203.835" size="1.778" layer="95" rot="MR0"/>
+<attribute name="VALUE" x="-95.25" y="190.5" size="1.778" layer="96" rot="MR0"/>
 </instance>
 <instance part="BT_RST" gate="G$1" x="-66.04" y="193.04" smashed="yes" rot="R270">
 <attribute name="NAME" x="-67.945" y="189.23" size="1.778" layer="95"/>
@@ -16935,19 +16935,19 @@ Only in case lower resistance is needed</text>
 <instance part="GND22" gate="1" x="-12.7" y="215.9" smashed="yes" rot="R180">
 <attribute name="VALUE" x="-10.16" y="218.44" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="R9" gate="G$1" x="-35.56" y="162.56" smashed="yes" rot="R270">
-<attribute name="NAME" x="-34.0614" y="166.37" size="1.778" layer="95" rot="R270"/>
-<attribute name="VALUE" x="-38.862" y="166.37" size="1.778" layer="96" rot="R270"/>
+<instance part="R9" gate="G$1" x="251.968" y="143.002" smashed="yes" rot="R270">
+<attribute name="NAME" x="253.4666" y="146.812" size="1.778" layer="95" rot="R270"/>
+<attribute name="VALUE" x="248.666" y="146.812" size="1.778" layer="96" rot="R270"/>
 </instance>
-<instance part="R10" gate="G$1" x="-27.94" y="162.56" smashed="yes" rot="R270">
-<attribute name="NAME" x="-26.4414" y="166.37" size="1.778" layer="95" rot="R270"/>
-<attribute name="VALUE" x="-31.242" y="166.37" size="1.778" layer="96" rot="R270"/>
+<instance part="R10" gate="G$1" x="259.588" y="143.002" smashed="yes" rot="R270">
+<attribute name="NAME" x="261.0866" y="146.812" size="1.778" layer="95" rot="R270"/>
+<attribute name="VALUE" x="256.286" y="146.812" size="1.778" layer="96" rot="R270"/>
 </instance>
-<instance part="+3V12" gate="G$1" x="-35.56" y="175.26" smashed="yes">
-<attribute name="VALUE" x="-38.1" y="172.72" size="1.778" layer="96" rot="R90"/>
+<instance part="+3V12" gate="G$1" x="251.968" y="155.702" smashed="yes">
+<attribute name="VALUE" x="249.428" y="153.162" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="+3V23" gate="G$1" x="-27.94" y="175.26" smashed="yes">
-<attribute name="VALUE" x="-30.48" y="172.72" size="1.778" layer="96" rot="R90"/>
+<instance part="+3V23" gate="G$1" x="259.588" y="155.702" smashed="yes">
+<attribute name="VALUE" x="257.048" y="153.162" size="1.778" layer="96" rot="R90"/>
 </instance>
 <instance part="R8" gate="G$1" x="-109.22" y="238.76" smashed="yes" rot="R270">
 <attribute name="NAME" x="-107.7214" y="242.57" size="1.778" layer="95" rot="R270"/>
@@ -17025,6 +17025,10 @@ Only in case lower resistance is needed</text>
 <instance part="R7" gate="G$1" x="246.38" y="96.52" smashed="yes" rot="R270">
 <attribute name="NAME" x="247.8786" y="100.33" size="1.778" layer="95" rot="R270"/>
 <attribute name="VALUE" x="243.078" y="100.33" size="1.778" layer="96" rot="R270"/>
+</instance>
+<instance part="C24" gate="G$1" x="210.82" y="144.78" smashed="yes" rot="R90">
+<attribute name="NAME" x="210.185" y="147.574" size="1.778" layer="95"/>
+<attribute name="VALUE" x="210.439" y="140.716" size="1.778" layer="96"/>
 </instance>
 </instances>
 <busses>
@@ -17192,12 +17196,7 @@ Only in case lower resistance is needed</text>
 <segment>
 <pinref part="GND10" gate="1" pin="GND"/>
 <pinref part="UART" gate="A" pin="3"/>
-<wire x1="-88.9" y1="162.56" x2="-71.12" y2="162.56" width="0.1524" layer="91"/>
-</segment>
-<segment>
-<pinref part="I2C" gate="A" pin="3"/>
-<pinref part="GND19" gate="1" pin="GND"/>
-<wire x1="-104.14" y1="162.56" x2="-116.84" y2="162.56" width="0.1524" layer="91"/>
+<wire x1="-129.54" y1="198.12" x2="-111.76" y2="198.12" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="GND34" gate="1" pin="GND"/>
@@ -17327,6 +17326,15 @@ Only in case lower resistance is needed</text>
 <pinref part="GND20" gate="1" pin="GND"/>
 <wire x1="-12.7" y1="236.22" x2="-12.7" y2="238.76" width="0.1524" layer="91"/>
 <junction x="-12.7" y="236.22"/>
+</segment>
+<segment>
+<pinref part="GND19" gate="1" pin="GND"/>
+<pinref part="OLED" gate="A" pin="1"/>
+<wire x1="218.44" y1="147.32" x2="218.44" y2="142.24" width="0.1524" layer="91"/>
+<pinref part="C24" gate="G$1" pin="2"/>
+<wire x1="218.44" y1="142.24" x2="223.52" y2="142.24" width="0.1524" layer="91"/>
+<wire x1="215.9" y1="144.78" x2="215.9" y2="142.24" width="0.1524" layer="91"/>
+<wire x1="215.9" y1="142.24" x2="218.44" y2="142.24" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="OSC1" class="0">
@@ -17489,12 +17497,7 @@ Only in case lower resistance is needed</text>
 <segment>
 <pinref part="+3V6" gate="G$1" pin="+3V3"/>
 <pinref part="UART" gate="A" pin="4"/>
-<wire x1="-86.36" y1="160.02" x2="-71.12" y2="160.02" width="0.1524" layer="91"/>
-</segment>
-<segment>
-<pinref part="I2C" gate="A" pin="4"/>
-<pinref part="+3V18" gate="G$1" pin="+3V3"/>
-<wire x1="-104.14" y1="160.02" x2="-114.3" y2="160.02" width="0.1524" layer="91"/>
+<wire x1="-127" y1="195.58" x2="-111.76" y2="195.58" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <wire x1="66.04" y1="129.54" x2="66.04" y2="139.7" width="0.1524" layer="91"/>
@@ -17524,12 +17527,12 @@ Only in case lower resistance is needed</text>
 <segment>
 <pinref part="R9" gate="G$1" pin="1"/>
 <pinref part="+3V12" gate="G$1" pin="+3V3"/>
-<wire x1="-35.56" y1="167.64" x2="-35.56" y2="172.72" width="0.1524" layer="91"/>
+<wire x1="251.968" y1="148.082" x2="251.968" y2="153.162" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="R10" gate="G$1" pin="1"/>
 <pinref part="+3V23" gate="G$1" pin="+3V3"/>
-<wire x1="-27.94" y1="167.64" x2="-27.94" y2="172.72" width="0.1524" layer="91"/>
+<wire x1="259.588" y1="148.082" x2="259.588" y2="153.162" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="+3V8" gate="G$1" pin="+3V3"/>
@@ -17545,6 +17548,16 @@ Only in case lower resistance is needed</text>
 <pinref part="BT_CON" gate="G$1" pin="A"/>
 <pinref part="+3V15" gate="G$1" pin="+3V3"/>
 <wire x1="-109.22" y1="223.52" x2="-109.22" y2="220.98" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="+3V18" gate="G$1" pin="+3V3"/>
+<pinref part="OLED" gate="A" pin="2"/>
+<wire x1="205.994" y1="147.32" x2="205.994" y2="139.7" width="0.1524" layer="91"/>
+<wire x1="205.994" y1="139.7" x2="208.28" y2="139.7" width="0.1524" layer="91"/>
+<pinref part="C24" gate="G$1" pin="1"/>
+<wire x1="208.28" y1="139.7" x2="223.52" y2="139.7" width="0.1524" layer="91"/>
+<wire x1="208.28" y1="144.78" x2="208.28" y2="139.7" width="0.1524" layer="91"/>
+<junction x="208.28" y="139.7"/>
 </segment>
 </net>
 <net name="OSC2" class="0">
@@ -17604,8 +17617,8 @@ Only in case lower resistance is needed</text>
 </net>
 <net name="UART_TX" class="0">
 <segment>
-<wire x1="-71.12" y1="165.1" x2="-78.74" y2="165.1" width="0.1524" layer="91"/>
-<label x="-78.74" y="165.1" size="1.27" layer="95" rot="MR0" xref="yes"/>
+<wire x1="-111.76" y1="200.66" x2="-119.38" y2="200.66" width="0.1524" layer="91"/>
+<label x="-119.38" y="200.66" size="1.27" layer="95" rot="MR0" xref="yes"/>
 <pinref part="UART" gate="A" pin="2"/>
 </segment>
 <segment>
@@ -17622,8 +17635,8 @@ Only in case lower resistance is needed</text>
 <net name="UART_RX" class="0">
 <segment>
 <pinref part="RX_SEL" gate="A" pin="2"/>
-<wire x1="-116.84" y1="198.12" x2="-109.22" y2="198.12" width="0.1524" layer="91"/>
-<label x="-109.22" y="198.12" size="1.27" layer="95" xref="yes"/>
+<wire x1="-99.06" y1="198.12" x2="-91.44" y2="198.12" width="0.1524" layer="91"/>
+<label x="-91.44" y="198.12" size="1.27" layer="95" xref="yes"/>
 </segment>
 <segment>
 <pinref part="UC" gate="G$1" pin="RP20/CN25/PMA4/RC4"/>
@@ -18012,14 +18025,14 @@ Only in case lower resistance is needed</text>
 <label x="116.84" y="248.92" size="1.27" layer="95" xref="yes"/>
 </segment>
 <segment>
-<pinref part="I2C" gate="A" pin="1"/>
-<wire x1="-104.14" y1="167.64" x2="-109.22" y2="167.64" width="0.1524" layer="91"/>
-<label x="-109.22" y="167.64" size="1.27" layer="95" rot="R180" xref="yes"/>
+<pinref part="R9" gate="G$1" pin="2"/>
+<wire x1="251.968" y1="137.922" x2="251.968" y2="130.302" width="0.1524" layer="91"/>
+<label x="251.968" y="130.302" size="1.27" layer="95" rot="R270" xref="yes"/>
 </segment>
 <segment>
-<pinref part="R9" gate="G$1" pin="2"/>
-<wire x1="-35.56" y1="157.48" x2="-35.56" y2="149.86" width="0.1524" layer="91"/>
-<label x="-35.56" y="149.86" size="1.27" layer="95" rot="R270" xref="yes"/>
+<pinref part="OLED" gate="A" pin="3"/>
+<wire x1="223.52" y1="137.16" x2="218.44" y2="137.16" width="0.1524" layer="91"/>
+<label x="218.44" y="137.16" size="1.27" layer="95" rot="R180" xref="yes"/>
 </segment>
 </net>
 <net name="I2C_SDA" class="0">
@@ -18034,14 +18047,14 @@ Only in case lower resistance is needed</text>
 <label x="15.24" y="248.92" size="1.27" layer="95" rot="R180" xref="yes"/>
 </segment>
 <segment>
-<pinref part="I2C" gate="A" pin="2"/>
-<wire x1="-104.14" y1="165.1" x2="-109.22" y2="165.1" width="0.1524" layer="91"/>
-<label x="-109.22" y="165.1" size="1.27" layer="95" rot="R180" xref="yes"/>
+<pinref part="R10" gate="G$1" pin="2"/>
+<wire x1="259.588" y1="137.922" x2="259.588" y2="130.302" width="0.1524" layer="91"/>
+<label x="259.588" y="130.302" size="1.27" layer="95" rot="R270" xref="yes"/>
 </segment>
 <segment>
-<pinref part="R10" gate="G$1" pin="2"/>
-<wire x1="-27.94" y1="157.48" x2="-27.94" y2="149.86" width="0.1524" layer="91"/>
-<label x="-27.94" y="149.86" size="1.27" layer="95" rot="R270" xref="yes"/>
+<pinref part="OLED" gate="A" pin="4"/>
+<wire x1="223.52" y1="134.62" x2="218.44" y2="134.62" width="0.1524" layer="91"/>
+<label x="218.44" y="134.62" size="1.27" layer="95" rot="R180" xref="yes"/>
 </segment>
 </net>
 <net name="IMU_INT" class="0">
@@ -18132,8 +18145,8 @@ Only in case lower resistance is needed</text>
 <net name="UART_BT_RX" class="0">
 <segment>
 <pinref part="RX_SEL" gate="A" pin="1"/>
-<wire x1="-116.84" y1="200.66" x2="-109.22" y2="200.66" width="0.1524" layer="91"/>
-<label x="-109.22" y="200.66" size="1.27" layer="95" xref="yes"/>
+<wire x1="-99.06" y1="200.66" x2="-91.44" y2="200.66" width="0.1524" layer="91"/>
+<label x="-91.44" y="200.66" size="1.27" layer="95" xref="yes"/>
 </segment>
 <segment>
 <wire x1="-76.2" y1="233.68" x2="-78.74" y2="233.68" width="0.1524" layer="91"/>
@@ -18144,12 +18157,12 @@ Only in case lower resistance is needed</text>
 <net name="UART_DBG_RX" class="0">
 <segment>
 <pinref part="RX_SEL" gate="A" pin="3"/>
-<wire x1="-116.84" y1="195.58" x2="-109.22" y2="195.58" width="0.1524" layer="91"/>
-<label x="-109.22" y="195.58" size="1.27" layer="95" xref="yes"/>
+<wire x1="-99.06" y1="195.58" x2="-91.44" y2="195.58" width="0.1524" layer="91"/>
+<label x="-91.44" y="195.58" size="1.27" layer="95" xref="yes"/>
 </segment>
 <segment>
-<wire x1="-71.12" y1="167.64" x2="-78.74" y2="167.64" width="0.1524" layer="91"/>
-<label x="-78.74" y="167.64" size="1.27" layer="95" rot="MR0" xref="yes"/>
+<wire x1="-111.76" y1="203.2" x2="-119.38" y2="203.2" width="0.1524" layer="91"/>
+<label x="-119.38" y="203.2" size="1.27" layer="95" rot="MR0" xref="yes"/>
 <pinref part="UART" gate="A" pin="1"/>
 </segment>
 </net>

@@ -17363,13 +17363,14 @@ Only if lower resistance is needed</text>
 <junction x="-12.7" y="236.22"/>
 </segment>
 <segment>
-<pinref part="GND19" gate="1" pin="GND"/>
 <pinref part="OLED" gate="A" pin="1"/>
-<wire x1="218.44" y1="147.32" x2="218.44" y2="142.24" width="0.1524" layer="91"/>
 <pinref part="C24" gate="G$1" pin="2"/>
+<wire x1="215.9" y1="142.24" x2="218.44" y2="142.24" width="0.1524" layer="91"/>
 <wire x1="218.44" y1="142.24" x2="223.52" y2="142.24" width="0.1524" layer="91"/>
 <wire x1="215.9" y1="144.78" x2="215.9" y2="142.24" width="0.1524" layer="91"/>
-<wire x1="215.9" y1="142.24" x2="218.44" y2="142.24" width="0.1524" layer="91"/>
+<pinref part="GND19" gate="1" pin="GND"/>
+<wire x1="218.44" y1="147.32" x2="218.44" y2="142.24" width="0.1524" layer="91"/>
+<junction x="218.44" y="142.24"/>
 </segment>
 </net>
 <net name="OSC1" class="0">
@@ -18387,30 +18388,32 @@ Only if lower resistance is needed</text>
 <approved hash="102,1,45.72,132.08,V+,+7V4,,,,"/>
 <approved hash="102,1,63.5,152.4,V+,+7V4,,,,"/>
 <approved hash="102,1,-55.88,86.36,V+,+7V4,,,,"/>
-<approved hash="104,1,17.78,236.22,UC,VSS,GND,,,"/>
-<approved hash="104,1,17.78,210.82,UC,AVSS,GND,,,"/>
-<approved hash="104,1,17.78,208.28,UC,AVDD,N$5,,,"/>
-<approved hash="104,1,114.3,208.28,UC,VDD,+3V3,,,"/>
-<approved hash="104,1,114.3,210.82,UC,VSS1,GND,,,"/>
-<approved hash="104,1,114.3,236.22,UC,VSS2,GND,,,"/>
-<approved hash="104,1,114.3,238.76,UC,VDD1,+3V3,,,"/>
+<approved hash="104,1,17.78,236.22,μC,VSS,GND,,,"/>
+<approved hash="104,1,17.78,210.82,μC,AVSS,GND,,,"/>
+<approved hash="104,1,17.78,208.28,μC,AVDD,N$5,,,"/>
+<approved hash="104,1,114.3,208.28,μC,VDD,+3V3,,,"/>
+<approved hash="104,1,114.3,210.82,μC,VSS1,GND,,,"/>
+<approved hash="104,1,114.3,236.22,μC,VSS2,GND,,,"/>
+<approved hash="104,1,114.3,238.76,μC,VDD1,+3V3,,,"/>
 <approved hash="104,1,-78.74,68.58,BAT,+,N$2,,,"/>
 <approved hash="104,1,-78.74,63.5,BAT,-,GND,,,"/>
-<approved hash="113,1,337.414,141.196,SENS_DIST_1,,,,,"/>
-<approved hash="113,1,337.414,153.896,SENS_DIST_2,,,,,"/>
-<approved hash="113,1,337.414,166.596,SENS_DIST_3,,,,,"/>
-<approved hash="113,1,170.716,160.257,IMU_1,,,,,"/>
-<approved hash="113,1,170.716,124.223,IMU_2,,,,,"/>
-<approved hash="113,1,-70.8829,165.326,UART,,,,,"/>
-<approved hash="113,1,-64.9961,96.7571,T7.4V,,,,,"/>
-<approved hash="113,1,1.04394,96.7571,T5V,,,,,"/>
-<approved hash="113,1,74.7039,96.7571,T3.3V,,,,,"/>
-<approved hash="113,1,-86.5971,49.3039,TGND,,,,,"/>
-<approved hash="113,1,-103.903,165.326,I2C,,,,,"/>
-<approved hash="113,1,167.702,244.066,UC_PROG,,,,,"/>
-<approved hash="113,1,-117.908,199.616,RX_SEL,,,,,"/>
-<approved hash="113,1,-63.1898,194.268,BT_RST,,,,,"/>
-<approved hash="113,1,-61.9892,214.588,BT_PROG,,,,,"/>
+<approved hash="113,1,314.554,141.166,SENS_DIST_1,,,,,"/>
+<approved hash="113,1,314.554,153.866,SENS_DIST_2,,,,,"/>
+<approved hash="113,1,314.554,166.566,SENS_DIST_3,,,,,"/>
+<approved hash="113,1,178.366,160.257,IMU_1,,,,,"/>
+<approved hash="113,1,178.366,124.223,IMU_2,,,,,"/>
+<approved hash="113,1,-111.523,200.856,UART,,,,,"/>
+<approved hash="113,1,-64.9656,96.7571,T7.4V,,,,,"/>
+<approved hash="113,1,1.07442,96.7571,T5V,,,,,"/>
+<approved hash="113,1,74.7344,96.7571,T3.3V,,,,,"/>
+<approved hash="113,1,-86.5971,49.3344,TGND,,,,,"/>
+<approved hash="113,1,223.757,139.896,OLED,,,,,"/>
+<approved hash="113,1,167.702,244.036,UC_PROG,,,,,"/>
+<approved hash="113,1,-100.128,199.586,RX_SEL,,,,,"/>
+<approved hash="113,1,-63.2203,194.268,BT_RST,,,,,"/>
+<approved hash="113,1,-62.0197,214.588,BT_PROG,,,,,"/>
+<approved hash="113,1,-86.5971,169.106,GPIO1,,,,,"/>
+<approved hash="113,1,-63.7371,170.535,GPIO2,,,,,"/>
 </errors>
 </schematic>
 </drawing>

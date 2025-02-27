@@ -3,9 +3,8 @@
 #include <xc.h>
 void setupPWM()
 {
-    /* PWM1H1 *, configured to 1kHz, based on fcyc = 26.666 MIPS, Tcycle=37.5nsec/
-     * 1ms/37.5nsec = 26666.666 ==> 26666 (fits in 15 bits)
-     * for the  7.3728MHz crystal: fcyc = 26.73 MIPS => (1ms)/(1/26.73MIPS) = 26730
+    /* PWM1H1 *, configured to 1kHz, based on fcyc = 40.000 MIPS, Tcycle=25nsec
+     * 1ms/25nsec = 40000 (fits in 15 bits)
      * of course, we could use a pre-scaler and end up somewhere else
      */
     P1TCONbits.PTEN = 0; // Switch off PWM generator
@@ -21,7 +20,7 @@ void setupPWM()
     PWM1CON1bits.PEN3L = 0; // disable PWM driver
 
     P1TCONbits.PTEN = 1; // Switch on PWM generator
-    // P1DC1 = .1*MYPWM_MAX; //to get 100% DC, you need to write twice the PER Value (2*26666)
+    // P1DC1 = .1*MYPWM_MAX; //to get 100% DC, you need to write twice the PER Value (2*40000)
 
     // Leave channels disabled for now
     P1DC1 = 0;

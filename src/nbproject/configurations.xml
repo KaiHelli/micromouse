@@ -8,10 +8,11 @@
       <itemPath>myTimers.h</itemPath>
       <itemPath>serialComms.h</itemPath>
       <itemPath>myPWM.h</itemPath>
-      <itemPath>conf.h</itemPath>
       <itemPath>motorEncoders.h</itemPath>
       <itemPath>adc.h</itemPath>
       <itemPath>dma.h</itemPath>
+      <itemPath>clock.h</itemPath>
+      <itemPath>i2c.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -33,6 +34,8 @@
       <itemPath>motorEncoders.c</itemPath>
       <itemPath>adc.c</itemPath>
       <itemPath>dma.c</itemPath>
+      <itemPath>clock.c</itemPath>
+      <itemPath>i2c.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
@@ -40,7 +43,7 @@
     <conf name="default" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
-        <targetDevice>dsPIC33FJ128MC802</targetDevice>
+        <targetDevice>dsPIC33FJ64MC804</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
         <platformTool>Simulator</platformTool>

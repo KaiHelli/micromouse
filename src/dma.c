@@ -3,11 +3,9 @@
 
 unsigned int adcData[32]__attribute__((space(dma)));
 
-
 void initDmaChannel4(void)
 {
-
-	//DMA4CON		= 0x;
+	//DMA4CON
 	DMA4CONbits.CHEN 	= 0;	// Disable channel
 	DMA4CONbits.SIZE 	= 0;	// Data transfer size (1=byte,0=word)
 	DMA4CONbits.DIR		= 0;	// Transfer direction (1=read RAM,write to Periph. 0= read from periph, write to RAM)
@@ -19,9 +17,9 @@ void initDmaChannel4(void)
 	DMA4REQbits.FORCE	= 0;	// Force DMA Transfer (1=single DMA transfer,0=automatic initiated by DMA request)
 	DMA4REQbits.IRQSEL	= 13;	// DMA Peripheral IRQ number select (ADC1)
 
-	DMA4STA 	        = (__builtin_dmaoffset(&(adcData[0]))); // start address of DMA RAM
-	DMA4PAD 		= (volatile unsigned int) &ADC1BUF0;			// address of peripheral sfr (0x0300)
-	DMA4CNT			 = 1;	// we have 2 a2d  s/h channels for  measurement !!!CHANGE HERE!!!
+	DMA4STA 	        = (__builtin_dmaoffset(&(adcData[0])));     // start address of DMA RAM
+	DMA4PAD             = (volatile unsigned int) &ADC1BUF0;		// address of peripheral sfr (0x0300)
+	DMA4CNT             = 2;	// we have 3 a2d s/h channels for measurement !!!CHANGE HERE!!!
 
     // Interrupt settings
 	IFS2bits.DMA4IF 	= 0;	// Clear DMA interrupt

@@ -1,3 +1,4 @@
+#include "clock.h"
 #include "myTimers.h"
 #include "IOconfig.h"
 #include "motorEncoders.h"
@@ -139,8 +140,7 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
     const uint16_t prescaler_options[] = { 1, 8, 64, 256 };
 
     // Base frequency in Hz depending on the oscillator
-    // const uint32_t FCY = 26666666;
-    const uint32_t FCY = 26726400;
+    const uint32_t FCY = CLOCK_FCY;
 
     // Max count values for each type of timer
     const uint16_t max_count_16 = 0xffff; // 2^16 - 1 = 65_535
@@ -222,15 +222,15 @@ void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void)
 
     if (count1 == 5) {
         count1 = 0;
-        LED5 = ~LED5;
+        LED1 = ~LED1;
     }
 
     if (count2 == 50) {
         count2 = 0;
-        LED4 = ~LED4;
+        LED2 = ~LED2;
     }
 
-    LED6 = ~LED6;
+    LED3 = ~LED3;
 }
 
 /* ISR for Timer2 */

@@ -39,12 +39,12 @@
 #pragma config PWMPIN = ON // Motor Control PWM Module Pin Mode bit (PWM module pins controlled by PORT register at device Reset)
 
 // FICD
-#pragma config ICS = PGD1 // Comm Channel Select (Communicate on PGC1/EMUC1 and PGD1/EMUD1)
+#pragma config ICS = PGD3 // Comm Channel Select (Communicate on PGC3/EMUC3 and PGD3/EMUD3)
 #pragma config JTAGEN = OFF // JTAG Port Enable (JTAG is Disabled)
 
 /// Include headers-------------------------------
 #include "IOconfig.h"
-#include "conf.h"
+#include "clock.h"
 #include "motorEncoders.h"
 #include "myPWM.h"
 #include "myTimers.h"
@@ -57,53 +57,13 @@
  */
 int16_t main()
 {
-    int16_t pinStatus;
-
-#if (SEVEN_MEG_OSC == 0)
-    /*** oscillator setup --------------------------------------------------
-    * The external oscillator runs at 16MHz
-    * PLL is used to generate 53.3 MHz clock (FOSC)
-    * The relationship between oscillator and cycle frequency: FCY = FOSC/2
-    * Have a look at "PLL Configuration" paragraph in the mcu manual
-
-    * Result: FCY = 0.5 * (16MHz*20/(3*2)) = 26.666 MIPS, Tcycle=37.5nsec
-   ---------------------------------------------------------------------***/
-    PLLFBDbits.PLLDIV = 18; // set PPL to M=20 (18+2)
-    CLKDIVbits.PLLPRE = 1; // N1 = input/3
-    CLKDIVbits.PLLPOST = 0; // N2 = output/2
-#else // Below the 7.3728 Setup
-
-    /*** oscillator setup --------------------------------------------------
-* The external oscillator runs at 7.3728 MHz
-* PLL is used to generate 53.3 MHz clock (FOSC)
-* The relationship between oscillator and cycle frequency: FCY = FOSC/2
-* Have a look at "PLL Configuration" paragraph in the mcu manual
-
-* Result: FCY = 0.5 * (7.3728 MHz*29/(2*2)) = 26.73 MIPS, which is
-     * not exactl Tcycle=37.5nsec, but close enough for our purposes
----------------------------------------------------------------------***/
-    PLLFBDbits.PLLDIV = 27; // set PPL to M=29 (27+2)
-    CLKDIVbits.PLLPRE = 0; // N1 = input/2
-    CLKDIVbits.PLLPOST = 0; // N2 = output/2
-#endif // SEVEN_MEG_OSC == 0
-
-    /* Clock switch to incorporate PLL*/
-    __builtin_write_OSCCONH(0x03); // Initiate Clock Switch to Primary
-
-    // Oscillator with PLL (NOSC=0b011)
-    __builtin_write_OSCCONL(OSCCON || 0x01); // Start clock switching
-
-    while (OSCCONbits.COSC != 0b011)
-        ;
-
-    // In reality, give some time to the PLL to lock
-    while (OSCCONbits.LOCK != 1)
-        ; // Wait for PPL to lock
-
+    setupClock(); // configures oscillator circuit
     setupIO(); // configures inputs and outputs
     setupUART1(); // configures UART
     setupPWM(); // configure PWM
+    
     initQEI1(0); // configure Quadrature Encoder 1
+    initQEI2(0); // configure Quadrature Encoder 1
 
     // initTimerInMs(10, 1); //creates a 10ms timer interrupt
     // startTimer1();
@@ -117,10 +77,11 @@ int16_t main()
     // initTimerInMs(250, 32); //creates a 10ms timer interrupt
     // startTimer32_combined();
 
+    LED1 = LEDOFF;
+    LED2 = LEDOFF;
+    LED3 = LEDOFF;
     LED4 = LEDOFF;
     LED5 = LEDOFF;
-    LED6 = LEDOFF;
-    LED7 = LEDOFF;
 
     while (1) {
     };

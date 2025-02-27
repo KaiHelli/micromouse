@@ -5,32 +5,67 @@ void setupIO()
 {
 
     int i;
-    AD1PCFGL = 0xFFFF; // all pins are now digital, by default they are analogue
+    
+    // set all pins to digital IO
+    AD1PCFGL = 0xFFFF;
+    
+    // NOTE: adc setup is done in adc.h / adc.c
+    // NOTE: pwm mapping is done in pwm.h / pwm.c
 
-    // set LEDs as output
+    // set motor directions as output
+    TRISAbits.TRISA7 = 0;
+    TRISAbits.TRISA10 = 0;
+    TRISAbits.TRISA0 = 0;
+    TRISAbits.TRISA1 = 0;
+    
+    // set motor standby as output
     TRISBbits.TRISB15 = 0;
-    TRISBbits.TRISB14 = 0;
-    TRISBbits.TRISB13 = 0;
+    
+    // set LEDs as output
+    TRISBbits.TRISB4 = 0;
+    TRISAbits.TRISA4 = 0;
+    TRISAbits.TRISA9 = 0;
+    TRISCbits.TRISC3 = 0;
+    TRISBbits.TRISB10 = 0;
+    
+    // set GPIO PINS as output
+    TRISBbits.TRISB11 = 0;
     TRISBbits.TRISB12 = 0;
-
-    TRISBbits.TRISB8 = 0; // UART1 TX
-
+    TRISCbits.TRISC1 = 0;
+    TRISCbits.TRISC2 = 0;
+    TRISAbits.TRISA8 = 0;
+    
+    // set UART1 TX as output
+    TRISCbits.TRISC5 = 0;
+    
     // PIN MAPPING
 
     // before we map, we need to unlock
     __builtin_write_OSCCONL(OSCCON & 0xbf); // clear bit 6 (unlock, they are usually write protected)
 
+    // BUTTON INTERRUPT MAPPING
+    
+    RPINR0bits.INT1R = 22; // mapped RP22 as External Interrupt 1    
+    
+    // UART MAPPING
+    
     // PERIPHERAL receives data from which INPUT
-    RPINR18bits.U1RXR = 9; // mapped to RP9 is U1 RX, CHANGE THIS
+    RPINR18bits.U1RXR = 20; // mapped RP20 as U1 RX
+    // PERIPHERAL sends data to which OUTPUT
+    RPOR10bits.RP21R = 0b00011; // mapped RP21 as U1 TX
+    
+    // QUADRATURE ENCODER MAPPING
+    
+    // PERIPHERAL QE1 Channel A, receives data from RP10
+    RPINR14bits.QEA1R = 24;
+    // PERIPHERAL QE1 Channel B, receives data from RP11
+    RPINR14bits.QEB1R = 25;
 
-    // PERIPHERAL QEA Encoder 1, receives data from RP10
-    RPINR14bits.QEA1R = 10;
-    // PERIPHERAL QEB Encoder 1, receives data from RP11
-    RPINR14bits.QEB1R = 11;
-
-    // OUTPUT PIN receives data from which PERIPHERAL,
-    // see table 11-2 in datasheet to check peripheral codes
-    RPOR4bits.RP8R = 0b00011; // output bin RP2 gets data from peripheral U1 TX
+    // PERIPHERAL QE2 Channel A, receives data from RP10
+    RPINR16bits.QEA2R = 0;
+    // PERIPHERAL QE2 Channel B, receives data from RP11
+    RPINR16bits.QEB2R = 1;
+    
 
     // after mapping we lock again
     __builtin_write_OSCCONL(OSCCON | 0x40); // Lock PPS registers (lock again!)

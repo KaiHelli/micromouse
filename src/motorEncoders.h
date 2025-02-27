@@ -12,6 +12,7 @@
 
 void initQEI1(unsigned int startPos);
 void initQEI2(unsigned int startPos);
+
 float getPositionInRad();
 // float getVelocityInRadPerSecond();
 long getPositionInCounts_1();

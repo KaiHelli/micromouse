@@ -31,18 +31,10 @@
 #ifndef __MYPWM_H__
 #define __MYPWM_H__
 
-#include "conf.h"
 #include <xc.h> // include processor files - each processor file is guarded.
+#include "clock.h"
 
-#if (SEVEN_MEG_OSC == 0)
-
-#define MYPWM_MAX (2 * 26666L) // 16 MHz crystal
-
-#else // Below the 7.3728 Setup
-
-#define MYPWM_MAX (2 * 26730L) //  7.3728MHz crystal
-
-#endif // SEVEN_MEG_OSC == 0
+#define MYPWM_MAX (2 * 1e6 / CLOCK_TCY_NSEC)
 
 void setupPWM();
 

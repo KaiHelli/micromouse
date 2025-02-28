@@ -3,8 +3,8 @@
 
 void setupClock();
 
-#define CLOCK_FOSC 80000000 // 80 MHz Clock Signal
-#define CLOCK_FCY 40000000  // 40 MIPS
+#define CLOCK_FOSC 80000000UL // 80 MHz Clock Signal
+#define CLOCK_FCY 40000000UL  // 40 MIPS
 #define CLOCK_TCY_NSEC 25        // 25ns per Cycle
 
 #endif	/* CLOCK_H */

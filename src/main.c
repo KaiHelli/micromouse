@@ -49,6 +49,7 @@
 #include "myPWM.h"
 #include "myTimers.h"
 #include "serialComms.h"
+#include "i2c.h"
 #include <stdint.h>
 #include <xc.h>
 
@@ -61,6 +62,7 @@ int16_t main()
     setupIO(); // configures inputs and outputs
     setupUART1(); // configures UART
     setupPWM(); // configure PWM
+    setupI2C1(); // configure I2C
     
     initQEI1(0); // configure Quadrature Encoder 1
     initQEI2(0); // configure Quadrature Encoder 1

@@ -33,7 +33,7 @@
 
 // FPOR
 #pragma config FPWRT = PWR128 // POR Timer Value (128ms)
-#pragma config ALTI2C = ON // Alternate I2C  pins (I2C mapped to SDA1/SCL1 pins)
+#pragma config ALTI2C = OFF // Alternate I2C pins (I2C mapped to SDA1/SCL1 pins)
 #pragma config LPOL = ON // Motor Control PWM Low Side Polarity bit (PWM module low side output pins have active-high output polarity)
 #pragma config HPOL = ON // Motor Control PWM High Side Polarity bit (PWM module high side output pins have active-high output polarity)
 #pragma config PWMPIN = ON // Motor Control PWM Module Pin Mode bit (PWM module pins controlled by PORT register at device Reset)
@@ -50,6 +50,7 @@
 #include "myTimers.h"
 #include "serialComms.h"
 #include "i2c.h"
+#include "imu.h"
 #include <stdint.h>
 #include <xc.h>
 
@@ -60,21 +61,24 @@ int16_t main()
 {
     setupClock(); // configures oscillator circuit
     setupIO(); // configures inputs and outputs
-    setupUART1(); // configures UART
-    setupPWM(); // configure PWM
+    setupUART1(); // configures UART1
+    setupPWM1(); // configure PWM1
+    setupPWM2(); // configure PWM2
     setupI2C1(); // configure I2C
     
     initQEI1(0); // configure Quadrature Encoder 1
-    initQEI2(0); // configure Quadrature Encoder 1
+    initQEI2(0); // configure Quadrature Encoder 2
 
-    // initTimerInMs(10, 1); //creates a 10ms timer interrupt
-    // startTimer1();
+    imu_setup(); // configure IMU over I2C
+    
+    initTimerInMs(100, 1); //creates a 10ms timer interrupt
+    startTimer1();
 
     // initTimerInMs(50, 2); //creates a 10ms timer interrupt
     // startTimer2();
 
-    initTimerInMs(10, 3); // creates a 10ms timer interrupt
-    startTimer3();
+    // initTimerInMs(100, 3); // creates a 10ms timer interrupt
+    // startTimer3();
 
     // initTimerInMs(250, 32); //creates a 10ms timer interrupt
     // startTimer32_combined();
@@ -84,9 +88,16 @@ int16_t main()
     LED3 = LEDOFF;
     LED4 = LEDOFF;
     LED5 = LEDOFF;
-
+    
     while (1) {
     };
 
     return 0;
+}
+
+
+void __attribute__((__interrupt__, auto_psv)) _INT1Interrupt(void) {
+    IFS1bits.INT1IF = 0;
+    
+    LED1 = ~LED1;
 }

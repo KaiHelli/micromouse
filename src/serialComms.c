@@ -7,6 +7,7 @@
 #include "IOconfig.h"
 #include "myPWM.h"
 #include "serialComms.h"
+#include "interrupts.h"
 
 volatile char txBuffer[UART_BUFFER_SIZE]; // Internal transmit buffer
 volatile int8_t txIndex = 0; // Index of the current character being sent
@@ -50,7 +51,7 @@ typedef enum {
 void setupUART1(void)
 {
     U1MODEbits.UARTEN = 0; // switch the uart off during set-up
-    U1BRG = 42; // baud rate register
+    U1BRG = 21; // baud rate register
     U1MODEbits.LPBACK = 0; // in loopback mode for test! TODO: set to no loop-back (=0) after test
 
     U1MODEbits.WAKE = 0; // do not wake up on serial port activity
@@ -63,8 +64,8 @@ void setupUART1(void)
     IFS0bits.U1RXIF = 0; // reset the receive interrupt flag
     IFS0bits.U1TXIF = 0; // reset the transmission interrupt flag
 
-    IPC2bits.U1RXIP = 3; // set the RX interrupt priority
-    IPC3bits.U1TXIP = 5; // set the TX interrupt priority
+    IPC2bits.U1RXIP = IP_UART_RX; // set the RX interrupt priority
+    IPC3bits.U1TXIP = IP_UART_TX; // set the TX interrupt priority
 
     U1STAbits.URXISEL = 0; // generate a receive interrupt as soon as a character has arrived
 
@@ -106,7 +107,7 @@ void controlPWMCycle(char c)
 
             // Use sscanf to parse the number (supporting both integers and floats)
             if (sscanf(rxBuffer, "%f", &value) == 1 && value >= MIN_NUMBER && value <= MAX_NUMBER) {
-                P1DC1 = (1 - value / 100) * MYPWM_MAX;
+                LED5_DC = (1 - value / 100) * PWM_1KHZ;
             }
             // Reset state
             rxState = STATE_IDLE;

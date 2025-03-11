@@ -1,4 +1,5 @@
 #include "IOconfig.h"
+#include "interrupts.h"
 #include <xc.h>
 
 void setupIO()
@@ -45,7 +46,10 @@ void setupIO()
 
     // BUTTON INTERRUPT MAPPING
     
-    RPINR0bits.INT1R = 22; // mapped RP22 as External Interrupt 1    
+    RPINR0bits.INT1R = 23;      // mapped RP23 as External Interrupt 1
+    INTCON2bits.INT1EP = 0;     // interrupt on positive edge for External Interrupt 1
+    IEC1bits.INT1IE = 1;        // enable the External Interrupt 1
+    IPC5bits.INT1IP = IP_INT1;  // set low priority for External Interrupt 1
     
     // UART MAPPING
     
@@ -56,15 +60,15 @@ void setupIO()
     
     // QUADRATURE ENCODER MAPPING
     
-    // PERIPHERAL QE1 Channel A, receives data from RP10
+    // PERIPHERAL QE1 Channel A, receives data from RP24
     RPINR14bits.QEA1R = 24;
-    // PERIPHERAL QE1 Channel B, receives data from RP11
+    // PERIPHERAL QE1 Channel B, receives data from RP25
     RPINR14bits.QEB1R = 25;
 
-    // PERIPHERAL QE2 Channel A, receives data from RP10
-    RPINR16bits.QEA2R = 0;
-    // PERIPHERAL QE2 Channel B, receives data from RP11
-    RPINR16bits.QEB2R = 1;
+    // PERIPHERAL QE2 Channel A, receives data from RP1
+    RPINR16bits.QEA2R = 1;
+    // PERIPHERAL QE2 Channel B, receives data from RP0
+    RPINR16bits.QEB2R = 0;
     
 
     // after mapping we lock again

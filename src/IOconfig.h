@@ -4,12 +4,17 @@
 #define SW1 !PORTCbits.RC7
 #define IMU_INT PORTBbits.RB7
 
-#define MA_DIR1 LATAbits.RA7
-#define MA_DIR2 LATAbits.RA10
-#define MB_DIR1 LATAbits.RA0
-#define MB_DIR2 LATAbits.RA1
+#define MA_DIR1 LATAbits.LATA7
+#define MA_DIR2 LATAbits.LATA10
+#define MB_DIR1 LATAbits.LATA0
+#define MB_DIR2 LATAbits.LATA1
 
-#define M_STDBY LATBbits.RB15
+#define MA_PWM_DC P1DC2
+#define MB_PWM_DC P1DC1
+#define LED5_DC P1DC3
+#define BUZZ_DC P2DC1
+
+#define M_STDBY LATBbits.LATB15
 
 #define LED1 LATBbits.LATB4
 #define LED2 LATAbits.LATA4

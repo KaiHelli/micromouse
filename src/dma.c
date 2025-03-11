@@ -1,5 +1,6 @@
 #include "dma.h"
 #include "IOconfig.h"
+#include "interrupts.h"
 
 unsigned int adcData[32]__attribute__((space(dma)));
 
@@ -24,7 +25,7 @@ void initDmaChannel4(void)
     // Interrupt settings
 	IFS2bits.DMA4IF 	= 0;	// Clear DMA interrupt
 	IEC2bits.DMA4IE 	= 0;	// disable interrupt
-	IPC11bits.DMA4IP 	= 5;	// set priority of interrupt
+	IPC11bits.DMA4IP 	= IP_DMA;	// set priority of interrupt
 
 	DMA4CONbits.CHEN 	= 1;	// enable channel
 

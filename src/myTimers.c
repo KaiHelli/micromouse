@@ -4,6 +4,8 @@
 #include "motorEncoders.h"
 #include "myPWM.h"
 #include "serialComms.h"
+#include "imu.h"
+#include "interrupts.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -25,7 +27,7 @@ void initTimer1(uint16_t period, uint16_t prescaler)
     PR1 = period; // set Timer1 period register ()
 
     IFS0bits.T1IF = 0; // reset Timer1 interrupt flag
-    IPC0bits.T1IP = 4; // set Timer1 interrupt priority level to 4
+    IPC0bits.T1IP = IP_TIMER1; // set Timer1 interrupt priority level
     IEC0bits.T1IE = 1; // enable Timer1 interrupt
 }
 
@@ -46,7 +48,7 @@ void initTimer2(uint16_t period, uint16_t prescaler)
     PR2 = period; // set Timer2 period register ()
 
     IFS0bits.T2IF = 0; // reset Timer2 interrupt flag
-    IPC1bits.T2IP = 4; // set Timer2 interrupt priority level to 4
+    IPC1bits.T2IP = IP_TIMER2; // set Timer2 interrupt priority level
     IEC0bits.T2IE = 1; // enable Timer2 interrupt
 }
 
@@ -66,7 +68,7 @@ void initTimer3(uint16_t period, uint16_t prescaler)
     PR3 = period; // set Timer 1 period register ()
 
     IFS0bits.T3IF = 0; // reset Timer 1 interrupt flag
-    IPC2bits.T3IP = 4; // set Timer1 interrupt priority level to 4
+    IPC2bits.T3IP = IP_TIMER3; // set Timer1 interrupt priority level
     IEC0bits.T3IE = 1; // enable Timer 1 interrupt
 }
 
@@ -89,7 +91,7 @@ void initTimer32_combined(uint32_t period, uint16_t prescaler)
     PR2 = (uint16_t)period; // Lower 16 bits of 32-bit period (lsw)
 
     IFS0bits.T3IF = 0; // reset timer interrupt flag
-    IPC2bits.T3IP = 4; // set interrupt priority level to 4
+    IPC2bits.T3IP = IP_TIMER32; // set interrupt priority level
     IEC0bits.T3IE = 1; // enable timer interrupt
     T2CONbits.TON = 0; // leave timer disabled initially
 
@@ -214,23 +216,7 @@ void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void)
 {
     IFS0bits.T1IF = 0; // reset Timer 1 interrupt flag
 
-    static uint16_t count1 = 0;
-    static uint16_t count2 = 0;
-
-    count1++;
-    count2++;
-
-    if (count1 == 5) {
-        count1 = 0;
-        LED1 = ~LED1;
-    }
-
-    if (count2 == 50) {
-        count2 = 0;
-        LED2 = ~LED2;
-    }
-
-    LED3 = ~LED3;
+    imu_read_whoami();
 }
 
 /* ISR for Timer2 */
@@ -252,14 +238,14 @@ void __attribute__((__interrupt__, auto_psv)) _T2Interrupt(void)
 }
 
 /* ISR for Timer3 or when Timer2 and Timer3 are combined */
-/*/
+/*
 void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 {
     IFS0bits.T3IF = 0;           // reset Timer 3 interrupt flag
 
     static uint8_t counter = 0;
 
-    P1DC1 = ((sin((double) counter/0xFF * 2 * M_PI) + 1) / 2) * MYPWM_MAX;
+    P1DC2 = ((sin((double) counter/0xFF * 2 * M_PI) + 1) / 2) * PWM_1KHZ;
 
     counter++;
 
@@ -274,20 +260,28 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 {
     IFS0bits.T3IF = 0; // reset Timer 3 interrupt flag
 
-    static long lastCount = 0;
-    static long count = 0;
+    static long lastCount1 = 0;
+    static long lastCount2 = 0;
+    static long count1 = 0;
+    static long count2 = 0;
+    char countStr[50];
 
-    count = getPositionInCounts_1();
+
+    count1 = getPositionInCounts_1();
+    count2 = getPositionInCounts_2();
+
     // count = getVelocityInCountsPerSample_1();
 
-    if (count != lastCount) {
-        char countStr[20];
-
-        snprintf(countStr, 20, "%ld\r\n", count);
+    if (count1 != lastCount1 || count2 != lastCount2) {
+        snprintf(countStr, 50, "%ld\t\t%ld\r\n", count1, count2);
 
         putsUART1(countStr);
     }
 
-    lastCount = count;
+    // snprintf(countStr, 50, "%d\t\t%d\r\n", POSCNT, POS2CNT);
+    // putsUART1(countStr);
+
+    lastCount1 = count1;
+    lastCount2 = count2;
 }
 // PicoScope 2204A / PicoScope 7 T&M

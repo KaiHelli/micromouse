@@ -6,6 +6,7 @@
  */
 
 #include "adc.h"
+#include "interrupts.h"
 #include <xc.h>
 
 
@@ -90,6 +91,6 @@ void setupADC1()
     //interrupt configuration
     IFS0bits.AD1IF = 0;
     IEC0bits.AD1IE = 0;
-    IPC3bits.AD1IP = 5;
+    IPC3bits.AD1IP = IP_ADC;
 }
 

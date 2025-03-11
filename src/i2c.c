@@ -1,8 +1,22 @@
+/**
+ * 
+ * Possible improvements:
+ * - Improve error handling
+ * - Add watchdog code to check for stuck communication
+ * 
+ */
+
+
 #include <xc.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include "i2c.h"
+#include "IOconfig.h"
+#include "serialComms.h"
+#include "interrupts.h"
+
+#define DEBUG 1
 
 // -----------------------------------------------------
 // I2C state machine states
@@ -61,7 +75,7 @@ void setupI2C1(void)
     I2C1CONbits.I2CEN = 0;
     
     // Basic configuration
-    I2C1CONbits.I2CSIDL = 1;  // Stop in Idle mode
+    I2C1CONbits.I2CSIDL = 1;  // Stop module in Idle mode
     I2C1CONbits.A10M    = 0;  // 7-bit addressing
     I2C1CONbits.DISSLW  = 0;  // Disable slew rate control
     I2C1CONbits.SMEN    = 0;  // Disable SMBus input thresholds
@@ -74,7 +88,7 @@ void setupI2C1(void)
     // Clear & enable master interrupt
     IFS1bits.MI2C1IF = 0;
     IEC1bits.MI2C1IE = 1;
-    IPC4bits.MI2C1IP = 5;  // Priority if needed
+    IPC4bits.MI2C1IP = IP_I2C;
     
     // Enable module
     I2C1CONbits.I2CEN = 1;
@@ -166,6 +180,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 1) START
         // -------------------------------------------------
         case I2C_STATE_START:
+            
             if (!I2C1CONbits.SEN) // once START is done
             {
                 if (i2cTransaction.writeLen > 0)
@@ -187,6 +202,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 2) SEND_ADDRESS (Write bit = 0)
         // -------------------------------------------------
         case I2C_STATE_SEND_ADDRESS:
+            
             if (!I2C1STATbits.TRSTAT)  // transmission done?
             {
                 if (I2C1STATbits.ACKSTAT == 1) {
@@ -207,6 +223,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 3) SEND_DATA (writing)
         // -------------------------------------------------
         case I2C_STATE_SEND_DATA:
+            
             if (!I2C1STATbits.TRSTAT) 
             {
                 if (I2C1STATbits.ACKSTAT == 1) {
@@ -236,6 +253,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 4) RESTART
         // -------------------------------------------------
         case I2C_STATE_RESTART:
+            
             if (!I2C1CONbits.RSEN) // repeated start done
             {
                 // Address with R/W=1 (read)
@@ -248,6 +266,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 5) SEND_ADDRESS_R (Read bit = 1)
         // -------------------------------------------------
         case I2C_STATE_SEND_ADDRESS_R:
+            
             if (!I2C1STATbits.TRSTAT)
             {
                 if (I2C1STATbits.ACKSTAT == 1) {
@@ -266,6 +285,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 6) READ_DATA
         // -------------------------------------------------
         case I2C_STATE_READ_DATA:
+            
             if (I2C1STATbits.RBF)
             {
                 // Store the byte
@@ -306,6 +326,7 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 7) STOP
         // -------------------------------------------------
         case I2C_STATE_STOP:
+            
             if (!I2C1CONbits.PEN) // stop done
             {
                 i2cTransaction.state = I2C_STATE_DONE;
@@ -317,21 +338,25 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
         // 8) DONE or ERROR
         // -------------------------------------------------
         case I2C_STATE_DONE:
+            if (i2cTransaction.callback) {
+                i2cTransaction.callback(true);
+            }
+            
+            i2cTransaction.state = I2C_STATE_IDLE;
+            break;
         case I2C_STATE_ERROR:
-        {
-            bool success = (i2cTransaction.state == I2C_STATE_DONE);
             
             // Try issuing STOP in case of an error
-            if (!success && !I2C1CONbits.PEN && !I2C1STATbits.P) {
+            if (!I2C1CONbits.PEN && !I2C1STATbits.P) {
                 I2C1CONbits.PEN = 1;
             }
             
             if (i2cTransaction.callback) {
-                i2cTransaction.callback(success);
+                i2cTransaction.callback(false);
             }
+            
             i2cTransaction.state = I2C_STATE_IDLE;
             break;
-        }
 
         // -------------------------------------------------
         // Default / IDLE (shouldn't happen in non-error cases)

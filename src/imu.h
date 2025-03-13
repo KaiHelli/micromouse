@@ -4,6 +4,23 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+static int16_t rawGyroMeasurements[3];
+static int16_t rawAccelMeasurements[3];
+
+typedef enum {
+    GYRO_RANGE_250DPS = 0,
+    GYRO_RANGE_500DPS,
+    GYRO_RANGE_1000DPS,
+    GYRO_RANGE_2000DPS
+} GyroRange_t;
+
+typedef enum {
+    ACCEL_RANGE_2G = 0,
+    ACCEL_RANGE_4G,
+    ACCEL_RANGE_8G,
+    ACCEL_RANGE_16G
+} AccelRange_t;
+
 #define I2C_IMU_GYRO_ADDR   0x69
 #define I2C_IMU_MAG_ADDR 0x0C 
 
@@ -162,9 +179,15 @@
 #define ICM20948_I2C_SLV4_DO        		0x16
 #define ICM20948_I2C_SLV4_DI        		0x17
 
-void imu_read_whoami(void);
-void imu_setup(void);
-bool imu_set_usr_bank(uint8_t bank);
+void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange);
+bool imuSetUsrBank(uint8_t bank);
+void imuReadWhoAmI(void);
+void imuReadGyro(void);
+void imuReadAccel(void);
+void imuScaleGyroMeasurements(const int16_t rawGyro[3], float scaledGyro[3]);
+void imuScaleAccelMeasurements(const int16_t rawAccel[3], float scaledAccel[3]);
+
+float dpsToRadps(float dps);
 
 #endif	/* IMU_H */
 

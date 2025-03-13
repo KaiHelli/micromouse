@@ -216,7 +216,8 @@ void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void)
 {
     IFS0bits.T1IF = 0; // reset Timer 1 interrupt flag
 
-    imu_read_whoami();
+    imuReadGyro();
+    imuReadAccel();
 }
 
 /* ISR for Timer2 */

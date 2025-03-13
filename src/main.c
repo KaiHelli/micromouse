@@ -69,7 +69,7 @@ int16_t main()
     initQEI1(0); // configure Quadrature Encoder 1
     initQEI2(0); // configure Quadrature Encoder 2
 
-    imu_setup(); // configure IMU over I2C
+    imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G); // configure IMU over I2C
     
     initTimerInMs(100, 1); //creates a 10ms timer interrupt
     startTimer1();

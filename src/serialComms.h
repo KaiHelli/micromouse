@@ -39,7 +39,7 @@ int8_t getUART1Status(void);
 int8_t putsUART1Sync(char* buffer);
 void putsUART1Reference(char* buffer);
 
-#define UART_BUFFER_SIZE 256 // Define the size of the internal buffer
+#define UART_BUFFER_SIZE 2048 // Define the size of the internal buffer
 #define UART_BUFFER_BUSY -1 // Error code for buffer busy
 #define UART_BUFFER_OVERFLOW -2 // Error code for buffer overflow
 #define UART_UNSUPPORTED_MODE -3 // Error code for currently not-implemented modes such as the 9bit data mode

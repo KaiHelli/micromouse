@@ -9,10 +9,6 @@
 #include "serialComms.h"
 #include "interrupts.h"
 
-volatile char txBuffer[UART_BUFFER_SIZE]; // Internal transmit buffer
-volatile int8_t txIndex = 0; // Index of the current character being sent
-volatile int8_t txLength = 0; // Length of the data in the buffer
-volatile int8_t txInProgress = 0; // Flag indicating if a transmission is in progress
 
 #define MAX_NUMBER 100 // Maximum valid number
 #define MIN_NUMBER 0 // Minimum valid number
@@ -20,7 +16,12 @@ volatile int8_t txInProgress = 0; // Flag indicating if a transmission is in pro
 typedef enum {
     STATE_IDLE,
     STATE_READ_NUM,
-} RxState;
+} UartRxState;
+
+static volatile char   txBuffer[UART_BUFFER_SIZE];
+static volatile size_t txWriteIndex = 0;
+static volatile size_t txReadIndex  = 0;
+static volatile size_t txCount      = 0;
 
 /*
  *	set-up the serial port
@@ -87,7 +88,7 @@ void controlPWMCycle(char c)
 {
     static char rxBuffer[32];
     static int rxIndex = 0;
-    static RxState rxState = STATE_IDLE;
+    static UartRxState rxState = STATE_IDLE;
 
     switch (rxState) {
     case STATE_IDLE:
@@ -122,30 +123,6 @@ void controlPWMCycle(char c)
     }
 }
 
-void controlLED(uint16_t rxData)
-{
-    // aa-----s
-    // aa = 0 / 1 / 2 / 3 -> addresses LED
-    // s = 0 / 1 -> state off / on
-    uint8_t ledAddress = rxData >> 6;
-    uint8_t ledState = rxData & 1;
-
-    switch (ledAddress) {
-    case 0:
-        LED1 = ledState;
-        break;
-    case 1:
-        LED2 = ledState;
-        break;
-    case 2:
-        LED3 = ledState;
-        break;
-    case 3:
-        LED4 = ledState;
-        break;
-    }
-}
-
 void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 {
     uint16_t rxData; // a local buffer to copy the data into
@@ -156,12 +133,11 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
 
     // we should now read out the data
     rxData = U1RXREG;
-    if (!txInProgress) {
+    if (txCount == 0) {
         // and copy it back out to UART
         U1TXREG = rxData;
     }
 
-    // controlLED(rxData);
     controlPWMCycle((char)rxData);
 
     // we should also clear the overflow bit if it has been set (i.e. if we were to slow to read out the fifo)
@@ -185,66 +161,64 @@ void __attribute__((interrupt, no_auto_psv)) _U1TXInterrupt(void)
 {
     IFS0bits.U1TXIF = 0; // Clear the interrupt flag
 
-    // Fill the buffer if there are characters left and buffer is not full
-    while (txIndex < txLength && !U1STAbits.UTXBF) {
-        U1TXREG = txBuffer[txIndex++];
+    // Send as many characters as possible while there's data and TX buffer not full
+    while ((txCount > 0) && (!U1STAbits.UTXBF)) {
+        U1TXREG = txBuffer[txReadIndex];
+        txReadIndex = (txReadIndex + 1) % UART_BUFFER_SIZE;
+        txCount--;
     }
 
-    if (txIndex == txLength) {
-        // All characters are sent; disable interrupt and reset state
-        txInProgress = 0;
-        IEC0bits.U1TXIE = 0;
+    if (txCount == 0) {
+        // No more data to send
+        IEC0bits.U1TXIE = 0; 
     }
 }
 
+
 int8_t putsUART1(char* buffer)
 {
-    // Disable UART Transmit Interrupt to prevent race conditions
-    IEC0bits.U1TXIE = 0;
-
-    // Check if a transmission is already in progress
-    if (txInProgress) {
-        IEC0bits.U1TXIE = 1;
-        return UART_BUFFER_BUSY; // Indicate that the UART is busy
-    }
-
-    // Check if the UART is configured for 8-bit data
-    if (U1MODEbits.PDSEL == 3) {
-        IEC0bits.U1TXIE = 1;
-        return UART_UNSUPPORTED_MODE; // Error: 9-bit data mode not supported
-    }
-
-    // Calculate the length of the input buffer
     size_t length = strlen(buffer);
-    if (length >= UART_BUFFER_SIZE) {
-        IEC0bits.U1TXIE = 1;
-        return UART_BUFFER_OVERFLOW; // Error: Buffer overflow
-    }
-
-    // In case there is nothing to send, return.
     if (length == 0) {
-        IEC0bits.U1TXIE = 1;
         return 0; // Nothing to send
     }
 
-    // Copy data to the internal buffer
-    strncpy((char*)txBuffer, buffer, length);
+    // If message is bigger than our entire ring buffer, treat as overflow
+    if (length > UART_BUFFER_SIZE) {
+        return UART_BUFFER_OVERFLOW;
+    }
 
-    txLength = length;
-    txIndex = 0;
-    txInProgress = 1;
+    // First, enable TX interrupt so the buffer can actively drain (in case it's partially full)
+    IEC0bits.U1TXIE = 1;
 
-    // Re-enable UART Transmit Interrupt and trigger the first interrupt
+    // Busy-wait until we have enough space for this entire message
+    while ((UART_BUFFER_SIZE - txCount) < length) {
+        // LED1 = ~LED1;
+        // Just spin until there's space
+        // The ISR will continue to drain the buffer in the background
+    }
+
+    // Now we definitely have space to copy safely;
+    // briefly disable interrupts to avoid partial writes
+    IEC0bits.U1TXIE = 0;
+
+    // Copy data into the ring buffer
+    for (size_t i = 0; i < length; i++) {
+        txBuffer[txWriteIndex] = buffer[i];
+        txWriteIndex = (txWriteIndex + 1) % UART_BUFFER_SIZE;
+    }
+    txCount += length;
+
+    // Re-enable TX interrupt and trigger it
     IEC0bits.U1TXIE = 1;
     IFS0bits.U1TXIF = 1;
 
-    // Indicate success
     return 0;
 }
 
 int8_t getUART1Status(void)
 {
-    return txInProgress ? UART_BUSY : UART_IDLE;
+    /* If there's at least one byte in the buffer, UART is busy */
+    return (txCount > 0) ? UART_BUSY : UART_IDLE;
 }
 
 int8_t putsUART1Sync(char* buffer)

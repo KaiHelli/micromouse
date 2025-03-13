@@ -56,6 +56,19 @@ typedef struct {
     void (*callback)(bool success);
 } I2C_Transaction_t;
 
+
+// -----------------------------------------------------
+// I2C Buffer Definitions
+// -----------------------------------------------------
+static volatile I2C_Transaction_t i2cBuffer[I2C1_BUFFER_SIZE];
+static volatile uint8_t i2cBufferReadIndex = 0;
+static volatile uint8_t i2cBufferWriteIndex = 0;
+static volatile uint8_t i2cBufferCount = 0;
+
+// This flag indicates whether a transaction is in progress on the bus
+static volatile bool i2cInProgress = false;
+
+
 // Global transaction for I2C1 (single at a time)
 static volatile I2C_Transaction_t i2cTransaction;
 
@@ -87,12 +100,38 @@ void setupI2C1(void)
     
     // Clear & enable master interrupt
     IFS1bits.MI2C1IF = 0;
-    IEC1bits.MI2C1IE = 1;
+    IEC1bits.MI2C1IE = 0;
     IPC4bits.MI2C1IP = IP_I2C;
     
     // Enable module
     I2C1CONbits.I2CEN = 1;
 }
+
+// -----------------------------------------------------
+// Helper Function: Start next transaction from buffer
+// -----------------------------------------------------
+static void startNextI2CTransaction(void)
+{
+    // If no transactions in the buffer, mark bus as free and return
+    if (i2cBufferCount == 0)
+    {
+        i2cInProgress = false;
+        return;
+    }
+
+    // Pop the next transaction off the ring buffer
+    i2cTransaction = i2cBuffer[i2cBufferReadIndex];
+    i2cBufferReadIndex = (i2cBufferReadIndex + 1) % I2C1_BUFFER_SIZE;
+    i2cBufferCount--;
+
+    // Move to START state
+    i2cTransaction.state = I2C_STATE_START;
+
+    // Initiate a START condition
+    i2cInProgress = true;
+    I2C1CONbits.SEN = 1;
+}
+
 
 
 bool getI2C1Status(void) {
@@ -110,38 +149,56 @@ bool getI2C1Status(void) {
  * @param cb       Callback function when done or on error.
  * @return true if started successfully, false if I2C1 is busy.
  */
-bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen, uint8_t *rData, uint8_t rLen, void (*cb)(bool))
+bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
+              uint8_t *rData, uint8_t rLen, void (*cb)(bool))
 {
-    // If not idle, there's already a transaction
-    if (getI2C1Status() == I2C_BUSY) {
-        return I2C_BUSY;
+    // Wait actively if buffer is full.
+    // As interrupts complete transactions, the buffer frees up in the background.
+    while (i2cBufferCount >= I2C1_BUFFER_SIZE)
+    {
+        // Optionally, you can place CLRWDT() or a small delay here to avoid watchdog resets
+        // while actively waiting.
     }
     
-    // If there's truly nothing to do, skip the bus transaction
-    if ((wLen == 0) && (rLen == 0)) {
+    // If there's truly nothing to do, succeed immediately
+    if ((wLen == 0) && (rLen == 0))
+    {
         if (cb) {
-            cb(true);  // Succeed instantly
+            cb(true);
         }
         return 0;
     }
+
+    // Prepare a new transaction
+    I2C_Transaction_t newTrans;
+    newTrans.devAddr    = devAddr;
+    newTrans.writeData  = wData;
+    newTrans.writeLen   = wLen;
+    newTrans.writeIndex = 0;
+    newTrans.readData   = rData;
+    newTrans.readLen    = rLen;
+    newTrans.readIndex  = 0;
+    newTrans.callback   = cb;
+    newTrans.state      = I2C_STATE_IDLE;  // Will set START just before sending
+
+    // ---- CRITICAL SECTION for buffer manipulation ----
+    IEC1bits.MI2C1IE = 0;
     
-    // Load transaction info
-    i2cTransaction.devAddr    = devAddr;
-    i2cTransaction.writeData  = wData;
-    i2cTransaction.writeLen   = wLen;
-    i2cTransaction.writeIndex = 0;
-    i2cTransaction.readData   = rData;
-    i2cTransaction.readLen    = rLen;
-    i2cTransaction.readIndex  = 0;
-    i2cTransaction.callback   = cb;
+    // Push the transaction into the buffer
+    i2cBuffer[i2cBufferWriteIndex] = newTrans;
+    i2cBufferWriteIndex = (i2cBufferWriteIndex + 1) % I2C1_BUFFER_SIZE;
+    i2cBufferCount++;
+
+    // If bus is not currently in a transaction, start immediately
+    if (!i2cInProgress)
+    {
+        startNextI2CTransaction();
+    }
     
-    // Move to START state
-    i2cTransaction.state = I2C_STATE_START;
-    
-    // Initiate a START condition
-    I2C1CONbits.SEN = 1;
-    
-    return 0;
+    IEC1bits.MI2C1IE = 1;
+    // ---- END CRITICAL SECTION ----
+
+    return 0; // success
 }
 
 /**
@@ -335,27 +392,30 @@ void __attribute__((__interrupt__, auto_psv)) _MI2C1Interrupt(void)
             break;
 
         // -------------------------------------------------
-        // 8) DONE or ERROR
+        // 8) DONE
         // -------------------------------------------------
         case I2C_STATE_DONE:
             if (i2cTransaction.callback) {
                 i2cTransaction.callback(true);
             }
-            
             i2cTransaction.state = I2C_STATE_IDLE;
+            // Start next transaction if pending in buffer
+            startNextI2CTransaction();
             break;
+
+        // -------------------------------------------------
+        // 9) ERROR
+        // -------------------------------------------------
         case I2C_STATE_ERROR:
-            
-            // Try issuing STOP in case of an error
             if (!I2C1CONbits.PEN && !I2C1STATbits.P) {
-                I2C1CONbits.PEN = 1;
+                I2C1CONbits.PEN = 1; // Attempt STOP on error
             }
-            
             if (i2cTransaction.callback) {
                 i2cTransaction.callback(false);
             }
-            
             i2cTransaction.state = I2C_STATE_IDLE;
+            // Start next transaction if pending in buffer
+            startNextI2CTransaction();
             break;
 
         // -------------------------------------------------

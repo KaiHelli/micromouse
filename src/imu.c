@@ -1,14 +1,13 @@
 #include <xc.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>     // if using printf
+#include <stdio.h>
 #include "i2c.h"
 #include "imu.h"
 #include "serialComms.h"
 #include "IOconfig.h"
 
 static uint8_t whoAmI = 0xFF;  // Buffer to store the read result
-static uint8_t regAddr;
 
 // -----------------------------------------------------------------------------
 // This callback function is invoked from the I2C ISR after the transaction
@@ -39,12 +38,12 @@ static void imu_read_whoami_cb(bool success)
 // -----------------------------------------------------------------------------
 void imu_read_whoami(void)
 {
-    regAddr = ICM20948_PWR_MGMT_1;
+    static uint8_t regAddr = ICM20948_WHO_AM_I;
     
     bool status = 0;
-    
-    // Switch to User Bank 1
-    status |= imu_set_usr_bank(1);
+
+    // Switch to User Bank 0
+    status |= imu_set_usr_bank(0);
     
     status |= putsI2C1(I2C_IMU_GYRO_ADDR, &regAddr, 1, &whoAmI, 1, imu_read_whoami_cb);
 }
@@ -61,8 +60,8 @@ void imu_setup(void) {
     // bit 3 -> 1 | disable temperature sensor
     // 0x41 on reset -> change to 0x05
     
-    uint8_t value[] = {ICM20948_PWR_MGMT_1, 0x05};
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, value, 2, NULL, 0);
+    static uint8_t value1[] = {ICM20948_PWR_MGMT_1, 0x05};
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, value1, 2, NULL, 0, NULL);
 
     // Switch to User Bank 2
     status |= imu_set_usr_bank(2);
@@ -79,10 +78,8 @@ void imu_setup(void) {
     // bit 2:1 -> Gyro dynamic range selection (250, 500, 1000, 2000 dps)
     // bit 0 -> enable / disable low pass filter
     
-    value[0] = ICM20948_GYRO_CONFIG_1;
-    value[1] = 0b00000011;
-    
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, value, 2, NULL, 0);
+    static uint8_t value2[] = {ICM20948_GYRO_CONFIG_1, 0b00000011};
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, value2, 2, NULL, 0, NULL);
     
     // USR2 / GYRO_CONFIG_2
     // bit 5:3 -> X / Y / Z self-test enable
@@ -108,18 +105,33 @@ void imu_setup(void) {
     // bit 4:2 -> X / Y / Z self-test enable
     // bit 1:0 -> averaging filter settings for low-power mode
     
-    if (status != 0) {
+    
+    // MAG / CNTL2
+    // bit 4:0 -> Magnetometer operation mode setting
+    // default 0x0 (power down) -> set to 0b00010 (continuous measurement mode 1)
+    
+    if (status == 0) {
+        putsUART1("IMU configured.\r\n");
+    } else {
         putsUART1("Error setting up the IMU!\r\n");
     }
 }
 
-bool imu_set_usr_bank(uint8_t bank) {
-    // USRX / REG_BANK_SEL (0x7F)
-    // bits 5:4 -> set usr_bank 0-3
-    bool status = 0;
+bool imu_set_usr_bank(uint8_t bank)
+{
+    // Prepare a lookup table for bank 0..3
+    //  bits 5:4 hold the user bank ID.
+    static uint8_t bank_regs[4][2] =
+    {
+        { ICM20948_REG_BANK_SEL, 0 << 4 }, // Bank 0
+        { ICM20948_REG_BANK_SEL, 1 << 4 }, // Bank 1
+        { ICM20948_REG_BANK_SEL, 2 << 4 }, // Bank 2
+        { ICM20948_REG_BANK_SEL, 3 << 4 }  // Bank 3
+    };
     
-    uint8_t value[] = {ICM20948_REG_BANK_SEL, bank << 4};
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, value, 1, NULL, 0);
-    
+    // Perform the async I2C write using the correct buffer
+    // (the data remains valid because `bank_regs` is static)
+    bool status = putsI2C1(I2C_IMU_GYRO_ADDR, bank_regs[bank], 2, NULL, 0, NULL);
+
     return status;
 }

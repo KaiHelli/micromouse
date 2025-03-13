@@ -156,6 +156,7 @@ bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
     // As interrupts complete transactions, the buffer frees up in the background.
     while (i2cBufferCount >= I2C1_BUFFER_SIZE)
     {
+        // LED2 = ~LED2;
         // Optionally, you can place CLRWDT() or a small delay here to avoid watchdog resets
         // while actively waiting.
     }

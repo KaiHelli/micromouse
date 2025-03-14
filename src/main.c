@@ -51,6 +51,7 @@
 #include "serialComms.h"
 #include "i2c.h"
 #include "imu.h"
+#include "ssd1306.h"
 #include <stdint.h>
 #include <xc.h>
 
@@ -70,6 +71,8 @@ int16_t main()
     initQEI2(0); // configure Quadrature Encoder 2
 
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G); // configure IMU over I2C
+    
+    //oledSetDisplayState(1);
     
     initTimerInMs(100, 1); //creates a 10ms timer interrupt
     startTimer1();

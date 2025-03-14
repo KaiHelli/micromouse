@@ -63,8 +63,6 @@ void imuReadAccel(void) {
     status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawAccelMeasurements, 6, imuReadAccelCb);
 }
 
-
-
 // -----------------------------------------------------------------------------
 // This callback function is invoked from the I2C ISR after the transaction
 // has completed (success or error).

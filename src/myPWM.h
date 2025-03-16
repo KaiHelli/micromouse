@@ -32,14 +32,17 @@
 #define __MYPWM_H__
 
 #include <xc.h> // include processor files - each processor file is guarded.
+#include <stdint.h>
+#include <stdbool.h>
 #include "clock.h"
-
-#define PWM_PRESCALE 4
-#define PWM_1KHZ ((2 * 1e6 / CLOCK_TCY_NSEC) / PWM_PRESCALE)
 
 #define PWM_MOTOR_MAX_DC (6 / 8.4) // voltage ranges from 2*3.7V = 7.4V to 2*4.2V = 8.4V
 
 void setupPWM1();
 void setupPWM2();
+int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq);
+int8_t setPWMDutyCycle(uint8_t pwmModule, uint8_t channel, float fraction);
+int8_t setPWMState(uint8_t pwmModule, uint8_t channel, bool state);
+
 
 #endif /* __MYPWM_H__ */

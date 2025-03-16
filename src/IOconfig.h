@@ -9,10 +9,17 @@
 #define MB_DIR1 LATAbits.LATA0
 #define MB_DIR2 LATAbits.LATA1
 
-#define MA_PWM_DC P1DC2
-#define MB_PWM_DC P1DC1
-#define LED5_DC P1DC3
-#define BUZZ_DC P2DC1
+#define MA_PWM_MODULE  1
+#define MA_PWM_CHANNEL 2
+
+#define MB_PWM_MODULE  1
+#define MB_PWM_CHANNEL 1
+
+#define LED5_PWM_MODULE  1
+#define LED5_PWM_CHANNEL 3
+
+#define BUZZ_PWM_MODULE  2
+#define BUZZ_PWM_CHANNEL 1
 
 #define M_STDBY LATBbits.LATB15
 

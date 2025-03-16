@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 #include <xc.h>
 
 #include "IOconfig.h"
@@ -108,7 +109,7 @@ void controlPWMCycle(char c)
 
             // Use sscanf to parse the number (supporting both integers and floats)
             if (sscanf(rxBuffer, "%f", &value) == 1 && value >= MIN_NUMBER && value <= MAX_NUMBER) {
-                LED5_DC = (1 - value / 100) * PWM_1KHZ;
+                setPWMDutyCycle(LED5_PWM_MODULE, LED5_PWM_CHANNEL, (1 - value / 100));
             }
             // Reset state
             rxState = STATE_IDLE;

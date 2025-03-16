@@ -6,10 +6,13 @@
 #include "serialComms.h"
 #include "imu.h"
 #include "interrupts.h"
+#include "dma.h"
+#include "rtttl.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <xc.h>
 
 void initTimer1(uint16_t period, uint16_t prescaler)
 {
@@ -72,7 +75,7 @@ void initTimer3(uint16_t period, uint16_t prescaler)
     IEC0bits.T3IE = 1; // enable Timer 1 interrupt
 }
 
-void initTimer32_combined(uint32_t period, uint16_t prescaler)
+void initTimer32Combined(uint32_t period, uint16_t prescaler)
 {
     // ensure Timer 2 and Timer 3 are in reset state
     T2CON = 0;
@@ -98,24 +101,24 @@ void initTimer32_combined(uint32_t period, uint16_t prescaler)
     // NOTE: calls _T3Interrupt(void) on interrupt
 }
 
-void startTimer1(void)
+void setTimer1State(bool state)
 {
-    T1CONbits.TON = 1; //
+    T1CONbits.TON = state; //
 }
 
-void startTimer2(void)
+void setTimer2OState(bool state)
 {
-    T2CONbits.TON = 1; //
+    T2CONbits.TON = state; //
 }
 
-void startTimer3(void)
+void setTimer3State(bool state)
 {
-    T3CONbits.TON = 1; //
+    T3CONbits.TON = state; //
 }
 
-void startTimer32_combined(void)
+void setTimer32CombinedState(bool state)
 {
-    T2CONbits.TON = 1; //
+    T2CONbits.TON = state; //
 }
 
 /**
@@ -194,7 +197,7 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
         initTimer3((uint16_t)count, prescaler);
         break;
     case 32:
-        initTimer32_combined(count, prescaler);
+        initTimer32Combined(count, prescaler);
         break;
     default:
         return -1;
@@ -215,27 +218,12 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
 void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void)
 {
     IFS0bits.T1IF = 0; // reset Timer 1 interrupt flag
-
-    imuReadGyro();
-    imuReadAccel();
 }
 
 /* ISR for Timer2 */
 void __attribute__((__interrupt__, auto_psv)) _T2Interrupt(void)
 {
     IFS0bits.T2IF = 0; // reset Timer 2 interrupt flag
-
-    static uint8_t ledAddress = 0;
-    static uint8_t ledState = 0;
-
-    uint8_t msg = (ledAddress << 6) | (ledState & 1);
-
-    U1TXREG = msg;
-
-    if ((ledState & 1) == 1) {
-        ledAddress = (ledAddress + 1) % 4;
-    }
-    ledState = ~ledState;
 }
 
 /* ISR for Timer3 or when Timer2 and Timer3 are combined */
@@ -260,29 +248,41 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 {
     IFS0bits.T3IF = 0; // reset Timer 3 interrupt flag
+    
+    // imuReadGyro();
+    // imuReadAccel();
+    
+    // Track the time passed within this timer.
+    static uint32_t rtttlTimeCount = 0;
+    
+    // 1) First, increment the time counter.
+    rtttlTimeCount++;
+    
+    // 2) Check if we've reached the current note's duration.
+    if (rtttlTimeCount >= rtttlNotes.notes[rtttlNotes.noteIndex].duration)
+    {
+        // Advance to next note
+        rtttlNotes.noteIndex++;
+      
+        if (rtttlNotes.noteIndex >= rtttlNotes.notesLen)
+        {
+          if (songRepeat) {
+              rtttlNotes.noteIndex = 0;
+          } else {
+              stopSong();
+          }
+        }
+      
+        // Reset and load the next note
+        rtttlTimeCount = 0;
 
-    static long lastCount1 = 0;
-    static long lastCount2 = 0;
-    static long count1 = 0;
-    static long count2 = 0;
-    char countStr[50];
-
-
-    count1 = getPositionInCounts_1();
-    count2 = getPositionInCounts_2();
-
-    // count = getVelocityInCountsPerSample_1();
-
-    if (count1 != lastCount1 || count2 != lastCount2) {
-        snprintf(countStr, 50, "%ld\t\t%ld\r\n", count1, count2);
-
-        putsUART1(countStr);
+        // Turn of PWM in case frequency is zero, enable otherwise
+        if (songPlaying && rtttlNotes.notes[rtttlNotes.noteIndex].frequency > 0) {
+            setPWMFrequency(BUZZ_PWM_MODULE, rtttlNotes.notes[rtttlNotes.noteIndex].frequency);
+            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, true);
+        } else {
+            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
+        }
+        
     }
-
-    // snprintf(countStr, 50, "%d\t\t%d\r\n", POSCNT, POS2CNT);
-    // putsUART1(countStr);
-
-    lastCount1 = count1;
-    lastCount2 = count2;
 }
-// PicoScope 2204A / PicoScope 7 T&M

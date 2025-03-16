@@ -33,7 +33,7 @@
 
 // FPOR
 #pragma config FPWRT = PWR128 // POR Timer Value (128ms)
-#pragma config ALTI2C = OFF // Alternate I2C pins (I2C mapped to SDA1/SCL1 pins)
+#pragma config ALTI2C = OFF // Don't use alternate I2C pins (I2C mapped to SDA1/SCL1 pins)
 #pragma config LPOL = ON // Motor Control PWM Low Side Polarity bit (PWM module low side output pins have active-high output polarity)
 #pragma config HPOL = ON // Motor Control PWM High Side Polarity bit (PWM module high side output pins have active-high output polarity)
 #pragma config PWMPIN = ON // Motor Control PWM Module Pin Mode bit (PWM module pins controlled by PORT register at device Reset)
@@ -52,6 +52,9 @@
 #include "i2c.h"
 #include "imu.h"
 #include "ssd1306.h"
+#include "adc.h"
+#include "dma.h"
+#include "rtttl.h"
 #include <stdint.h>
 #include <xc.h>
 
@@ -62,6 +65,7 @@ int16_t main()
 {
     setupClock(); // configures oscillator circuit
     setupIO(); // configures inputs and outputs
+    
     setupUART1(); // configures UART1
     setupPWM1(); // configure PWM1
     setupPWM2(); // configure PWM2
@@ -74,19 +78,26 @@ int16_t main()
     
     //oledSetDisplayState(1);
     
-    initTimerInMs(100, 1); //creates a 10ms timer interrupt
-    startTimer1();
+    initDmaChannel4(); // Initialize DMA to copy sensor readings in the background
+    setupADC1();       // Initialize ADC to sample sensor reading
+    startADC1();       // Start to sample sensor readings
+
+    //initTimerInMs(10, 1); //creates a 10ms timer interrupt
+    //setTimer1State(1);
 
     // initTimerInMs(50, 2); //creates a 10ms timer interrupt
-    // startTimer2();
+    // setTimer2State(1);
 
-    // initTimerInMs(100, 3); // creates a 10ms timer interrupt
-    // startTimer3();
-
+    initTimerInMs(1, 3); // creates a 1ms timer interrupt
+    parseAllSongs();
+    playSong(SONG_MUPPETS, true);
+    
+    // setTimer3State(1);
+    
     // initTimerInMs(250, 32); //creates a 10ms timer interrupt
-    // startTimer32_combined();
+    // setTimer32CombinedState(1);
 
-    LED1 = LEDOFF;
+    //LED1 = LEDOFF;
     LED2 = LEDOFF;
     LED3 = LEDOFF;
     LED4 = LEDOFF;

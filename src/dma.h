@@ -2,8 +2,9 @@
 #define	DMA_H
 
 #include <xc.h>
-    
-extern unsigned int adcData[32]__attribute__((space(dma)));
+#include <stdint.h>
+
+extern uint16_t adcData[32]__attribute__((space(dma)));
 
 void initDmaChannel4(void);
 

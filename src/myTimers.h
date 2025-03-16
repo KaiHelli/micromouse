@@ -31,18 +31,19 @@
 #ifndef __MYTIMERS_H__
 #define __MYTIMERS_H__
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <xc.h> // include processor files - each processor file is guarded.
 
 void initTimer1(uint16_t period, uint16_t prescaler);
 void initTimer2(uint16_t period, uint16_t prescaler);
 void initTimer3(uint16_t period, uint16_t prescaler);
-void initTimer32_combined(uint32_t period, uint16_t prescaler);
+void initTimer32Combined(uint32_t period, uint16_t prescaler);
 
-void startTimer1(void);
-void startTimer2(void);
-void startTimer3(void);
-void startTimer32_combined(void);
+void setTimer1State(bool state);
+void setTimer2State(bool state);
+void setTimer3State(bool state);
+void setTimer32CombinedState(bool state);
 
 int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer);
 

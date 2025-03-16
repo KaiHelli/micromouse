@@ -1,8 +1,9 @@
+#include <stdint.h>
 #include "dma.h"
 #include "IOconfig.h"
 #include "interrupts.h"
 
-unsigned int adcData[32]__attribute__((space(dma)));
+uint16_t adcData[32]__attribute__((space(dma)));
 
 void initDmaChannel4(void)
 {

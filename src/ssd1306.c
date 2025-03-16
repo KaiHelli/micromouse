@@ -5,6 +5,7 @@
 
 #include "ssd1306.h"
 #include "i2c.h"
+#include "serialComms.h"
 
 void oledSetup(void) {
     oledSetDisplayState(0);
@@ -14,7 +15,7 @@ void oledSetup(void) {
     
 }
 
-oledSetDisplayStateCb(bool success) {
+void oledSetDisplayStateCb(bool success) {
     if (success)
     {
         putsUART1("Successful write!\r\n");

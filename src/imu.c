@@ -18,6 +18,9 @@ static const uint16_t accelLSBTable[] = { 16384, 8192, 4096, 2048 };
 static float gyroLSB  = 131.0f;  // default -- gyroLSBTable[0]
 static float accelLSB = 16384;   // default -- accelLSBTable[0]
 
+int16_t rawGyroMeasurements[3];
+int16_t rawAccelMeasurements[3];
+
 void imuReadGyroCb(bool success) {
 
     char measurementStr[50];

@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-static int16_t rawGyroMeasurements[3];
-static int16_t rawAccelMeasurements[3];
+extern int16_t rawGyroMeasurements[3];
+extern int16_t rawAccelMeasurements[3];
 
 typedef enum {
     GYRO_RANGE_250DPS = 0,

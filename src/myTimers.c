@@ -214,10 +214,14 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
     return 0;
 }
 
-/* ISR for Timer1 */
 void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void)
 {
     IFS0bits.T1IF = 0; // reset Timer 1 interrupt flag
+    
+    imuReadGyro();
+    //imuReadAccel();
+    //imuReadMag();
+    //imuReadTemp();
 }
 
 /* ISR for Timer2 */
@@ -248,9 +252,6 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 {
     IFS0bits.T3IF = 0; // reset Timer 3 interrupt flag
-    
-    // imuReadGyro();
-    // imuReadAccel();
     
     // Track the time passed within this timer.
     static uint32_t rtttlTimeCount = 0;

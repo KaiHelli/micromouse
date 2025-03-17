@@ -8,7 +8,8 @@
 #include "serialComms.h"
 #include "IOconfig.h"
 
-static uint8_t whoAmI = 0xFF;  // Buffer to store the read result
+static uint8_t imuWhoAmI = 0xFF;  // Buffer to store read result
+static uint8_t magWhoAmI = 0xFF;  // Buffer to store read result
 
 // Arrays holding LSB-per-unit for each selectable range:
 static const float gyroLSBTable[]  = { 131.0f, 65.5f, 32.8f, 16.4f };
@@ -18,29 +19,82 @@ static const uint16_t accelLSBTable[] = { 16384, 8192, 4096, 2048 };
 static float gyroLSB  = 131.0f;  // default -- gyroLSBTable[0]
 static float accelLSB = 16384;   // default -- accelLSBTable[0]
 
-int16_t rawGyroMeasurements[3];
-int16_t rawAccelMeasurements[3];
+volatile int16_t rawGyroMeasurements[3];
+volatile int16_t rawAccelMeasurements[3];
+volatile int16_t rawMagMeasurements[3];
+volatile int16_t rawTempMeasurement;
+
+// Local variables that are "unstable".
+volatile int16_t localGyroMeasurements[3];
+volatile int16_t localAccelMeasurements[3];
+volatile int16_t localMagMeasurements[3];
+volatile int16_t localTempMeasurement;
+
+// Track the user bank we are currently on
+static uint8_t currentBank = 0;
 
 void imuReadGyroCb(bool success) {
-
-    char measurementStr[50];
+    // Fix endianness
+    for(int i = 0; i < 3; i++) {
+        rawGyroMeasurements[i] = SWAP_BYTES(localGyroMeasurements[i]);
+    }
+    
+    char measurementStr[70];
     
     float gyroMeasurements[3];
     
     imuScaleGyroMeasurements(rawGyroMeasurements, gyroMeasurements);
         
-    snprintf(measurementStr, 50, "Gyroscope: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
+    snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
     putsUART1(measurementStr);
 }
 
 void imuReadAccelCb(bool success) {
-    char measurementStr[50];
+    // Fix endianness
+    for(int i = 0; i < 3; i++) {
+        rawAccelMeasurements[i] = SWAP_BYTES(localAccelMeasurements[i]);
+    }
+    
+    char measurementStr[70];
 
     float accelMeasurements[3];
         
     imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
 
-    snprintf(measurementStr, 50, "Accelerometer: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
+    snprintf(measurementStr, 70, "Accelerometer : X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
+    putsUART1(measurementStr);
+}
+
+void imuReadMagCb(bool success) {
+    // Copy values
+    for(int i = 0; i < 3; i++) {
+        rawMagMeasurements[i] = localMagMeasurements[i];
+    }
+    
+    char measurementStr[80];
+    
+    float magMeasurements[3];
+    
+    imuScaleMagMeasurements(rawMagMeasurements, magMeasurements);
+    
+    float heading =  magnetometerToHeading(magMeasurements);
+    
+    snprintf(measurementStr, 80, "Magnetometer [uT]: X = %1.2f\tY = %1.2f\tZ = %1.2f\tHeading = %1.2f deg\r\n", magMeasurements[0], magMeasurements[1], magMeasurements[2], heading);
+    putsUART1(measurementStr);
+}
+
+void imuReadTempCb(bool success) {
+    // Fix endianness
+    rawTempMeasurement = SWAP_BYTES(localTempMeasurement);
+
+    char measurementStr[70];
+
+    float tempMeasurement;
+    
+    imuScaleTempMeasurements(&rawTempMeasurement, &tempMeasurement);
+
+    snprintf(measurementStr, 70, "Temperature [C]: %1.2f\r\n", tempMeasurement);
+    
     putsUART1(measurementStr);
 }
 
@@ -50,9 +104,11 @@ void imuReadGyro(void) {
     bool status = 0;
 
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
+    if (currentBank != 0) {
+        status |= imuSetUsrBank(0);
+    }
     
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawGyroMeasurements, 6, imuReadGyroCb);
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localGyroMeasurements, 6, imuReadGyroCb);
 }
 
 void imuReadAccel(void) {
@@ -61,9 +117,42 @@ void imuReadAccel(void) {
     bool status = 0;
 
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
+    if (currentBank != 0) {
+        status |= imuSetUsrBank(0);
+    }
     
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawAccelMeasurements, 6, imuReadAccelCb);
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localAccelMeasurements, 6, imuReadAccelCb);
+}
+
+void imuReadMag(void) {
+    static uint8_t measurementRegisterStart = AK09916_XOUT_L;
+    
+    bool status = 0;
+
+    // Reading measurements locks measured data until register ST2 is read.
+    status |= putsI2C1(I2C_IMU_MAG_ADDR, &measurementRegisterStart, 1, (uint8_t*) localMagMeasurements, 6, NULL);
+    
+    // To unlock measurement registers after reading, status register ST2 has to be read. 
+    static uint8_t measurementStatusRegister = AK09916_ST2;
+    static uint8_t measurementStatus;
+    
+    status |= putsI2C1(I2C_IMU_MAG_ADDR, &measurementStatusRegister, 1, &measurementStatus, 1, imuReadMagCb);
+    
+    // TODO: Check HOFL bit in measurementStatus for magnetic sensor overflow in callback and only update measurements if data is valid.
+}
+
+
+void imuReadTemp(void) {
+    static uint8_t measurementRegisterStart = ICM20948_TEMP_OUT_H;
+    
+    bool status = 0;
+
+    // Switch to User Bank 0
+    if (currentBank != 0) {
+        status |= imuSetUsrBank(0);
+    }
+    
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) &localTempMeasurement, 2, imuReadTempCb);
 }
 
 // -----------------------------------------------------------------------------
@@ -72,21 +161,13 @@ void imuReadAccel(void) {
 // -----------------------------------------------------------------------------
 static void imuReadWhoAmICb(bool success)
 {
-    if (success)
-    {
-        // The whoAmI variable now holds the data read from the WHO_AM_I register.
-        // According to most ICM-20948 datasheets, this should be 0xEA.
-        char whoAmIStr[50];
-        
-        snprintf(whoAmIStr, 50, "ICM-20948 WHO_AM_I = 0x%02X\r\n", whoAmI);
+    // The whoAmI variable now holds the data read from the WHO_AM_I register.
+    // According to the ICM-20948 datasheet, this should be 0xEA.
+    char whoAmIStr[50];
 
-        putsUART1(whoAmIStr);
-    }
-    else
-    {
-        // Handle I2C error (e.g., no sensor found, bus conflict, etc.)
-        putsUART1("Asynchronous I2C read error!\r\n");
-    }
+    snprintf(whoAmIStr, 50, "ICM-20948 WHO_AM_I = 0x%02X\r\n", imuWhoAmI);
+
+    putsUART1(whoAmIStr);
 }
 
 // -----------------------------------------------------------------------------
@@ -100,30 +181,84 @@ void imuReadWhoAmI(void)
     bool status = 0;
 
     // Switch to User Bank 0
-    status |= imuSetUsrBank(2);
+    if (currentBank != 0) {
+        status |= imuSetUsrBank(0);
+    }
     
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &regAddr, 1, &whoAmI, 1, imuReadWhoAmICb);
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &regAddr, 1, &imuWhoAmI, 1, imuReadWhoAmICb);
+}
+
+// -----------------------------------------------------------------------------
+// This callback function is invoked from the I2C ISR after the transaction
+// has completed (success or error).
+// -----------------------------------------------------------------------------
+static void imuReadWhoAmIMagCb(bool success)
+{
+    // The whoAmI variable now holds the data read from the WHO_AM_I register.
+    // According to the datasheet, this should be 0x09.
+    char whoAmIStr[50];
+
+    snprintf(whoAmIStr, 50, "AK09916 WHO_AM_I = 0x%02X\r\n", magWhoAmI);
+
+    putsUART1(whoAmIStr);
+}
+
+// -----------------------------------------------------------------------------
+// Starts an asynchronous read of the WHO_AM_I register. We send a single-byte
+// register address, then read back one byte into 'whoAmI'.
+// -----------------------------------------------------------------------------
+void imuReadWhoAmIMag(void)
+{
+    static uint8_t regAddr = AK09916_WHO_AM_I;
+    
+    bool status = 0;
+
+    status |= putsI2C1(I2C_IMU_MAG_ADDR, &regAddr, 1, &magWhoAmI, 1, imuReadWhoAmIMagCb);
 }
 
 void imuSelfTest(void)
 {
+    
+}
+
+void magSelfTest(void) 
+{
     // Implementation placeholder
 }
 
-void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange)
+void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode, TempMode_t tempMode)
 {
     bool status = 0; // track the status of all operations
     
     // USR0 / PWR_MGMT_1
-    // bit 6 -> 0 | wake from sleep mode
-    // bit 3 -> 1 | disable temperature sensor
-    // 0x41 on reset -> change to 0x05
+    // bit 7 -> 1 | reset IMU
+    // 0x41 on reset -> change to 0xC1
+    // static uint8_t imuRstData[] = { ICM20948_PWR_MGMT_1, 0xC1 };
+    // status |= putsI2C1(I2C_IMU_GYRO_ADDR, imuRstData, 2, NULL, 0, NULL);
     
-    static uint8_t value1[] = { ICM20948_PWR_MGMT_1, 0x05 };
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, value1, 2, NULL, 0, NULL);
+    // USR0 / PWR_MGMT_1
+    // bit 6 -> 0 | wake from sleep mode
+    // bit 3 -> 1 | enable/disable temperature sensor
+    // 0x41 on reset -> change to 0x01 / 0x05
+    
+    static uint8_t pwrData[] = { ICM20948_PWR_MGMT_1, 0x01 };
+    pwrData[1] |= tempMode << 3;
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, pwrData, 2, NULL, 0, NULL);
 
+    // USR0 / INT_PIN_CFG
+    // bit 1 -> 1 | bridge auxiliary I2C bus with main bus (for magnetometer)
+    // 0x00 on reset -> change to 0x02
+    static uint8_t i2cData[] = { ICM20948_INT_PIN_CFG, 0x02 };
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, i2cData, 2, NULL, 0, NULL);
+    
     // Switch to User Bank 2
     status |= imuSetUsrBank(2);
+    
+    // USR2 / ODR_ALIGN_EN
+    // bit 0 -> 1 | align sampling rates of sensors
+    // 0x00 on reset -> change to 0x01
+    static uint8_t odrAlignData[] = { ICM20948_ODR_ALIGN_EN, 0x01 };
+    status |= putsI2C1(I2C_IMU_GYRO_ADDR, odrAlignData, 2, NULL, 0, NULL);
     
     // USR2 / GYRO_SMPLRT_DIV
     // bit 7:0 -> Gyro sample rate divider
@@ -170,7 +305,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange)
     
     // Set accelerometer range selection.
     uint8_t accelConfig = ((uint8_t)accelRange << 1);
-    // For example, enable LPF in bit 0:
+    // Enable LPF in bit 0:
     accelConfig |= 0x01;
     
     static uint8_t accelData[] = { ICM20948_ACCEL_CONFIG, 0x0 };
@@ -184,9 +319,20 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange)
     // bit 4:2 -> X/Y/Z self-test enable
     // bit 1:0 -> averaging filter settings for low-power mode
     
+    // leave as is for now
+    
+    // MAG / CNTL3
+    // bit 0 -> reset magnetometer
+    // 0x00 on reset -> change to 0x01
+    // static uint8_t magRstData[] = { AK09916_CNTL3, 0x01 };
+    // status |= putsI2C1(I2C_IMU_MAG_ADDR, magRstData, 2, NULL, 0, NULL);
+    
     // MAG / CNTL2
     // bit 4:0 -> Magnetometer operation mode setting
-    // default 0x0 (power down) -> set to 0b00010 (continuous measurement mode 1)
+    static uint8_t magData[] = { AK09916_CNTL2, 0x0 };
+    magData[1] = magMode;
+    status |= putsI2C1(I2C_IMU_MAG_ADDR, magData, 2, NULL, 0, NULL);
+    
     
     if (status == 0) {
         putsUART1("IMU configured.\r\n");
@@ -210,6 +356,9 @@ bool imuSetUsrBank(uint8_t bank)
     // Perform the async I2C write using the correct buffer
     // (the data remains valid because `bankRegs` is static)
     bool status = putsI2C1(I2C_IMU_GYRO_ADDR, bankRegs[bank], 2, NULL, 0, NULL);
+    
+    currentBank = bank;
+    
     return status;
 }
 
@@ -225,6 +374,30 @@ void imuScaleAccelMeasurements(const int16_t rawAccel[3], float scaledAccel[3])
     scaledAccel[0] = (float)rawAccel[0] / accelLSB;
     scaledAccel[1] = (float)rawAccel[1] / accelLSB;
     scaledAccel[2] = (float)rawAccel[2] / accelLSB;
+}
+
+void imuScaleMagMeasurements(const int16_t rawMag[3], float scaledMag[3])
+{
+    scaledMag[0] = (float)rawMag[0] * AK09916_UT_PER_LSB;
+    scaledMag[1] = (float)rawMag[1] * AK09916_UT_PER_LSB;
+    scaledMag[2] = (float)rawMag[2] * AK09916_UT_PER_LSB;
+}
+
+void imuScaleTempMeasurements(const int16_t *rawTemp, float *scaledTemp)
+{
+    *scaledTemp = ((float)*rawTemp / ICM20948_LSB_PER_C) + 21;
+}
+
+float magnetometerToHeading(float scaledMag[3]) {
+    float headingRadians = atan2f(scaledMag[1], scaledMag[0]); // atan2(Y, X)
+    float headingDegrees = headingRadians * (180.0f / M_PI);
+
+    // Convert negative degrees (range -180 to +180) to compass range (0 to 360)
+    if (headingDegrees < 0) {
+        headingDegrees += 360.0f;
+    }
+
+    return headingDegrees;
 }
 
 float dpsToRadps(float dps)

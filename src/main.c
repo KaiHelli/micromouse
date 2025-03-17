@@ -74,7 +74,7 @@ int16_t main()
     initQEI1(0); // configure Quadrature Encoder 1
     initQEI2(0); // configure Quadrature Encoder 2
 
-    imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G); // configure IMU over I2C
+    imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
     
     //oledSetDisplayState(1);
     
@@ -82,22 +82,22 @@ int16_t main()
     setupADC1();       // Initialize ADC to sample sensor reading
     startADC1();       // Start to sample sensor readings
 
-    //initTimerInMs(10, 1); //creates a 10ms timer interrupt
-    //setTimer1State(1);
+    initTimerInMs(100, 1); //creates a 10ms timer interrupt
+    setTimer1State(1);
 
     // initTimerInMs(50, 2); //creates a 10ms timer interrupt
     // setTimer2State(1);
 
-    initTimerInMs(1, 3); // creates a 1ms timer interrupt
-    parseAllSongs();
-    playSong(SONG_MUPPETS, true);
+    //initTimerInMs(1, 3); // creates a 1ms timer interrupt
+    //parseAllSongs();
+    //playSong(SONG_MUPPETS, true);
     
     // setTimer3State(1);
     
     // initTimerInMs(250, 32); //creates a 10ms timer interrupt
     // setTimer32CombinedState(1);
 
-    //LED1 = LEDOFF;
+    LED1 = LEDOFF;
     LED2 = LEDOFF;
     LED3 = LEDOFF;
     LED4 = LEDOFF;

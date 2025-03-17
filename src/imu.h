@@ -4,8 +4,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-extern int16_t rawGyroMeasurements[3];
-extern int16_t rawAccelMeasurements[3];
+// Byte-swap macro to swap big-endian to little-endian format
+#define SWAP_BYTES(x)  ((uint16_t)((((x) & 0xFF00) >> 8) | (((x) & 0x00FF) << 8)))
+
+extern volatile int16_t rawGyroMeasurements[3];
+extern volatile int16_t rawAccelMeasurements[3];
+extern volatile int16_t rawMagMeasurements[3];
+extern volatile int16_t rawTempMeasurement;
 
 typedef enum {
     GYRO_RANGE_250DPS = 0,
@@ -21,12 +26,29 @@ typedef enum {
     ACCEL_RANGE_16G
 } AccelRange_t;
 
+typedef enum {
+    MAG_MODE_OFF = 0b00000,
+    MAG_MODE_SINGLE = 0b00001,
+    MAG_MODE_10HZ = 0b00010,
+    MAG_MODE_20HZ = 0b00100,
+    MAG_MODE_50HZ = 0b00110,
+    MAG_MODE_100HZ = 0b01000,
+    MAG_MODE_SELF_TEST = 0b10000,
+} MagMode_t;
+
+typedef enum {
+    TEMP_ON = 0,
+    TEMP_OFF
+} TempMode_t;
+
+
 #define I2C_IMU_GYRO_ADDR   0x69
 #define I2C_IMU_MAG_ADDR 0x0C 
 
 #define ICM20948_ID 0xEA     // The chip ID for the Gyro / Accelerometer
 #define AK09916_ID  0x09     // The chip ID for the magnetometer
 
+#define ICM20948_LSB_PER_C 333.87 // temp data LSB value (fixed)
 #define AK09916_UT_PER_LSB 0.15 // mag data LSB value (fixed)
 
 // ICM-20948
@@ -179,14 +201,19 @@ typedef enum {
 #define ICM20948_I2C_SLV4_DO        		0x16
 #define ICM20948_I2C_SLV4_DI        		0x17
 
-void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange);
+void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode, TempMode_t tempMode);
 bool imuSetUsrBank(uint8_t bank);
 void imuReadWhoAmI(void);
 void imuReadGyro(void);
 void imuReadAccel(void);
+void imuReadMag(void);
+void imuReadTemp(void);
 void imuScaleGyroMeasurements(const int16_t rawGyro[3], float scaledGyro[3]);
 void imuScaleAccelMeasurements(const int16_t rawAccel[3], float scaledAccel[3]);
+void imuScaleMagMeasurements(const int16_t rawMag[3], float scaledMag[3]);
+void imuScaleTempMeasurements(const int16_t *rawTemp, float *scaledTemp);
 
+float magnetometerToHeading(float scaledMag[3]);
 float dpsToRadps(float dps);
 
 #endif	/* IMU_H */

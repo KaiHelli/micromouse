@@ -75,6 +75,7 @@ int16_t main()
     initQEI2(0); // configure Quadrature Encoder 2
 
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
+    imuCalibrateGyro(); // Calibrate gyroscope.
     
     //oledSetDisplayState(1);
     

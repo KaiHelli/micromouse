@@ -23,7 +23,7 @@ static float pwmDC2    = 0.0f;                // for PWM module #2, channel 1
 
 void setupPWM1()
 {
-    /* PWM1, configured to 1kHz, based on fcyc = 40.000 MIPS, Tcycle=25nsec
+    /* PWM1, configured to 1kHz, based on fcy = 40.000 MIPS, Tcycle=25nsec
      * 1ms/25nsec = 40000 (doesn't fit in 15 bits)
      * Therefore, we use a pre-scaler and end up with 10000
      */
@@ -51,7 +51,7 @@ void setupPWM1()
 
 void setupPWM2()
 {
-    /* PWM2, configured to 1kHz, based on fcyc = 40.000 MIPS, Tcycle=25nsec
+    /* PWM2, configured to 1kHz, based on fcy = 40.000 MIPS, Tcycle=25nsec
      * 1ms/25nsec = 40000 (fits in 15 bits)
      * of course, we could use a pre-scaler and end up somewhere else
      */
@@ -116,8 +116,8 @@ static void recalcPWMDutyCycles(uint8_t pwmModule)
 int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq)
 {
     // Example: If your device runs at 40 MIPS => FCY = 40e6
-    // or compute from CLOCK_TCY_NSEC => FCY = (uint32_t)(1e9 / CLOCK_TCY_NSEC)
-    uint32_t FCY = CLOCK_FCY;
+    // or compute from TCY_NSEC => FCY = (uint32_t)(1e9 / TCY_NSEC)
+    uint32_t fcy = FCY;
 
     // We'll search for a suitable prescaler and PTPER that fits in 15 bits
     uint16_t chosenPTPER = 0;
@@ -127,9 +127,9 @@ int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq)
     // Try each prescaler until we find a valid match
     for (uint8_t i = 0; i < 4; i++) {
         uint16_t presc = prescalers[i];
-        // PTPER = FCY / (desiredFreq * presc)
+        // PTPER = fcy / (desiredFreq * presc)
         // Use 32-bit arithmetic to avoid overflow
-        uint32_t candidate = FCY / (desiredFreq * (uint32_t) presc * 2UL);
+        uint32_t candidate = fcy / (desiredFreq * (uint32_t) presc * 2UL);
 
         if (candidate <= 0x7FFF) {
             chosenPTPER = (uint16_t) candidate;

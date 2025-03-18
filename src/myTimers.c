@@ -145,7 +145,7 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
     const uint16_t prescaler_options[] = { 1, 8, 64, 256 };
 
     // Base frequency in Hz depending on the oscillator
-    const uint32_t FCY = CLOCK_FCY;
+    const uint32_t fcy = FCY;
 
     // Max count values for each type of timer
     const uint16_t max_count_16 = 0xffff; // 2^16 - 1 = 65_535
@@ -162,15 +162,15 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
 
     // Loop through prescaler options
     for (uint16_t i = 0; i < 4; i++) {
-        uint32_t adj_FCY = FCY / prescaler_options[i];
+        uint32_t adj_fcy = fcy / prescaler_options[i];
 
         // Calculate the number of cycles needed to achieve the given period
         // period is given in ms
         // Approach: convert frequency to kHz and multiply by the number of ms
 
-        // for 16-bit timers 64bit is safe as timeInMs <= 630ms and adj_FCY <= 26_726_400 so log2(630*26_726_400) = 33.97 bits
-        // for 32-bit timers 64bit is safe as timeInMs <= 41_232_000ms and adj_FCY <= 26_726_400 so log2(41_232_000*26_726_400) = 49.96 bits
-        uint64_t required_ticks = ((uint64_t)timeInMs * adj_FCY) / 1000;
+        // for 16-bit timers 64bit is safe as timeInMs <= 630ms and adj_fcy <= 26_726_400 so log2(630*26_726_400) = 33.97 bits
+        // for 32-bit timers 64bit is safe as timeInMs <= 41_232_000ms and adj_fcy <= 26_726_400 so log2(41_232_000*26_726_400) = 49.96 bits
+        uint64_t required_ticks = ((uint64_t)timeInMs * adj_fcy) / 1000;
 
         if (required_ticks <= max_count) {
             prescaler = i;

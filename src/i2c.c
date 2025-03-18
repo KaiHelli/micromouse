@@ -73,7 +73,7 @@ static volatile bool i2cInProgress = false;
 static volatile I2C_Transaction_t i2cTransaction;
 
 /**
- *  Setup the I2C port (example: 400 kHz @ Fcy=40 MHz)
+ *  Setup the I2C port (example: 400 kHz @ fcy=40 MHz)
  * 
  *  I2CXBRG = ((1/fscl - delay) * fcy) - 2
  *  delay typically 110 - 130ns

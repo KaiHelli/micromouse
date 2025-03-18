@@ -6,6 +6,8 @@
 
 // Byte-swap macro to swap big-endian to little-endian format
 #define SWAP_BYTES(x)  ((uint16_t)((((x) & 0xFF00) >> 8) | (((x) & 0x00FF) << 8)))
+#define HIGH_BYTE(x) ((uint8_t)((x) >> 8))
+#define LOW_BYTE(x)  ((uint8_t)((x) & 0xFF))
 
 extern volatile int16_t rawGyroMeasurements[3];
 extern volatile int16_t rawAccelMeasurements[3];
@@ -205,6 +207,8 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
 bool imuSetUsrBank(uint8_t bank);
 void imuReadWhoAmI(void);
 void imuReadGyro(void);
+bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]);
+bool imuCalibrateGyro();
 void imuReadAccel(void);
 void imuReadMag(void);
 void imuReadTemp(void);

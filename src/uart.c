@@ -6,8 +6,8 @@
 #include <xc.h>
 
 #include "IOconfig.h"
-#include "myPWM.h"
-#include "serialComms.h"
+#include "pwm.h"
+#include "uart.h"
 #include "interrupts.h"
 
 

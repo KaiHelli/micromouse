@@ -5,7 +5,7 @@
 #include "interrupts.h"
 #include "IOconfig.h"
 #include "motorEncoders.h"
-#include "serialComms.h"
+#include "uart.h"
 // file global
 
 long rotationCount1;

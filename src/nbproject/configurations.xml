@@ -5,9 +5,9 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>IOconfig.h</itemPath>
-      <itemPath>myTimers.h</itemPath>
-      <itemPath>serialComms.h</itemPath>
-      <itemPath>myPWM.h</itemPath>
+      <itemPath>timers.h</itemPath>
+      <itemPath>uart.h</itemPath>
+      <itemPath>pwm.h</itemPath>
       <itemPath>motorEncoders.h</itemPath>
       <itemPath>adc.h</itemPath>
       <itemPath>dma.h</itemPath>
@@ -19,6 +19,14 @@
       <itemPath>ssd1306.h</itemPath>
       <itemPath>rtttl.h</itemPath>
       <itemPath>motors.h</itemPath>
+      <itemPath>switches.h</itemPath>
+      <itemPath>globalTimers.h</itemPath>
+      <itemPath>configbits.h</itemPath>
+      <itemPath>boot.h</itemPath>
+      <itemPath>sensors.h</itemPath>
+      <itemPath>mouseController.h</itemPath>
+      <itemPath>mazeSolver.h</itemPath>
+      <itemPath>pid.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -34,9 +42,9 @@
                    projectFiles="true">
       <itemPath>IOconfig.c</itemPath>
       <itemPath>main.c</itemPath>
-      <itemPath>myTimers.c</itemPath>
-      <itemPath>serialComms.c</itemPath>
-      <itemPath>myPWM.c</itemPath>
+      <itemPath>timers.c</itemPath>
+      <itemPath>uart.c</itemPath>
+      <itemPath>pwm.c</itemPath>
       <itemPath>motorEncoders.c</itemPath>
       <itemPath>adc.c</itemPath>
       <itemPath>dma.c</itemPath>
@@ -47,6 +55,13 @@
       <itemPath>ssd1306.c</itemPath>
       <itemPath>rtttl.c</itemPath>
       <itemPath>motors.c</itemPath>
+      <itemPath>boot.c</itemPath>
+      <itemPath>globalTimers.c</itemPath>
+      <itemPath>sensors.c</itemPath>
+      <itemPath>mouseController.c</itemPath>
+      <itemPath>mazeSolver.c</itemPath>
+      <itemPath>pid.c</itemPath>
+      <itemPath>switches.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>

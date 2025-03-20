@@ -9,7 +9,7 @@
 
 #include "i2c.h"
 #include "imu.h"
-#include "serialComms.h"
+#include "uart.h"
 #include "IOconfig.h"
 
 static uint8_t imuWhoAmI = 0xFF;  // Buffer to store read result

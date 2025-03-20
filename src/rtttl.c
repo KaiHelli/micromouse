@@ -7,8 +7,8 @@
 #include <ctype.h>
 
 #include "rtttl.h"
-#include "myTimers.h"
-#include "myPWM.h"
+#include "timers.h"
+#include "pwm.h"
 #include "IOconfig.h"
 
 /*
@@ -458,14 +458,52 @@ bool playSong(RtttlSong song, bool repeat) {
     }
 
     setPWMDutyCycle(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, 0.5);
-    setTimer3State(true);
+    registerTimerCallback(TIMER_3, songISR);
 
     return true;
 }
 
 void stopSong(void) {
-    setTimer3State(false);
     setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
     rtttlNotes.noteIndex = 0;
     songPlaying = false;
+}
+
+
+// Track the time passed within this timer.
+int8_t songISR(void) {
+    static uint32_t rtttlTimeCount = 0;
+    
+    // 1) First, increment the time counter.
+    rtttlTimeCount++;
+    
+    // 2) Check if we've reached the current note's duration.
+    if (rtttlTimeCount >= rtttlNotes.notes[rtttlNotes.noteIndex].duration)
+    {
+        // Advance to next note
+        rtttlNotes.noteIndex++;
+      
+        if (rtttlNotes.noteIndex >= rtttlNotes.notesLen)
+        {
+          if (songRepeat) {
+              rtttlNotes.noteIndex = 0;
+          } else {
+              stopSong();
+              return 0;
+          }
+        }
+      
+        // Reset and load the next note
+        rtttlTimeCount = 0;
+
+        // Turn of PWM in case frequency is zero, enable otherwise
+        if (songPlaying && rtttlNotes.notes[rtttlNotes.noteIndex].frequency > 0) {
+            setPWMFrequency(BUZZ_PWM_MODULE, rtttlNotes.notes[rtttlNotes.noteIndex].frequency);
+            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, true);
+        } else {
+            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
+        }
+    }
+    
+    return 1;
 }

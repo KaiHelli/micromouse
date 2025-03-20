@@ -35,16 +35,30 @@
 #include <stdint.h>
 #include <xc.h> // include processor files - each processor file is guarded.
 
+#define NUM_TIMERS 3
+#define CALLBACK_BUFFER_SIZE 5
+
+typedef enum {
+    TIMER_1 = 0,
+    TIMER_2,
+    TIMER_3,
+    TIMER_32_COMBINED
+} Timer_t;
+
+// Timer callback function
+// When returning 0, the callback will be unregistered
+// When returning 1, the callback will remain registered
+typedef int16_t (*TimerCallback_t)(void);
+
 void initTimer1(uint16_t period, uint16_t prescaler);
 void initTimer2(uint16_t period, uint16_t prescaler);
 void initTimer3(uint16_t period, uint16_t prescaler);
 void initTimer32Combined(uint32_t period, uint16_t prescaler);
 
-void setTimer1State(bool state);
-void setTimer2State(bool state);
-void setTimer3State(bool state);
-void setTimer32CombinedState(bool state);
-
-int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer);
+void setTimerInterruptState(Timer_t timer, bool state);
+void setTimerState(Timer_t timer, bool state);
+int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs);
+int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback);
+void clearTimerCallbacks(Timer_t timer);
 
 #endif /* XC_HEADER_TEMPLATE_H */

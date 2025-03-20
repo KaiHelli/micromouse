@@ -68,6 +68,7 @@ bool parseRTTTL(RtttlReader *input, RtttlNotes *output);
 bool playSong(RtttlSong song, bool repeat);
 void stopSong(void);
 bool parseAllSongs(void);
+int8_t songISR(void);
 
 #endif	/* RTTTL_H */
 

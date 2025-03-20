@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "clock.h"
-#include "myPWM.h"
+#include "pwm.h"
 #include "IOconfig.h"
 
 // Prescalers for PWM (PTCKPS bits). 1 (00), 4 (01), 16 (10), 64 (11).
@@ -83,7 +83,7 @@ static void recalcPWMDutyCycles(uint8_t pwmModule)
 {
     switch (pwmModule) {
         case 1:
-            // P1DCx must be (fraction × (2 * PTPER))
+            // P1DCx must be (fraction ï¿½ (2 * PTPER))
             P1DC1 = (uint16_t)(pwmDC1[0] * (float)pwmFrequency[0]);
             P1DC2 = (uint16_t)(pwmDC1[1] * (float)pwmFrequency[0]);
             P1DC3 = (uint16_t)(pwmDC1[2] * (float)pwmFrequency[0]);
@@ -110,7 +110,7 @@ static void recalcPWMDutyCycles(uint8_t pwmModule)
  *
  * @note 
  *   - PTPER is 15 bits, so it must be <= 0x7FFF (32767).
- *   - We set pwmFrequency[module - 1] to 2×PTPER so that writing
+ *   - We set pwmFrequency[module - 1] to 2ï¿½PTPER so that writing
  *     that value to P1DCx or P2DC1 yields 100% duty cycle.
  */
 int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq)

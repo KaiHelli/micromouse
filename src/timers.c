@@ -1,9 +1,9 @@
 #include "clock.h"
-#include "myTimers.h"
+#include "timers.h"
 #include "IOconfig.h"
 #include "motorEncoders.h"
-#include "myPWM.h"
-#include "serialComms.h"
+#include "pwm.h"
+#include "uart.h"
 #include "imu.h"
 #include "interrupts.h"
 #include "dma.h"
@@ -101,24 +101,38 @@ void initTimer32Combined(uint32_t period, uint16_t prescaler)
     // NOTE: calls _T3Interrupt(void) on interrupt
 }
 
-void setTimer1State(bool state)
-{
-    T1CONbits.TON = state; //
+void setTimerInterruptState(Timer_t timer, bool state) {
+    switch (timer) { 
+        case TIMER_1:
+            IEC0bits.T1IE = state;
+            break;
+        case TIMER_2:
+            IEC0bits.T2IE = state;
+            break;
+        case TIMER_3:
+            IEC0bits.T3IE = state;
+            break;
+        case TIMER_32_COMBINED:
+            IEC0bits.T3IE = state;;
+            break;
+    }
 }
 
-void setTimer2OState(bool state)
-{
-    T2CONbits.TON = state; //
-}
-
-void setTimer3State(bool state)
-{
-    T3CONbits.TON = state; //
-}
-
-void setTimer32CombinedState(bool state)
-{
-    T2CONbits.TON = state; //
+void setTimerState(Timer_t timer, bool state) {
+    switch (timer) { 
+        case TIMER_1:
+            T1CONbits.TON = state;
+            break;
+        case TIMER_2:
+            T2CONbits.TON = state;
+            break;
+        case TIMER_3:
+            T3CONbits.TON = state;
+            break;
+        case TIMER_32_COMBINED:
+            T2CONbits.TON = state;
+            break;
+    }
 }
 
 /**
@@ -139,7 +153,7 @@ void setTimer32CombinedState(bool state)
  * @note For 32-bit timers, the Timer2 and Timer3 modules are combined.
  *       Ensure that Timer2 and Timer3 are not independently configured when using Timer23.
  */
-int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
+int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
 {
     // Prescaler options
     const uint16_t prescaler_options[] = { 1, 8, 64, 256 };
@@ -152,7 +166,7 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
     const uint32_t max_count_32 = 0xffffffff; // 2^32 - 1 = 4_294_967_295
 
     // Max count based on timer type
-    uint32_t max_count = (timer == 32) ? max_count_32 : max_count_16;
+    uint32_t max_count = (timer == TIMER_32_COMBINED) ? max_count_32 : max_count_16;
 
     // Timer parameters to calculate
     uint32_t count;
@@ -187,16 +201,16 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
     }
 
     switch (timer) {
-    case 1:
+    case TIMER_1:
         initTimer1((uint16_t)count, prescaler);
         break;
-    case 2:
+    case TIMER_2:
         initTimer2((uint16_t)count, prescaler);
         break;
-    case 3:
+    case TIMER_3:
         initTimer3((uint16_t)count, prescaler);
         break;
-    case 32:
+    case TIMER_32_COMBINED:
         initTimer32Combined(count, prescaler);
         break;
     default:
@@ -214,20 +228,103 @@ int16_t initTimerInMs(uint32_t timeInMs, uint8_t timer)
     return 0;
 }
 
-void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void)
-{
-    IFS0bits.T1IF = 0; // reset Timer 1 interrupt flag
+static volatile TimerCallback_t timerCallbacks[NUM_TIMERS][CALLBACK_BUFFER_SIZE];
+static volatile uint8_t registeredTimerCallbacks[NUM_TIMERS];
+
+// CAVEAT:  There is one race condition, when a higher priority interrupt calls 
+//          registerCallback while being in the while-loop of the generalTimerISR()
+//          callback. TODO: fix.
+int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
+    // In case is used, we will register the callback for timer 3.
+    if (timer == TIMER_32_COMBINED) {
+        timer = TIMER_3;
+    }
+
+    // Check if there buffer of interrupts is already full.
+    if (registeredTimerCallbacks[timer] == CALLBACK_BUFFER_SIZE) {
+        return -1;
+    }
     
-    imuReadGyro();
-    //imuReadAccel();
-    //imuReadMag();
-    //imuReadTemp();
+    // Temporarily disable timer interrupts during modifying callbacks.
+    setTimerInterruptState(timer, false);
+
+    timerCallbacks[timer][registeredTimerCallbacks[timer]] = callback;
+    registeredTimerCallbacks[timer]++;
+    
+    // Enable the timer itself, if we are the first callback.
+    if (registeredTimerCallbacks[timer] == 1) {
+        setTimerState(timer, true);
+    }
+    
+    // Reenable timer interrupts.
+    setTimerInterruptState(timer, true);
+    
+    return 0;
 }
+
+void clearTimerCallbacks(Timer_t timer) {
+    
+    // We clear the callbacks, so the timer can be disabled.
+    setTimerState(timer, false);
+    registeredTimerCallbacks[timer] = 0;
+}
+
+
+static void generalTimerISR(Timer_t timer) {
+    uint8_t i = 0;
+    while (i < registeredTimerCallbacks[timer]) {
+        
+        
+        TimerCallback_t callback = timerCallbacks[timer][i];
+        uint8_t status = callback();
+
+        if (status == 0) {
+            // Guard from register_callback being called from an interrupt with
+            // higher priority while modifiyng the callback buffers below.
+            
+            // Save current interrupt enable state
+            uint16_t state = __builtin_get_isr_state();
+            
+            // Disable interrupts
+            __builtin_disable_interrupts();
+            
+            registeredTimerCallbacks[timer]--;
+            
+            if (registeredTimerCallbacks[timer] == 0) {
+                // Disable the timer itself, if there are no callbacks left.
+                setTimerState(timer, false);
+            }
+
+            // Only swap if we're not already at the last position
+            if (i < registeredTimerCallbacks[timer]) {
+                timerCallbacks[timer][i] = timerCallbacks[timer][registeredTimerCallbacks[timer]];
+                // Do not increment i, as we've moved a new callback into position i
+            }
+            
+            
+            // Restore interrupt enable state
+            __builtin_set_isr_state(state);
+            // If removed callback was already last, just continue without incrementing i
+        } else {
+            i++;  // move to next callback only if no removal
+        }
+    }
+}
+
+
+void __attribute__((__interrupt__, auto_psv)) _T1Interrupt(void) {
+    IFS0bits.T1IF = 0;
+
+    generalTimerISR(TIMER_1);
+}
+
 
 /* ISR for Timer2 */
 void __attribute__((__interrupt__, auto_psv)) _T2Interrupt(void)
 {
     IFS0bits.T2IF = 0; // reset Timer 2 interrupt flag
+    
+    generalTimerISR(TIMER_2);
 }
 
 /* ISR for Timer3 or when Timer2 and Timer3 are combined */
@@ -253,37 +350,5 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
 {
     IFS0bits.T3IF = 0; // reset Timer 3 interrupt flag
     
-    // Track the time passed within this timer.
-    static uint32_t rtttlTimeCount = 0;
-    
-    // 1) First, increment the time counter.
-    rtttlTimeCount++;
-    
-    // 2) Check if we've reached the current note's duration.
-    if (rtttlTimeCount >= rtttlNotes.notes[rtttlNotes.noteIndex].duration)
-    {
-        // Advance to next note
-        rtttlNotes.noteIndex++;
-      
-        if (rtttlNotes.noteIndex >= rtttlNotes.notesLen)
-        {
-          if (songRepeat) {
-              rtttlNotes.noteIndex = 0;
-          } else {
-              stopSong();
-          }
-        }
-      
-        // Reset and load the next note
-        rtttlTimeCount = 0;
-
-        // Turn of PWM in case frequency is zero, enable otherwise
-        if (songPlaying && rtttlNotes.notes[rtttlNotes.noteIndex].frequency > 0) {
-            setPWMFrequency(BUZZ_PWM_MODULE, rtttlNotes.notes[rtttlNotes.noteIndex].frequency);
-            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, true);
-        } else {
-            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
-        }
-        
-    }
+    generalTimerISR(TIMER_3);
 }

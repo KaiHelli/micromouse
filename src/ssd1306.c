@@ -5,7 +5,7 @@
 
 #include "ssd1306.h"
 #include "i2c.h"
-#include "serialComms.h"
+#include "uart.h"
 
 void oledSetup(void) {
     oledSetDisplayState(0);

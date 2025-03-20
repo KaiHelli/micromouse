@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include "i2c.h"
 #include "IOconfig.h"
-#include "serialComms.h"
+#include "uart.h"
 #include "interrupts.h"
 
 #define DEBUG 1

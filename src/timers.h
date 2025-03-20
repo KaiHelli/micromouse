@@ -5,14 +5,17 @@
 #include <stdint.h>
 #include <xc.h> // include processor files - each processor file is guarded.
 
-#define NUM_TIMERS 3
+#define NUM_TIMERS 5
 #define CALLBACK_BUFFER_SIZE 5
 
 typedef enum {
     TIMER_1 = 0,
     TIMER_2,
     TIMER_3,
-    TIMER_32_COMBINED
+    TIMER_4,
+    TIMER_5,
+    TIMER_32_COMBINED,
+    TIMER_54_COMBINED
 } Timer_t;
 
 /**
@@ -39,11 +42,32 @@ void initTimer2(uint16_t period, uint16_t prescaler);
  */
 void initTimer3(uint16_t period, uint16_t prescaler);
 
+
+/**
+ * @brief Initializes Timer4 with the specified period and prescaler.
+ * Takes a 16-bit period value and a 16-bit prescaler.
+ */
+void initTimer4(uint16_t period, uint16_t prescaler);
+
+
+/**
+ * @brief Initializes Timer5 with the specified period and prescaler.
+ * Takes a 16-bit period value and a 16-bit prescaler.
+ */
+void initTimer5(uint16_t period, uint16_t prescaler);
+
 /**
  * @brief Initializes combined Timer32 with the specified period and prescaler.
  * Takes a 32-bit period value and a 16-bit prescaler.
  */
 void initTimer32Combined(uint32_t period, uint16_t prescaler);
+
+
+/**
+ * @brief Initializes combined Timer54 with the specified period and prescaler.
+ * Takes a 32-bit period value and a 16-bit prescaler.
+ */
+void initTimer54Combined(uint32_t period, uint16_t prescaler);
 
 /**
  * @brief Enables or disables the interrupt for the specified timer.

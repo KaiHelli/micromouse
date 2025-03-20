@@ -26,12 +26,12 @@ void initTimer1(uint16_t period, uint16_t prescaler)
     T1CONbits.TGATE = 0; // gated time accumulation disabled
     T1CONbits.TON = 0; // leave timer disabled initially
 
-    TMR1 = 0; // reset Timer1 counter
-    PR1 = period; // set Timer1 period register ()
+    TMR1 = 0; // reset timer counter
+    PR1 = period; // set timer period register ()
 
-    IFS0bits.T1IF = 0; // reset Timer1 interrupt flag
-    IPC0bits.T1IP = IP_TIMER1; // set Timer1 interrupt priority level
-    IEC0bits.T1IE = 1; // enable Timer1 interrupt
+    IFS0bits.T1IF = 0; // reset timer interrupt flag
+    IPC0bits.T1IP = IP_TIMER1; // set timer interrupt priority level
+    IEC0bits.T1IE = 1; // enable timer interrupt
 }
 
 void initTimer2(uint16_t period, uint16_t prescaler)
@@ -47,12 +47,12 @@ void initTimer2(uint16_t period, uint16_t prescaler)
     T2CONbits.T32 = 0; // set timer to 16bit mode
     T2CONbits.TON = 0; // leave timer disabled initially
 
-    TMR2 = 0; // reset Timer2 counter
-    PR2 = period; // set Timer2 period register ()
+    TMR2 = 0; // reset timer counter
+    PR2 = period; // set timer period register
 
-    IFS0bits.T2IF = 0; // reset Timer2 interrupt flag
-    IPC1bits.T2IP = IP_TIMER2; // set Timer2 interrupt priority level
-    IEC0bits.T2IE = 1; // enable Timer2 interrupt
+    IFS0bits.T2IF = 0; // reset timer interrupt flag
+    IPC1bits.T2IP = IP_TIMER2; // set timer interrupt priority level
+    IEC0bits.T2IE = 1; // enable timer interrupt
 }
 
 void initTimer3(uint16_t period, uint16_t prescaler)
@@ -67,12 +67,52 @@ void initTimer3(uint16_t period, uint16_t prescaler)
     T3CONbits.TGATE = 0; // gated time accumulation disabled
     T3CONbits.TON = 0; // leave timer disabled initially
 
-    TMR3 = 0;
-    PR3 = period; // set Timer 1 period register ()
+    TMR3 = 0; // reset timer counter
+    PR3 = period; // set timer period register
 
-    IFS0bits.T3IF = 0; // reset Timer 1 interrupt flag
-    IPC2bits.T3IP = IP_TIMER3; // set Timer1 interrupt priority level
-    IEC0bits.T3IE = 1; // enable Timer 1 interrupt
+    IFS0bits.T3IF = 0; // reset timer interrupt flag
+    IPC2bits.T3IP = IP_TIMER3; // set timer interrupt priority level
+    IEC0bits.T3IE = 1; // enable timer interrupt
+}
+
+void initTimer4(uint16_t period, uint16_t prescaler)
+{
+    // unsigned TimerControlValue;
+
+    T4CON = 0; // ensure Timer4 is in reset state
+    // TimerControlValue=T1CON;
+
+    T4CONbits.TCKPS = prescaler & 0b11; // FCY divide by 1/8/64/256: e.g tick = 64*37.5ns = 2.4us (Tcycle=37.5ns)
+    T4CONbits.TCS = 0; // select internal FCY clock source
+    T4CONbits.TGATE = 0; // gated time accumulation disabled
+    T4CONbits.TON = 0; // leave timer disabled initially
+
+    TMR4 = 0; // reset timer counter
+    PR4 = period; // set timer period register
+
+    IFS1bits.T4IF = 0; // reset timer interrupt flag
+    IPC6bits.T4IP = IP_TIMER4; // set timer interrupt priority level
+    IEC1bits.T4IE = 1; // enable timer interrupt
+}
+
+void initTimer5(uint16_t period, uint16_t prescaler)
+{
+    // unsigned TimerControlValue;
+
+    T5CON = 0; // ensure Timer5 is in reset state
+    // TimerControlValue=T1CON;
+
+    T5CONbits.TCKPS = prescaler & 0b11; // FCY divide by 1/8/64/256: e.g tick = 64*37.5ns = 2.4us (Tcycle=37.5ns)
+    T5CONbits.TCS = 0; // select internal FCY clock source
+    T5CONbits.TGATE = 0; // gated time accumulation disabled
+    T5CONbits.TON = 0; // leave timer disabled initially
+
+    TMR5 = 0; // reset timer counter
+    PR5 = period; // set timer period register
+
+    IFS1bits.T5IF = 0; // reset timer interrupt flag
+    IPC7bits.T5IP = IP_TIMER5; // set timer interrupt priority level
+    IEC1bits.T5IE = 1; // enable timer interrupt
 }
 
 void initTimer32Combined(uint32_t period, uint16_t prescaler)
@@ -82,9 +122,10 @@ void initTimer32Combined(uint32_t period, uint16_t prescaler)
     T3CON = 0;
 
     T2CONbits.T32 = 1; // select 32bit timer mode
+    T2CONbits.TCKPS = prescaler & 0b11; // set prescaler
     T2CONbits.TCS = 0; // select internal FCY clock source
     T2CONbits.TGATE = 0; // gated time accumulation disabled
-    T2CONbits.TCKPS = prescaler & 0b11; // set prescaler
+    T2CONbits.TON = 0; // leave timer disabled initially
 
     TMR3 = 0; // clear upper bits of 32bit timer (msw)
     TMR2 = 0; // clear lower bits of 32bit timer (lsw)
@@ -96,9 +137,34 @@ void initTimer32Combined(uint32_t period, uint16_t prescaler)
     IFS0bits.T3IF = 0; // reset timer interrupt flag
     IPC2bits.T3IP = IP_TIMER32; // set interrupt priority level
     IEC0bits.T3IE = 1; // enable timer interrupt
-    T2CONbits.TON = 0; // leave timer disabled initially
 
     // NOTE: calls _T3Interrupt(void) on interrupt
+}
+
+void initTimer54Combined(uint32_t period, uint16_t prescaler)
+{
+    // ensure Timer 4 and Timer 5 are in reset state
+    T4CON = 0;
+    T5CON = 0;
+
+    T4CONbits.T32 = 1; // select 32bit timer mode
+    T4CONbits.TCKPS = prescaler & 0b11; // set prescaler
+    T4CONbits.TCS = 0; // select internal FCY clock source
+    T4CONbits.TGATE = 0; // gated time accumulation disabled
+    T4CONbits.TON = 0; // leave timer disabled initially
+
+    TMR5 = 0; // clear upper bits of 32bit timer (msw)
+    TMR4 = 0; // clear lower bits of 32bit timer (lsw)
+
+    // Set period registers (PR3: upper, PR2: lower)
+    PR5 = (uint16_t)(period >> 16); // Upper 16 bits of 32-bit period (msw)
+    PR4 = (uint16_t)period; // Lower 16 bits of 32-bit period (lsw)
+
+    IFS1bits.T5IF = 0; // reset timer interrupt flag
+    IPC7bits.T5IP = IP_TIMER5; // set timer interrupt priority level
+    IEC1bits.T5IE = 1; // enable timer interrupt
+
+    // NOTE: calls _T5Interrupt(void) on interrupt
 }
 
 void setTimerInterruptState(Timer_t timer, bool state) {
@@ -112,9 +178,19 @@ void setTimerInterruptState(Timer_t timer, bool state) {
         case TIMER_3:
             IEC0bits.T3IE = state;
             break;
-        case TIMER_32_COMBINED:
-            IEC0bits.T3IE = state;;
+        case TIMER_4:
+            IEC1bits.T4IE = state;
             break;
+        case TIMER_5:
+            IEC1bits.T5IE = state;
+            break;
+        case TIMER_32_COMBINED:
+            IEC0bits.T3IE = state;
+            break;
+        case TIMER_54_COMBINED:
+            IEC1bits.T5IE = 1;
+            break;
+
     }
 }
 
@@ -129,8 +205,17 @@ void setTimerState(Timer_t timer, bool state) {
         case TIMER_3:
             T3CONbits.TON = state;
             break;
+        case TIMER_4:
+            T4CONbits.TON = state;
+            break;
+        case TIMER_5:
+            T5CONbits.TON = state;
+            break;
         case TIMER_32_COMBINED:
             T2CONbits.TON = state;
+            break;
+        case TIMER_54_COMBINED:
+            T4CONbits.TON = state;
             break;
     }
 }
@@ -144,14 +229,11 @@ void setTimerState(Timer_t timer, bool state) {
  *
  * @param timeInMS The desired timer period in milliseconds. Must be within the
  *                 supported range for the selected timer and prescaler combination.
- * @param timer The timer to configure:
- *              - 1: Timer1 (16-bit)
- *              - 2: Timer2 (16-bit)
- *              - 3: Timer3 (16-bit)
- *              - 32: Timer2 and Timer3 combined (32-bit)
+ * @param timer The timer to configure
  *
- * @note For 32-bit timers, the Timer2 and Timer3 modules are combined.
- *       Ensure that Timer2 and Timer3 are not independently configured when using Timer23.
+ * @note For 32-bit timers, the Timer2 and Timer3 or Timer4 and Timer5 modules are combined.
+ *       Ensure that Timer2 and Timer3 or Timer4 and Timer5 are not independently configured 
+ *       when using Timer23.
  */
 int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
 {
@@ -166,7 +248,7 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
     const uint32_t max_count_32 = 0xffffffff; // 2^32 - 1 = 4_294_967_295
 
     // Max count based on timer type
-    uint32_t max_count = (timer == TIMER_32_COMBINED) ? max_count_32 : max_count_16;
+    uint32_t max_count = (timer == TIMER_32_COMBINED || timer == TIMER_54_COMBINED) ? max_count_32 : max_count_16;
 
     // Timer parameters to calculate
     uint32_t count;
@@ -210,8 +292,17 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
     case TIMER_3:
         initTimer3((uint16_t)count, prescaler);
         break;
+    case TIMER_4:
+        initTimer4((uint16_t)count, prescaler);
+        break;
+    case TIMER_5:
+        initTimer5((uint16_t)count, prescaler);
+        break;
     case TIMER_32_COMBINED:
         initTimer32Combined(count, prescaler);
+        break;
+    case TIMER_54_COMBINED:
+        initTimer54Combined(count, prescaler);
         break;
     default:
         return -1;
@@ -235,12 +326,16 @@ static volatile uint8_t registeredTimerCallbacks[NUM_TIMERS];
 //          registerCallback while being in the while-loop of the generalTimerISR()
 //          callback. TODO: fix.
 int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
-    // In case is used, we will register the callback for timer 3.
+    // In case a combined timer is used, select the respective timer that handles 
+    // the ISR.
     if (timer == TIMER_32_COMBINED) {
         timer = TIMER_3;
     }
+    if (timer == TIMER_54_COMBINED) {
+        timer = TIMER_5;
+    }
 
-    // Check if there buffer of interrupts is already full.
+    // Check if there buffer of interrupt callbacks is already full.
     if (registeredTimerCallbacks[timer] == CALLBACK_BUFFER_SIZE) {
         return -1;
     }
@@ -256,7 +351,7 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
         setTimerState(timer, true);
     }
     
-    // Reenable timer interrupts.
+    // Re-enable timer interrupts.
     setTimerInterruptState(timer, true);
     
     return 0;
@@ -357,4 +452,20 @@ void __attribute__((__interrupt__, auto_psv)) _T3Interrupt(void)
     IFS0bits.T3IF = 0; // reset Timer 3 interrupt flag
     
     generalTimerISR(TIMER_3);
+}
+
+/* ISR for Timer4 */
+void __attribute__((__interrupt__, auto_psv)) _T4Interrupt(void)
+{
+    IFS1bits.T4IF = 0; // reset Timer 4 interrupt flag
+    
+    generalTimerISR(TIMER_4);
+}
+
+/* ISR for Timer5 or when Timer4 and Timer5 are combined */
+void __attribute__((__interrupt__, auto_psv)) _T5Interrupt(void)
+{
+    IFS1bits.T5IF = 0; // reset Timer 5 interrupt flag
+    
+    generalTimerISR(TIMER_5);
 }

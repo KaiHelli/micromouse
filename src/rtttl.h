@@ -45,11 +45,6 @@ typedef struct
 }
 RtttlDefaults;
 
-// Holds the data of the song currently played
-extern volatile RtttlNotes rtttlNotes;
-extern volatile bool songRepeat;
-extern volatile bool songPlaying;
-
 #define C  0
 #define CS 1
 #define D  2
@@ -64,11 +59,36 @@ extern volatile bool songPlaying;
 #define H  11
 #define P  12
 
+/**
+ * @brief Parses an RTTTL string into structured note data. Requires an
+ * RtttlReader with the RTTTL data and an RtttlNotes structure for storing
+ * the parsed result. Returns true on success, false otherwise.
+ */
 bool parseRTTTL(RtttlReader *input, RtttlNotes *output);
+
+/**
+ * @brief Starts playing a specified song. Takes a RtttlSong enum value
+ * to choose the song and a boolean indicating whether it should repeat.
+ * Returns true if the song was successfully started, false otherwise.
+ */
 bool playSong(RtttlSong song, bool repeat);
+
+/**
+ * @brief Stops the currently playing song if any is active.
+ */
 void stopSong(void);
+
+/**
+ * @brief Parses all songs defined in the RtttlSong enum. Returns true
+ * if parsing is successful for all, false otherwise.
+ */
 bool parseAllSongs(void);
-int8_t songISR(void);
+
+/**
+ * @brief Interrupt service routine for song playback. Called periodically to
+ * advance the song's notes. Returns an 0 when the song has been played or stopped.
+ * Returns 1 otherwise.
+ */
+static int16_t songISR(void);
 
 #endif	/* RTTTL_H */
-

@@ -38,6 +38,13 @@
 #define LEDON 0
 #define LEDOFF 1
 
+/**
+ * @brief Configures all necessary I/O pins and directions.
+ * 
+ * Sets up the digital/analog configuration for the device pins, and any
+ * additional I/O initialization that may be required.
+ * NOTE: ADC and PWM setup is done in adc.c and pwm.c
+ */
 void setupIO();
 
 #endif /* IOCONFIG_H */

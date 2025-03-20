@@ -28,8 +28,6 @@ void oledSetDisplayStateCb(bool success) {
 }
 
 void oledSetDisplayState(bool power) {
-    bool status = 0;
-    
     //static uint8_t oledStates[2] = {OLED_DISPLAY_OFF, OLED_DISPLAY_ON};
     
     //status |= putsI2C1(I2C_OLED_ADDR, &oledStates[power], 1, NULL, 0, NULL);
@@ -60,5 +58,5 @@ void oledSetDisplayState(bool power) {
         0xAF,
     };
     
-    status |= putsI2C1(I2C_OLED_ADDR, test, 23, NULL, 0, oledSetDisplayStateCb);
+    putsI2C1(I2C_OLED_ADDR, test, 23, NULL, 0, oledSetDisplayStateCb);
 }

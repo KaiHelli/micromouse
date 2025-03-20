@@ -132,8 +132,6 @@ static void startNextI2CTransaction(void)
     I2C1CONbits.SEN = 1;
 }
 
-
-
 bool getI2C1Status(void) {
     return i2cTransaction.state == I2C_STATE_IDLE ? I2C_IDLE : I2C_BUSY;
 }
@@ -149,8 +147,8 @@ bool getI2C1Status(void) {
  * @param cb       Callback function when done or on error.
  * @return true if started successfully, false if I2C1 is busy.
  */
-bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
-              uint8_t *rData, uint8_t rLen, void (*cb)(bool))
+void putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
+              uint8_t *rData, uint8_t rLen, I2CCallback_t callback)
 {
     // Wait actively if buffer is full.
     // As interrupts complete transactions, the buffer frees up in the background.
@@ -164,10 +162,10 @@ bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
     // If there's truly nothing to do, succeed immediately
     if ((wLen == 0) && (rLen == 0))
     {
-        if (cb) {
-            cb(true);
+        if (callback) {
+            callback(true);
         }
-        return 0;
+        return;
     }
 
     // Prepare a new transaction
@@ -179,7 +177,7 @@ bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
     newTrans.readData   = rData;
     newTrans.readLen    = rLen;
     newTrans.readIndex  = 0;
-    newTrans.callback   = cb;
+    newTrans.callback   = callback;
     newTrans.state      = I2C_STATE_IDLE;  // Will set START just before sending
 
     // ---- CRITICAL SECTION for buffer manipulation ----
@@ -198,8 +196,13 @@ bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
     
     IEC1bits.MI2C1IE = 1;
     // ---- END CRITICAL SECTION ----
+}
 
-    return 0; // success
+
+static volatile bool i2cSyncSuccess;
+
+static void getI2C1SyncExecStatusCb(bool success) {
+    i2cSyncSuccess = success;
 }
 
 /**
@@ -210,18 +213,15 @@ bool putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
  */
 bool putsI2C1Sync(uint8_t devAddr, const uint8_t *wData, uint8_t wLen, uint8_t *rData, uint8_t rLen)
 {
-    int8_t result = putsI2C1(devAddr, wData, wLen, rData, rLen, NULL); // Start the asynchronous transmission
-
-    if (result != 0) {
-        // Return immediately if the I2C is busy or there's an error
-        return result;
-    }
+    i2cSyncSuccess = false;
+    
+    putsI2C1(devAddr, wData, wLen, rData, rLen, getI2C1SyncExecStatusCb); // Start the asynchronous transmission
 
     // Wait for the operation to complete
     while (getI2C1Status() == I2C_BUSY) {
     }
-
-    return 0; // Operation completed successfully
+    
+    return i2cSyncSuccess;
 }
 
 // -----------------------------------------------------

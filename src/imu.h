@@ -79,7 +79,7 @@ typedef enum {
 #define ICM20948_WHO_AM_I           0x00 // Should return 0xEA
 #define ICM20948_USER_CTRL          0x03 // Bit 7 enable DMP, bit 3 reset DMP
 #define ICM20948_LP_CONFIG		    0x05 
-#define ICM20948_PWR_MGMT_1         0x06 // Device defaults to the SLEEP mode
+#define ICM20948_PWR_MGMT_1         0x06 // Device defaults to SLEEP mode
 #define ICM20948_PWR_MGMT_2         0x07
 #define ICM20948_INT_PIN_CFG        0x0F
 #define ICM20948_INT_ENABLE         0x10
@@ -203,21 +203,92 @@ typedef enum {
 #define ICM20948_I2C_SLV4_DO        		0x16
 #define ICM20948_I2C_SLV4_DI        		0x17
 
+/**
+ * @brief Sets up the IMU with the specified gyro range, accelerometer range,
+ * magnetometer mode, and temperature mode.
+ */
 void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode, TempMode_t tempMode);
-bool imuSetUsrBank(uint8_t bank);
-void imuReadWhoAmI(void);
-void imuReadGyro(void);
-bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]);
-bool imuCalibrateGyro();
-void imuReadAccel(void);
-void imuReadMag(void);
-void imuReadTemp(void);
-void imuScaleGyroMeasurements(const int16_t rawGyro[3], float scaledGyro[3]);
-void imuScaleAccelMeasurements(const int16_t rawAccel[3], float scaledAccel[3]);
-void imuScaleMagMeasurements(const int16_t rawMag[3], float scaledMag[3]);
-void imuScaleTempMeasurements(const int16_t *rawTemp, float *scaledTemp);
 
+/**
+ * @brief Selects the specified user bank for subsequent register operations.
+ * Returns true if successful, false otherwise.
+ */
+void imuSetUsrBank(uint8_t bank);
+
+/**
+ * @brief Reads the IMU's WHO_AM_I register to verify device identity.
+ */
+void imuReadWhoAmI(void);
+
+/**
+ * @brief Reads the raw gyroscope data from the IMU and updates the
+ * global rawGyroMeasurements array.
+ */
+void imuReadGyro(void);
+
+/**
+ * @brief Reads and scales the gyroscope data from the IMU. Populates rawGyroMeasurements
+ * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
+ */
+bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]);
+
+/**
+ * @brief Performs a gyroscope calibration routine. Returns true on success,
+ * false otherwise.
+ */
+bool imuCalibrateGyro(void);
+
+/**
+ * @brief Reads the raw accelerometer data from the IMU and updates the
+ * global rawAccelMeasurements array asynchronous.
+ */
+void imuReadAccel(void);
+
+/**
+ * @brief Reads the raw magnetometer data from the IMU and updates the
+ * global rawMagMeasurements array asynchronous.
+ */
+void imuReadMag(void);
+
+/**
+ * @brief Reads the raw temperature data from the IMU and updates the
+ * global rawTempMeasurement variable asynchronous.
+ */
+void imuReadTemp(void);
+
+/**
+ * @brief Scales the raw gyroscope data (in rawGyro) into degrees per second,
+ * placing the result in scaledGyro.
+ */
+void imuScaleGyroMeasurements(int16_t rawGyro[3], float scaledGyro[3]);
+
+/**
+ * @brief Scales the raw accelerometer data (in rawAccel) into units of g,
+ * placing the result in scaledAccel.
+ */
+void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]);
+
+/**
+ * @brief Scales the raw magnetometer data (in rawMag) into microteslas,
+ * placing the result in scaledMag.
+ */
+void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3]);
+
+/**
+ * @brief Scales the raw temperature data (pointed to by rawTemp) into degrees
+ * Celsius, placing the result in scaledTemp.
+ */
+void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp);
+
+/**
+ * @brief Converts the scaled magnetometer data (in scaledMag) into a heading
+ * (in degrees).
+ */
 float magnetometerToHeading(float scaledMag[3]);
+
+/**
+ * @brief Converts a measurement in degrees per second into radians per second.
+ */
 float dpsToRadps(float dps);
 
 #endif	/* IMU_H */

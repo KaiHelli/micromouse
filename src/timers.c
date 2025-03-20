@@ -262,6 +262,12 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
     return 0;
 }
 
+int16_t removeTimerCallback(TimerCallback_t callback) {
+    // TODO
+    return 0;
+}
+
+
 void clearTimerCallbacks(Timer_t timer) {
     
     // We clear the callbacks, so the timer can be disabled.

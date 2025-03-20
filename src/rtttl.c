@@ -470,8 +470,8 @@ void stopSong(void) {
 }
 
 
-// Track the time passed within this timer.
-int8_t songISR(void) {
+// Track the time passed within this timer callback.
+static int16_t songISR(void) {
     static uint32_t rtttlTimeCount = 0;
     
     // 1) First, increment the time counter.

@@ -105,12 +105,9 @@ void imuReadTempCb(bool success) {
 void imuReadGyro(void) {
     static uint8_t measurementRegisterStart = ICM20948_GYRO_XOUT_H;
     
-    bool status = 0;
-
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
-    
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localGyroMeasurements, 6, imuReadGyroCb);
+    imuSetUsrBank(0);
+    putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localGyroMeasurements, 6, imuReadGyroCb);
 }
 
 bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]) {
@@ -119,7 +116,7 @@ bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurement
     bool status = 0;
     
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
+    imuSetUsrBank(0);
     
     status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawGyroMeasurements, 6);
     
@@ -142,27 +139,22 @@ bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurement
 void imuReadAccel(void) {
     static uint8_t measurementRegisterStart = ICM20948_ACCEL_XOUT_H;
     
-    bool status = 0;
-
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
-    
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localAccelMeasurements, 6, imuReadAccelCb);
+    imuSetUsrBank(0);
+    putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localAccelMeasurements, 6, imuReadAccelCb);
 }
 
 void imuReadMag(void) {
     static uint8_t measurementRegisterStart = AK09916_XOUT_L;
     
-    bool status = 0;
-
     // Reading measurements locks measured data until register ST2 is read.
-    status |= putsI2C1(I2C_IMU_MAG_ADDR, &measurementRegisterStart, 1, (uint8_t*) localMagMeasurements, 6, NULL);
+    putsI2C1(I2C_IMU_MAG_ADDR, &measurementRegisterStart, 1, (uint8_t*) localMagMeasurements, 6, NULL);
     
     // To unlock measurement registers after reading, status register ST2 has to be read. 
     static uint8_t measurementStatusRegister = AK09916_ST2;
     static uint8_t measurementStatus;
     
-    status |= putsI2C1(I2C_IMU_MAG_ADDR, &measurementStatusRegister, 1, &measurementStatus, 1, imuReadMagCb);
+    putsI2C1(I2C_IMU_MAG_ADDR, &measurementStatusRegister, 1, &measurementStatus, 1, imuReadMagCb);
     
     // TODO: Check HOFL bit in measurementStatus for magnetic sensor overflow in callback and only update measurements if data is valid.
 }
@@ -171,12 +163,9 @@ void imuReadMag(void) {
 void imuReadTemp(void) {
     static uint8_t measurementRegisterStart = ICM20948_TEMP_OUT_H;
     
-    bool status = 0;
-
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
-    
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) &localTempMeasurement, 2, imuReadTempCb);
+    imuSetUsrBank(0);
+    putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) &localTempMeasurement, 2, imuReadTempCb);
 }
 
 // -----------------------------------------------------------------------------
@@ -202,12 +191,9 @@ void imuReadWhoAmI(void)
 {
     static uint8_t regAddr = ICM20948_WHO_AM_I;
     
-    bool status = 0;
-
     // Switch to User Bank 0
-    status |= imuSetUsrBank(0);
-    
-    status |= putsI2C1(I2C_IMU_GYRO_ADDR, &regAddr, 1, &imuWhoAmI, 1, imuReadWhoAmICb);
+    imuSetUsrBank(0);
+    putsI2C1(I2C_IMU_GYRO_ADDR, &regAddr, 1, &imuWhoAmI, 1, imuReadWhoAmICb);
 }
 
 // -----------------------------------------------------------------------------
@@ -232,10 +218,7 @@ static void imuReadWhoAmIMagCb(bool success)
 void imuReadWhoAmIMag(void)
 {
     static uint8_t regAddr = AK09916_WHO_AM_I;
-    
-    bool status = 0;
-
-    status |= putsI2C1(I2C_IMU_MAG_ADDR, &regAddr, 1, &magWhoAmI, 1, imuReadWhoAmIMagCb);
+    putsI2C1(I2C_IMU_MAG_ADDR, &regAddr, 1, &magWhoAmI, 1, imuReadWhoAmIMagCb);
 }
 
 void imuSelfTest(void)
@@ -278,7 +261,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, i2cData, 2, NULL, 0);
     
     // Switch to User Bank 2
-    status |= imuSetUsrBank(2);
+    imuSetUsrBank(2);
     
     // USR2 / ODR_ALIGN_EN
     // bit 0 -> 1 | align sampling rates of sensors
@@ -351,7 +334,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     // bit 0 -> reset magnetometer
     // 0x00 on reset -> change to 0x01
     static uint8_t magRstData[] = { AK09916_CNTL3, 0x01 };
-    status |= putsI2C1(I2C_IMU_MAG_ADDR, magRstData, 2, NULL, 0, NULL);
+    status |= putsI2C1Sync(I2C_IMU_MAG_ADDR, magRstData, 2, NULL, 0);
     
     // Wait for magnetometer to reset.
     __delay_ms(5);
@@ -419,7 +402,6 @@ bool imuCalibrateGyro() {
     
     bool status = 0;
     
-    const uint8_t offsetRegisterStart = ICM20948_XG_OFFSET_H;
     uint8_t offsetValues[7] = {
         ICM20948_XG_OFFSET_H,             // Register start address
         HIGH_BYTE(gyroOffsets[0]), LOW_BYTE(gyroOffsets[0]),
@@ -434,11 +416,11 @@ bool imuCalibrateGyro() {
     return status;
 }
 
-bool imuSetUsrBank(uint8_t bank)
+void imuSetUsrBank(uint8_t bank)
 {
     // Check if we actually have to do something.
     if (currentBank == bank) {
-        return 0;
+        return;
     }
     
     // Prepare a lookup table for bank 0..3
@@ -453,35 +435,33 @@ bool imuSetUsrBank(uint8_t bank)
     
     // Perform the async I2C write using the correct buffer
     // (the data remains valid because `bankRegs` is static)
-    bool status = putsI2C1(I2C_IMU_GYRO_ADDR, bankRegs[bank], 2, NULL, 0, NULL);
+    putsI2C1(I2C_IMU_GYRO_ADDR, bankRegs[bank], 2, NULL, 0, NULL);
     
     currentBank = bank;
-    
-    return status;
 }
 
-void imuScaleGyroMeasurements(const int16_t rawGyro[3], float scaledGyro[3])
+void imuScaleGyroMeasurements(int16_t rawGyro[3], float scaledGyro[3])
 {
     scaledGyro[0]  = (float)rawGyro[0]  / gyroLSB;
     scaledGyro[1]  = (float)rawGyro[1]  / gyroLSB;
     scaledGyro[2]  = (float)rawGyro[2]  / gyroLSB;
 }
 
-void imuScaleAccelMeasurements(const int16_t rawAccel[3], float scaledAccel[3]) 
+void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]) 
 {
     scaledAccel[0] = (float)rawAccel[0] / accelLSB;
     scaledAccel[1] = (float)rawAccel[1] / accelLSB;
     scaledAccel[2] = (float)rawAccel[2] / accelLSB;
 }
 
-void imuScaleMagMeasurements(const int16_t rawMag[3], float scaledMag[3])
+void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3])
 {
     scaledMag[0] = (float)rawMag[0] * AK09916_UT_PER_LSB;
     scaledMag[1] = (float)rawMag[1] * AK09916_UT_PER_LSB;
     scaledMag[2] = (float)rawMag[2] * AK09916_UT_PER_LSB;
 }
 
-void imuScaleTempMeasurements(const int16_t *rawTemp, float *scaledTemp)
+void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp)
 {
     *scaledTemp = ((float)*rawTemp / ICM20948_LSB_PER_C) + 21;
 }

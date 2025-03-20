@@ -95,7 +95,16 @@
 // Charge Pump: page 62
 #define SSD1306_CHARGE_PUMP             0x8D
 
+/**
+ * @brief Initializes the SSD1306 OLED module. Configures the necessary
+ *        settings for display operation.
+ */
 void oledSetup(void);
+
+/**
+ * @brief Sets the SSD1306 display state. The 'power' parameter controls
+ *        whether the display is turned on (true) or off (false).
+ */
 void oledSetDisplayState(bool power);
 
 #endif	/* SSD1306_H */

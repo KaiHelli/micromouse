@@ -1,23 +1,48 @@
-/*
- * File:   sensor.h
- * Author: bauma
- *
- * Created on 23. Mai 2019, 11:22
- */
-
-#ifndef SENSOR_H
-#define SENSOR_H
+#ifndef MOTORENCODERS_H
+#define MOTORENCODERS_H
 
 #include <xc.h>
 
+/**
+ * @brief Initializes QEI1 using the specified start position.
+ * The 'startPos' parameter sets the initial position for QEI1.
+ */
 void initQEI1(unsigned int startPos);
+
+/**
+ * @brief Initializes QEI2 using the specified start position.
+ * The 'startPos' parameter sets the initial position for QEI2.
+ */
 void initQEI2(unsigned int startPos);
 
+/**
+ * @brief Returns the current position in radians based on encoder data.
+ */
 float getPositionInRad();
-// float getVelocityInRadPerSecond();
+
+/**
+ * @brief Returns the current rotational velocity in radians per second.
+ */
+float getVelocityInRadPerSecond();
+
+/**
+ * @brief Returns the current position (QEI1) in encoder counts.
+ */
 long getPositionInCounts_1();
+
+/**
+ * @brief Returns the current velocity (QEI1) in encoder counts per sample.
+ */
 int getVelocityInCountsPerSample_1();
+
+/**
+ * @brief Returns the current position (QEI2) in encoder counts.
+ */
 long getPositionInCounts_2();
+
+/**
+ * @brief Returns the current velocity (QEI2) in encoder counts per sample.
+ */
 int getVelocityInCountsPerSample_2();
 
 extern long rotationCount1;
@@ -34,4 +59,4 @@ extern long rotationCount2;
 #define DELTATICKS_180_DEGREES (0.5 * WHEEL_ROTATIONS_PERROBOT_ROTATION * TICKS_PER_WHEELROTATION)
 #define DELTATICKS_CELL_GAP (11.5 * TICKS_PER_CENTIMETER)
 
-#endif /* SENSOR_H */
+#endif /* MOTORENCODERS_H */

@@ -221,21 +221,21 @@ void setTimerState(Timer_t timer, bool state) {
 }
 
 /**
- * @brief Initializes a hardware timer with a specified period in milliseconds.
+ * @brief Initializes a hardware timer with a specified period in microseconds.
  *
  * This function calculates the appropriate timer period and prescaler for the given
  * timer number and desired time in milliseconds. It supports both 16-bit and 32-bit
  * timers and calls the corresponding initialization function.
  *
- * @param timeInMS The desired timer period in milliseconds. Must be within the
+ * @param timeInUs The desired timer period in microseconds. Must be within the
  *                 supported range for the selected timer and prescaler combination.
  * @param timer The timer to configure
  *
  * @note For 32-bit timers, the Timer2 and Timer3 or Timer4 and Timer5 modules are combined.
  *       Ensure that Timer2 and Timer3 or Timer4 and Timer5 are not independently configured 
- *       when using Timer23.
+ *       when using Timer32 or Timer54.
  */
-int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
+int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs)
 {
     // Prescaler options
     const uint16_t prescaler_options[] = { 1, 8, 64, 256 };
@@ -261,12 +261,12 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
         uint32_t adj_fcy = fcy / prescaler_options[i];
 
         // Calculate the number of cycles needed to achieve the given period
-        // period is given in ms
+        // period is given in us
         // Approach: convert frequency to kHz and multiply by the number of ms
 
-        // for 16-bit timers 64bit is safe as timeInMs <= 630ms and adj_fcy <= 26_726_400 so log2(630*26_726_400) = 33.97 bits
-        // for 32-bit timers 64bit is safe as timeInMs <= 41_232_000ms and adj_fcy <= 26_726_400 so log2(41_232_000*26_726_400) = 49.96 bits
-        uint64_t required_ticks = ((uint64_t)timeInMs * adj_fcy) / 1000;
+        // for 16-bit timers 64bit is safe as timeInMs <= 630_000us and adj_fcy <= 40_000_000 so log2(630_000*40_000_000) = 44.52 bits
+        // for 32-bit timers 64bit is safe as timeInMs <= 41_232_000_000us and adj_fcy <= 40_000_000 so log2(41_232_000_000*40_000_000) = 60.52 bits
+        uint64_t required_ticks = ((uint64_t)timeInUs * adj_fcy) / 1000000ULL;
 
         if (required_ticks <= max_count) {
             prescaler = i;
@@ -318,6 +318,25 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
 
     return 0;
 }
+
+/**
+ * @brief Initializes a hardware timer with a specified period in milliseconds.
+ *
+ * Convenience wrapper around initTimerInUs().
+ *
+ * @param timeInMs The desired timer period in milliseconds.
+ * @param timer    The timer to configure.
+ *
+ */
+int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
+{
+    // Convert from ms to us using 64-bit arithmetic
+    uint64_t timeInUs = (uint64_t)timeInMs * 1000ULL;
+
+    // Now call the 64-bit microsecond-based function
+    return initTimerInUs(timer, timeInUs);
+}
+
 
 static volatile TimerCallback_t timerCallbacks[NUM_TIMERS][CALLBACK_BUFFER_SIZE];
 static volatile uint8_t registeredTimerCallbacks[NUM_TIMERS];

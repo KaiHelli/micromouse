@@ -90,6 +90,14 @@ void setTimerState(Timer_t timer, bool state);
 int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs);
 
 /**
+ * @brief Initializes the specified timer to run for a duration in microseconds.
+ * Takes a Timer_t and a 32-bit time in microseconds. 
+ * 
+ * @return A positive value on success, negative on failure.
+ */
+int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs);
+
+/**
  * @brief Registers a callback function for the specified timer.
  * Takes a Timer_t and a TimerCallback_t. 
  * 

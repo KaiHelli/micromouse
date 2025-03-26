@@ -7,56 +7,59 @@
 #include "i2c.h"
 #include "uart.h"
 
-void oledSetup(void) {
-    oledSetDisplayState(0);
+void ssd1306Setup(void) {
+    bool status = 0; // track the status of all operations
     
-    
-    oledSetDisplayState(1);
-    
-}
-
-void oledSetDisplayStateCb(bool success) {
-    if (success)
-    {
-        putsUART1("Successful write!\r\n");
-    }
-    else
-    {
-        // Handle I2C error (e.g., no sensor found, bus conflict, etc.)
-        putsUART1("Asynchronous OLED error!\r\n");
-    }
-}
-
-void oledSetDisplayState(bool power) {
-    //static uint8_t oledStates[2] = {OLED_DISPLAY_OFF, OLED_DISPLAY_ON};
-    
-    //status |= putsI2C1(I2C_OLED_ADDR, &oledStates[power], 1, NULL, 0, NULL);
-    
-    static uint8_t test[] = {
-        0xAE,
-        0xD5,
-        0x80,
-        0xA8,
-        63,
-        0xD3,
-        0x00,
-        0x40,
-        0x8D,
-        0x14,
-        0xA1,
-        0xC8,
-        0xDA,
-        0x12,
-        0x81,
-        0xFF,
-        0xD9,
-        0x22,
-        0xDB,
-        0x40,
-        0xA4,
-        0xA6,
-        0xAF,
+    static uint8_t oledSetupData[] = { 
+        SSD1306_DISPLAY_ON_OFF | DISPLAY_OFF,    // Turn display off before doing changes
+        SSD1306_SET_DISPLAY_CLOCK_DIV,          // Set display clock division
+        0x80,                                   // 0b1000 oscillator / 0b0000 division -> ~105Hz F_FRM
+        SSD1306_SET_MULTIPLEX,                  // Set multiplex ratio
+        63,                                     // 64-row display
+        SSD1306_SET_DISPLAY_OFFSET,             // Set display offset
+        0,                                      // 0 offset - display starts from very top
+        SSD1306_SET_START_LINE,                 // Set display start line
+        SSD1306_CHARGE_PUMP,                    // Set charge pump
+        CHARGE_ENABLE,                          // Enable charge pump
+        SSD1306_SET_SEGMENT_REMAP | ADDR_127,   // Set segment remap to 127
+        SSD1306_COM_SCAN | COM_REMAPPED,        // Set COM vertical scanning
+        SSD1306_SET_COM_PINS,                   // Set COM hardware config
+        COM_SEQUENTIAL_ENABLE_COM_REMAP,        // sequential COM remap
+        SSD1306_SET_CONTRAST,                   // Set Contrast
+        0xFF,                                   // Highest contrast
+        SSD1306_SET_PRECHARGE,                  // Set pre-charge period
+        0x22,                                   // Set pre-charge period param
+        SSD1306_SET_VCOM_DESELECT,              // Set deselect Vcomh level
+        0x40,                                   // Vcomh level param
+        SSD1306_DEACTIVATE_SCROLL,              // Disable scrolling
+        SSD1306_ENTIRE_DISPLAYALL_ON | RESUME_TO_RAM,   // Set entire display on, content from RAM
+        SSD1306_NORM_INV_DISPLAY | DISPLAY_NORMAL,      // Set normal display
+        SSD1306_DISPLAY_ON_OFF | DISPLAY_ON,    // Turn display on
+        
     };
     
-    putsI2C1(I2C_OLED_ADDR, test, 23, NULL, 0, oledSetDisplayStateCb);
+    status |= putsI2C1Sync(I2C_OLED_ADDR, oledSetupData, sizeof(oledSetupData), NULL, 0);
+    
+    if (status == 0) {
+        putsUART1("Display configured.\r\n");
+    } else {
+        putsUART1("Error setting up the display!\r\n");
+    }
+}
+
+void ssd1306SetColumnAddress(uint8_t startAddress, uint8_t endAddress) {
+    static uint8_t i2cData[] = {SSD1306_SET_COLUMN_ADDR, 0x0, 0x0};
+    i2cData[1] = startAddress & 0x7F;
+    i2cData[2] = endAddress & 0x7F;
+    
+    putsI2C1(I2C_OLED_ADDR, i2cData, 3, NULL, 0, NULL);
+}
+
+void ssd1306SetPageAddress(uint8_t startAddress, uint8_t endAddress)
+{
+    static uint8_t i2cData[] = {SSD1306_SET_PAGE_ADDR, 0x0, 0x0};
+    i2cData[1] = startAddress & 0x07;
+    i2cData[2] = endAddress & 0x07;
+    
+    putsI2C1(I2C_OLED_ADDR, i2cData, 3, NULL, 0, NULL);
 }

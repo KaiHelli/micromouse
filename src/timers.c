@@ -190,7 +190,6 @@ void setTimerInterruptState(Timer_t timer, bool state) {
         case TIMER_54_COMBINED:
             IEC1bits.T5IE = 1;
             break;
-
     }
 }
 
@@ -338,12 +337,9 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
 }
 
 
-static volatile TimerCallback_t timerCallbacks[NUM_TIMERS][CALLBACK_BUFFER_SIZE];
+static volatile TimerCallback_t timerCallbacks[NUM_TIMERS][TIMER_CALLBACK_BUFFER_SIZE];
 static volatile uint8_t registeredTimerCallbacks[NUM_TIMERS];
 
-// CAVEAT:  There is one race condition, when a higher priority interrupt calls 
-//          registerCallback while being in the while-loop of the generalTimerISR()
-//          callback. TODO: fix.
 int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
     // In case a combined timer is used, select the respective timer that handles 
     // the ISR.
@@ -355,7 +351,7 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
     }
 
     // Check if there buffer of interrupt callbacks is already full.
-    if (registeredTimerCallbacks[timer] == CALLBACK_BUFFER_SIZE) {
+    if (registeredTimerCallbacks[timer] == TIMER_CALLBACK_BUFFER_SIZE) {
         return -1;
     }
     
@@ -376,14 +372,42 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
     return 0;
 }
 
-int16_t removeTimerCallback(TimerCallback_t callback) {
-    // TODO
-    return 0;
+int16_t removeTimerCallback(Timer_t timer, TimerCallback_t callback) {
+    // Temporarily disable timer interrupts during modifying callbacks.
+    setTimerInterruptState(timer, false);
+    
+    bool recoverInterruptState = true;
+    int16_t status = -1;
+    
+    for (uint8_t i = 0; i < registeredTimerCallbacks[timer]; i++) {
+        if (timerCallbacks[timer][i] != callback) {
+            continue;
+        }
+        
+        registeredTimerCallbacks[timer]--;
+
+        if (registeredTimerCallbacks[timer] == 0) {
+            // Disable the interrupts itself, if there are no callbacks left.
+            recoverInterruptState = false;
+        }
+
+        // Only swap if we're not already at the last position
+        if (i < registeredTimerCallbacks[timer]) {
+            timerCallbacks[timer][i] = timerCallbacks[timer][registeredTimerCallbacks[timer]];
+        }
+
+        status = 0;
+        break;
+    }
+    
+    // Re-enable switch interrupts.
+    setTimerInterruptState(timer, recoverInterruptState);
+
+    return status;
 }
 
 
 void clearTimerCallbacks(Timer_t timer) {
-    
     // We clear the callbacks, so the timer can be disabled.
     setTimerState(timer, false);
     registeredTimerCallbacks[timer] = 0;
@@ -391,22 +415,21 @@ void clearTimerCallbacks(Timer_t timer) {
 
 
 static void generalTimerISR(Timer_t timer) {
+    // Guard from registerTimerCallback being called from an interrupt with
+    // higher priority while reading/writing from/to the callback buffers below.
+
+    // Save current interrupt enable state
+    uint16_t state = __builtin_get_isr_state();
+
+    // Disable interrupts
+    __builtin_disable_interrupts();
+
     uint8_t i = 0;
     while (i < registeredTimerCallbacks[timer]) {
-        
-        
         TimerCallback_t callback = timerCallbacks[timer][i];
         uint8_t status = callback();
 
         if (status == 0) {
-            // Guard from register_callback being called from an interrupt with
-            // higher priority while modifiyng the callback buffers below.
-            
-            // Save current interrupt enable state
-            uint16_t state = __builtin_get_isr_state();
-            
-            // Disable interrupts
-            __builtin_disable_interrupts();
             
             registeredTimerCallbacks[timer]--;
             
@@ -420,15 +443,14 @@ static void generalTimerISR(Timer_t timer) {
                 timerCallbacks[timer][i] = timerCallbacks[timer][registeredTimerCallbacks[timer]];
                 // Do not increment i, as we've moved a new callback into position i
             }
-            
-            
-            // Restore interrupt enable state
-            __builtin_set_isr_state(state);
             // If removed callback was already last, just continue without incrementing i
         } else {
             i++;  // move to next callback only if no removal
         }
     }
+            
+    // Restore interrupt enable state
+    __builtin_set_isr_state(state);
 }
 
 

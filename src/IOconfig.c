@@ -47,9 +47,6 @@ void setupIO()
     // BUTTON INTERRUPT MAPPING
     
     RPINR0bits.INT1R = 23;      // mapped RP23 as External Interrupt 1
-    INTCON2bits.INT1EP = 0;     // interrupt on positive edge for External Interrupt 1
-    IEC1bits.INT1IE = 1;        // enable the External Interrupt 1
-    IPC5bits.INT1IP = IP_INT1;  // set low priority for External Interrupt 1
     
     // UART MAPPING
     

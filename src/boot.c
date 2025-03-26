@@ -7,11 +7,13 @@
 #include "uart.h"
 #include "i2c.h"
 #include "imu.h"
-#include "ssd1306.h"
+#include "oled.h"
 #include "adc.h"
 #include "dma.h"
 #include "rtttl.h"
 #include "globalTimers.h"
+#include "switches.h"
+
 #include <stdint.h>
 
 void bootSetup() {
@@ -32,12 +34,15 @@ void bootSetup() {
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
     imuCalibrateGyro(); // Calibrate gyroscope.
     
-    //oledSetDisplayState(1);
+    oledSetup();
+    
     
     initDmaChannel4(); // Initialize DMA to copy sensor readings in the background
     setupADC1();       // Initialize ADC to sample sensor reading
     startADC1();       // Start to sample sensor readings
 
+    initSwitch1();     // Initialize switch 1 for interrupts
+    
     initTimerInMs(TIMER_1, 100); //creates a 10ms timer interrupt
     // setTimerState(TIMER_1, 1);
 
@@ -58,4 +63,8 @@ void bootSetup() {
     LED3 = LEDOFF;
     LED4 = LEDOFF;
     LED5 = LEDOFF;
+}
+
+void bootReset() {
+    asm volatile ( "reset ");
 }

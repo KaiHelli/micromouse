@@ -33,8 +33,8 @@ bool getI2C1Status(void);
  * callback function. While the buffer is full and thus busy, this function
  * blocks until the transmission could be queued.
  */
-void putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
-              uint8_t *rData, uint8_t rLen, I2CCallback_t callback);
+void putsI2C1(uint8_t devAddr, const uint8_t *wData, uint16_t wLen,
+              uint8_t *rData, uint16_t rLen, I2CCallback_t callback);
 
 /**
  * @brief Performs a synchronous I2C write/read operation on I2C1. Takes a 7-bit
@@ -42,7 +42,7 @@ void putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
  * function blocks until the operation completes. Returns true on success,
  * or false otherwise.
  */
-bool putsI2C1Sync(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
-                  uint8_t *rData, uint8_t rLen);
+bool putsI2C1Sync(uint8_t devAddr, const uint8_t *wData, uint16_t wLen,
+                  uint8_t *rData, uint16_t rLen);
 
 #endif /* I2C_H */

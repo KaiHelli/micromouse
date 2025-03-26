@@ -6,7 +6,7 @@
 #include <xc.h> // include processor files - each processor file is guarded.
 
 #define NUM_TIMERS 5
-#define CALLBACK_BUFFER_SIZE 5
+#define TIMER_CALLBACK_BUFFER_SIZE 5
 
 typedef enum {
     TIMER_1 = 0,
@@ -112,7 +112,7 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback);
  * 
  * @return A positive value on success, negative on failure.
  */
-int16_t removeTimerCallback(TimerCallback_t callback);
+int16_t removeTimerCallback(Timer_t timer, TimerCallback_t callback);
 
 /**
  * @brief Clears all registered callbacks for the specified timer.

@@ -44,13 +44,13 @@ typedef struct {
     
     // Write data
     const uint8_t *writeData;
-    uint8_t  writeLen;
-    uint8_t  writeIndex;
+    uint16_t  writeLen;
+    uint16_t  writeIndex;
     
     // Read data
     uint8_t *readData;
-    uint8_t  readLen;
-    uint8_t  readIndex;
+    uint16_t  readLen;
+    uint16_t  readIndex;
     
     // Callback to call when done or error
     void (*callback)(bool success);
@@ -147,8 +147,8 @@ bool getI2C1Status(void) {
  * @param cb       Callback function when done or on error.
  * @return true if started successfully, false if I2C1 is busy.
  */
-void putsI2C1(uint8_t devAddr, const uint8_t *wData, uint8_t wLen,
-              uint8_t *rData, uint8_t rLen, I2CCallback_t callback)
+void putsI2C1(uint8_t devAddr, const uint8_t *wData, uint16_t wLen,
+              uint8_t *rData, uint16_t rLen, I2CCallback_t callback)
 {
     // Wait actively if buffer is full.
     // As interrupts complete transactions, the buffer frees up in the background.
@@ -211,7 +211,7 @@ static void getI2C1SyncExecStatusCb(bool success) {
  *   - true, if the transaction succeeded
  *   - false, if the bus was busy or any error occurred
  */
-bool putsI2C1Sync(uint8_t devAddr, const uint8_t *wData, uint8_t wLen, uint8_t *rData, uint8_t rLen)
+bool putsI2C1Sync(uint8_t devAddr, const uint8_t *wData, uint16_t wLen, uint8_t *rData, uint16_t rLen)
 {
     i2cSyncSuccess = false;
     

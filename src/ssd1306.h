@@ -99,12 +99,20 @@
  * @brief Initializes the SSD1306 OLED module. Configures the necessary
  *        settings for display operation.
  */
-void oledSetup(void);
+void ssd1306Setup(void);
 
 /**
- * @brief Sets the SSD1306 display state. The 'power' parameter controls
- *        whether the display is turned on (true) or off (false).
+ * @brief Sets the column address range for subsequent data writes.
+ *
+ * Defines the horizontal range (columns) to be used for displaying data.
  */
-void oledSetDisplayState(bool power);
+void ssd1306SetColumnAddress(uint8_t startAddress, uint8_t endAddress);
+
+/**
+ * @brief Sets the page address range for subsequent data writes.
+ *
+ * Defines the vertical range (pages) to be used for displaying data.
+ */
+void ssd1306SetPageAddress(uint8_t startAddress, uint8_t endAddress);
 
 #endif	/* SSD1306_H */

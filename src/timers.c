@@ -27,7 +27,7 @@ void initTimer1(uint16_t period, uint16_t prescaler)
     T1CONbits.TON = 0; // leave timer disabled initially
 
     TMR1 = 0; // reset timer counter
-    PR1 = period; // set timer period register ()
+    PR1 = period; // set timer period register
 
     IFS0bits.T1IF = 0; // reset timer interrupt flag
     IPC0bits.T1IP = IP_TIMER1; // set timer interrupt priority level
@@ -127,8 +127,8 @@ void initTimer32Combined(uint32_t period, uint16_t prescaler)
     T2CONbits.TGATE = 0; // gated time accumulation disabled
     T2CONbits.TON = 0; // leave timer disabled initially
 
-    TMR3 = 0; // clear upper bits of 32bit timer (msw)
-    TMR2 = 0; // clear lower bits of 32bit timer (lsw)
+    TMR3HLD = 0; // clear upper bits of 32bit timer (msw)
+    TMR2 = 0;    // clear lower bits of 32bit timer (lsw)
 
     // Set period registers (PR3: upper, PR2: lower)
     PR3 = (uint16_t)(period >> 16); // Upper 16 bits of 32-bit period (msw)
@@ -153,8 +153,8 @@ void initTimer54Combined(uint32_t period, uint16_t prescaler)
     T4CONbits.TGATE = 0; // gated time accumulation disabled
     T4CONbits.TON = 0; // leave timer disabled initially
 
-    TMR5 = 0; // clear upper bits of 32bit timer (msw)
-    TMR4 = 0; // clear lower bits of 32bit timer (lsw)
+    TMR5HLD = 0; // clear upper bits of 32bit timer (msw)
+    TMR4 = 0;    // clear lower bits of 32bit timer (lsw)
 
     // Set period registers (PR3: upper, PR2: lower)
     PR5 = (uint16_t)(period >> 16); // Upper 16 bits of 32-bit period (msw)

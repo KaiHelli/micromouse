@@ -8,20 +8,26 @@
  * 
  * Sets up combined timers 4 and 5 to track elapsed time since device startup.
  */
-void initGlobalTimekeeping();
+void initGlobalTimekeeping(void);
 
 /**
  * @brief Resets the global timekeeping counter.
  * 
  * Clears the elapsed time counter to start measuring from zero again.
  */
-void resetGlobalTimekeeping();
+void resetGlobalTimekeeping(void);
 
 /**
  * @brief Retrieves the elapsed time since startup, in microseconds.
  * 
  * @return The number of microseconds that have elapsed since the device was started.
  */
-uint32_t getTimeInUs();
+uint64_t getTimeInUs(void);
+
+/**
+ * @brief Interrupt service routine for global timer. Called periodically to
+ * increment the overflow counter.
+ */
+static int16_t globalTimerISR(void);
 
 #endif /* GLOBALTIMERS_H */

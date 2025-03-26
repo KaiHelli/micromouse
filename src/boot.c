@@ -11,10 +11,14 @@
 #include "adc.h"
 #include "dma.h"
 #include "rtttl.h"
+#include "globalTimers.h"
 #include <stdint.h>
 
 void bootSetup() {
     setupClock(); // configures oscillator circuit
+    
+    initGlobalTimekeeping(); // configures timekeeping since startup
+    
     setupIO(); // configures inputs and outputs
     
     setupUART1(); // configures UART1

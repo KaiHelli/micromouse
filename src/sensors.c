@@ -14,22 +14,23 @@ typedef struct {
 } SensorParams;
 
 SensorParams sensorParams[] = {
-    {15.2959, 0.3116, -1.9764, 0.3114, -4.0133, 18.9997, 0.6148, -5.1902},  // Fit Parameters for SENSOR_RIGHT
-    {14.7042, 0.2326, -1.9796, 0.2331, -3.7681, 21.4925, 0.6542, -5.9672},  // Fit Parameters for SENSOR_LEFT
-    {17.9144, 0.3052, -2.8008, 0.3050, -5.2426, 27.5355, 0.8280, -8.0530}   // Fit Parameters for SENSOR_CENTER
+    {13.7655, 0.2689, -1.7061, 0.2687, -3.2377, 16.9291, 0.5622, -4.1538},  // Fit Parameters for SENSOR_RIGHT
+    {13.5351, 0.2085, -1.7247, 0.2088, -3.1044, 18.5562, 0.5829, -4.5765},  // Fit Parameters for SENSOR_LEFT
+    {15.6223, 0.2619, -2.2394, 0.2617, -4.0475, 22.2279, 0.7086, -5.8410}   // Fit Parameters for SENSOR_CENTER
 };
 
 uint16_t getSensorDistanceVoltage(Sensor_t sensor){
     return adcData[sensor];
 }
 
-uint8_t getSensorDistance(Sensor_t sensor){
-    return sensorVoltageToDistance(sensor, getSensorDistanceVoltage(sensor));
+uint16_t getSensorDistance(Sensor_t sensor){
+    //return sensorVoltageToDistance(sensor, getSensorDistanceVoltage(sensor));
+    return sensorVoltageToDistanceInMili(sensor, getSensorDistanceVoltage(sensor));
 }
 
 
-#define FAST //Comment to use a more accurate but slower distance fit
-uint8_t sensorVoltageToDistance(Sensor_t sensor, uint16_t voltage) {
+//#define FAST //Comment to use a more accurate but slower distance fit
+uint16_t sensorVoltageToDistance(Sensor_t sensor, uint16_t voltage) {
     SensorParams params = sensorParams[sensor];
    
     float distance = 0.0;
@@ -41,10 +42,10 @@ uint8_t sensorVoltageToDistance(Sensor_t sensor, uint16_t voltage) {
         distance = params.A / (v + params.B) + params.C / ((v + params.D) * (v + params.D)) + params.E;
     #endif
     
-    return (uint8_t)distance;
+    return (uint16_t)distance;
 }
 
-uint8_t sensorVoltageToDistanceInMili(Sensor_t sensor, uint16_t voltage) {
+uint16_t sensorVoltageToDistanceInMili(Sensor_t sensor, uint16_t voltage) {
     SensorParams params = sensorParams[sensor];
    
     float distance = 0.0;
@@ -56,5 +57,5 @@ uint8_t sensorVoltageToDistanceInMili(Sensor_t sensor, uint16_t voltage) {
         distance = params.A / (v + params.B) + params.C / ((v + params.D) * (v + params.D)) + params.E;
     #endif
     
-    return (uint8_t)(distance * 10);
+    return (uint16_t)(distance * 10);
 }

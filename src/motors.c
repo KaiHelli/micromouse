@@ -53,11 +53,19 @@ void steerMotors(int8_t steering, float powerInPercent){
     if (steering < -100) steering = -100;
     if (steering > 100) steering = 100;
     
-    float leftPower = (1.0f - (steering / 100.0f));
-    float rightPower = (1.0f + (steering / 100.0f));
-    //TODO
-    SET_MOTOR_LEFT(leftPower);
-    SET_MOTOR_RIGHT(rightPower);
+    float ratio = (50.0 - fabs(steering)) / 50.0;
+    
+     float leftPercent = powerInPercent;
+     float rightPercent = powerInPercent;
+
+    if (steering >= 0) {
+        rightPercent = rightPercent  * ratio;
+    } else {
+        leftPercent = leftPercent  * ratio;
+    }
+     
+    SET_MOTOR_LEFT(leftPercent);
+    SET_MOTOR_RIGHT(rightPercent);
 }
 
 void turnDegrees(int16_t degrees){
@@ -69,7 +77,7 @@ void setMotorPower(Motor_t motor, float powerInPercent){
         setMotorDirection(motor, false);
     else
         setMotorDirection(motor, true);
-    powerInPercent = fabs(powerInPercent);
+     powerInPercent = fabs(powerInPercent);
     if (powerInPercent > 100.0f) powerInPercent = 100.0f;
     switch (motor) { 
         case MOTOR_LEFT:

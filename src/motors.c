@@ -15,19 +15,33 @@ void setMotorsState(MotorState_t state){
             MB_DIR1 = H;
             MB_DIR2 = H;
             break;
-        case MOTORS_CW:
+        case MOTORS_BACKWARD:
             M_STDBY = H;
             MA_DIR1 = H;
             MA_DIR2 = L;
             MB_DIR1 = H;
             MB_DIR2 = L;
             break;
-        case MOTORS_CCW:
+        case MOTORS_FORWARD:
             M_STDBY = H;
             MA_DIR1 = L;
             MA_DIR2 = H;
             MB_DIR1 = L;
             MB_DIR2 = H;
+            break;
+        case MOTORS_ROTATE_LEFT:
+            M_STDBY = H;
+            MA_DIR1 = H;
+            MA_DIR2 = L;
+            MB_DIR1 = L;
+            MB_DIR2 = H;
+            break;
+        case MOTORS_ROTATE_RIGHT:
+            M_STDBY = H;
+            MA_DIR1 = L;
+            MA_DIR2 = H;
+            MB_DIR1 = H;
+            MB_DIR2 = L;
             break;
     }
 }

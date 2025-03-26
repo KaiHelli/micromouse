@@ -1,18 +1,21 @@
 #ifndef MOTORS_H
 #define MOTORS_H
 #include "pwm.h"
+#include "IOconfig.h"
 
 #define PWM_MOTOR_MAX_DC (6 / 8.4) // voltage ranges from 2*3.7V = 7.4V to 2*4.2V = 8.4V
-#define SET_MOTOR_RIGHT(powerInPercent) setPWMDutyCycle(1, 0, powerInPercent/100.0f)
-#define SET_MOTOR_LEFT(powerInPercent) setPWMDutyCycle(1, 2, powerInPercent/100.0f)
+#define SET_MOTOR_RIGHT(powerInPercent) setPWMDutyCycle(MB_PWM_MODULE, MB_PWM_CHANNEL, (powerInPercent/100.0f)*PWM_MOTOR_MAX_DC)
+#define SET_MOTOR_LEFT(powerInPercent) setPWMDutyCycle(MA_PWM_MODULE, MA_PWM_CHANNEL, (powerInPercent/100.0f)*PWM_MOTOR_MAX_DC)
 #define H 1
 #define L 0
 
 typedef enum {
     MOTORS_STANDBY = 0,
     MOTORS_BRAKE,
-    MOTORS_CW,
-    MOTORS_CCW
+    MOTORS_BACKWARD,
+    MOTORS_FORWARD,
+    MOTORS_ROTATE_LEFT,
+    MOTORS_ROTATE_RIGHT
 } MotorState_t;
 
 typedef enum {

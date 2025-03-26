@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include "motors.h"
 #include "IOConfig.h"
+#include <math.h>
 
 void setMotorsState(MotorState_t state){
     switch (state) { 
@@ -64,7 +65,11 @@ void turnDegrees(int16_t degrees){
 }
 
 void setMotorPower(Motor_t motor, float powerInPercent){
-    if (powerInPercent < 0.0f) powerInPercent = 0.0f;
+    if(powerInPercent < 0)
+        setMotorDirection(motor, false);
+    else
+        setMotorDirection(motor, true);
+    powerInPercent = fabs(powerInPercent);
     if (powerInPercent > 100.0f) powerInPercent = 100.0f;
     switch (motor) { 
         case MOTOR_LEFT:
@@ -72,6 +77,31 @@ void setMotorPower(Motor_t motor, float powerInPercent){
             break;
         case MOTOR_RIGHT:
             SET_MOTOR_RIGHT(powerInPercent);
+            break;
+    }
+}
+
+void setMotorDirection(Motor_t motor, bool forward){
+    switch (motor) { 
+        case MOTOR_LEFT:
+            if(forward){
+                MA_DIR1 = L;
+                MA_DIR2 = H;
+            }
+            else{
+                MA_DIR1 = H;
+                MA_DIR2 = L;
+            }
+            break;
+        case MOTOR_RIGHT:
+            if(forward){
+                MB_DIR1 = L;
+                MB_DIR2 = H;
+            }
+            else{
+                MB_DIR1 = H;
+                MB_DIR2 = L;
+            }
             break;
     }
 }

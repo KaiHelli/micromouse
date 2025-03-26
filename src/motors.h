@@ -19,8 +19,8 @@ typedef enum {
 } MotorState_t;
 
 typedef enum {
-    MOTOR_LEFT = 0,
-    MOTOR_RIGHT
+    MOTOR_LEFT = 0, // Motor A
+    MOTOR_RIGHT     // Motor B
 } Motor_t;
 
 /**
@@ -54,5 +54,11 @@ void turnDegrees(int16_t degrees);
  * (MOTOR_LEFT or MOTOR_RIGHT) and a float percentage for speed control.
  */
 void setMotorPower(Motor_t motor, float powerInPercent);
+
+/**
+ * @brief Sets the turning direction for a specific motor. Takes a Motor_t identifier
+ * (MOTOR_LEFT or MOTOR_RIGHT) and a bool forward for specifying if the motor turns forwards or backwards.
+ */
+void setMotorDirection(Motor_t motor, bool forward);
 
 #endif /* MOTORS_H */

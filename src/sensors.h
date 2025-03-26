@@ -2,9 +2,9 @@
 #define	SENSORS_H
 
 typedef enum {
-    SENSOR_LEFT = 0,
-    SENSOR_CENTER,
-    SENSOR_RIGHT
+    SENSOR_RIGHT = 0,
+    SENSOR_LEFT,
+    SENSOR_CENTER
 } Sensor_t;
 
 /**
@@ -21,10 +21,17 @@ uint8_t getSensorDistance(Sensor_t sensor);
 
 /**
  * @brief Converts a voltage reading to a distance for the specified sensor.
- * Takes a sensor enumerator and a 16-bit voltage, returning an 8-bit integer for the calculated distance.
+ * Takes a sensor enumerator and a 16-bit voltage, returning an 8-bit integer for the calculated distance in cm.
  * This conversion takes the calibration done for each sensor in advance into account.
  */
 uint8_t sensorVoltageToDistance(Sensor_t sensor, uint16_t voltage);
+
+/**
+ * @brief Converts a voltage reading to a distance for the specified sensor.
+ * Takes a sensor enumerator and a 16-bit voltage, returning an 8-bit integer for the calculated distance  in mm.
+ * This conversion takes the calibration done for each sensor in advance into account.
+ */
+uint8_t sensorVoltageToDistanceInMili(Sensor_t sensor, uint16_t voltage);
 
 #endif	/* SENSORS_H */
 

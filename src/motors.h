@@ -1,7 +1,12 @@
 #ifndef MOTORS_H
 #define MOTORS_H
+#include "pwm.h"
 
 #define PWM_MOTOR_MAX_DC (6 / 8.4) // voltage ranges from 2*3.7V = 7.4V to 2*4.2V = 8.4V
+#define SET_MOTOR_RIGHT(powerInPercent) setPWMDutyCycle(1, 0, powerInPercent/100.0f)
+#define SET_MOTOR_LEFT(powerInPercent) setPWMDutyCycle(1, 2, powerInPercent/100.0f)
+#define H 1
+#define L 0
 
 typedef enum {
     MOTORS_STANDBY = 0,

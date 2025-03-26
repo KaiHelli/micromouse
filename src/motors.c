@@ -1,8 +1,63 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "motors.h"
+#include "IOConfig.h"
 
-/*
-    MA_DIR1 = 0;
-    MA_DIR2 = 1;
-    MB_DIR1 = 0;
-    MB_DIR2 = 1;
-    M_STDBY = 0;
-*/
+void setMotorsState(MotorState_t state){
+    switch (state) { 
+        case MOTORS_STANDBY:
+            M_STDBY = L;
+            break;
+        case MOTORS_BRAKE:
+            M_STDBY = H;
+            MA_DIR1 = H;
+            MA_DIR2 = H;
+            MB_DIR1 = H;
+            MB_DIR2 = H;
+            break;
+        case MOTORS_CW:
+            M_STDBY = H;
+            MA_DIR1 = H;
+            MA_DIR2 = L;
+            MB_DIR1 = H;
+            MB_DIR2 = L;
+            break;
+        case MOTORS_CCW:
+            M_STDBY = H;
+            MA_DIR1 = L;
+            MA_DIR2 = H;
+            MB_DIR1 = L;
+            MB_DIR2 = H;
+            break;
+    }
+}
+
+void steerMotors(int8_t steering, float powerInPercent){
+    if (powerInPercent < 0.0f) powerInPercent = 0.0f;
+    if (powerInPercent > 100.0f) powerInPercent = 100.0f;
+    if (steering < -100) steering = -100;
+    if (steering > 100) steering = 100;
+    
+    float leftPower = (1.0f - (steering / 100.0f));
+    float rightPower = (1.0f + (steering / 100.0f));
+    //TODO
+    SET_MOTOR_LEFT(leftPower);
+    SET_MOTOR_RIGHT(rightPower);
+}
+
+void turnDegrees(int16_t degrees){
+    //TODO
+}
+
+void setMotorPower(Motor_t motor, float powerInPercent){
+    if (powerInPercent < 0.0f) powerInPercent = 0.0f;
+    if (powerInPercent > 100.0f) powerInPercent = 100.0f;
+    switch (motor) { 
+        case MOTOR_LEFT:
+            SET_MOTOR_LEFT(powerInPercent);
+            break;
+        case MOTOR_RIGHT:
+            SET_MOTOR_RIGHT(powerInPercent);
+            break;
+    }
+}

@@ -9,9 +9,9 @@ static volatile uint16_t globalTimerOverflows;
 void initGlobalTimekeeping(void) {
     // Initialize combined 32-bit timer (Timer 4 and 5)
     // Use 4.25B as period, to have a good value to calculate with.
-    // Use prescaling of 8, therefore F_CY = 40 MHz -> /8 -> 5 MHz.
+    // Use prescaling of 8 (option: 0b01), therefore F_CY = 40 MHz -> /8 -> 5 MHz.
     // Thus, the counter is incremented in 200ns steps. 
-    initTimer54Combined(4250000, 8);
+    initTimer54Combined(4250000000, 1);
     
     // Attach an ISR that counts each counter overflow. 
     // Overflow occurs every: 200 * 10^{-9} * 4.25 * 10^9 = 850s

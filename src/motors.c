@@ -4,41 +4,41 @@
 #include "IOConfig.h"
 #include <math.h>
 
+void setMotorsStandbyState(bool state) {
+    M_STDBY = !state;
+}
+
+void toggleMotorsStandby(){
+    M_STDBY = !M_STDBY;
+}
+
 void setMotorsState(MotorState_t state){
     switch (state) { 
-        case MOTORS_STANDBY:
-            M_STDBY = L;
-            break;
         case MOTORS_BRAKE:
-            M_STDBY = H;
             MA_DIR1 = H;
             MA_DIR2 = H;
             MB_DIR1 = H;
             MB_DIR2 = H;
             break;
         case MOTORS_BACKWARD:
-            M_STDBY = H;
             MA_DIR1 = H;
             MA_DIR2 = L;
             MB_DIR1 = H;
             MB_DIR2 = L;
             break;
         case MOTORS_FORWARD:
-            M_STDBY = H;
             MA_DIR1 = L;
             MA_DIR2 = H;
             MB_DIR1 = L;
             MB_DIR2 = H;
             break;
         case MOTORS_ROTATE_LEFT:
-            M_STDBY = H;
             MA_DIR1 = H;
             MA_DIR2 = L;
             MB_DIR1 = L;
             MB_DIR2 = H;
             break;
         case MOTORS_ROTATE_RIGHT:
-            M_STDBY = H;
             MA_DIR1 = L;
             MA_DIR2 = H;
             MB_DIR1 = H;

@@ -10,7 +10,6 @@
 #define L 0
 
 typedef enum {
-    MOTORS_STANDBY = 0,
     MOTORS_BRAKE,
     MOTORS_BACKWARD,
     MOTORS_FORWARD,
@@ -22,6 +21,10 @@ typedef enum {
     MOTOR_LEFT = 0, // Motor A
     MOTOR_RIGHT     // Motor B
 } Motor_t;
+
+void setMotorsStandbyState(bool state);
+
+void toggleMotorsStandby(void);
 
 /**
  * @brief Puts the motors into the specified state. Takes a MotorState_t

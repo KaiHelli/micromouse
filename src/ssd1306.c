@@ -8,10 +8,10 @@
 #include "uart.h"
 
 void ssd1306Setup(void) {
-    bool status = 0; // track the status of all operations
+    bool status = 1; // track the status of all operations
     
     static uint8_t oledSetupData[] = { 
-        SSD1306_DISPLAY_ON_OFF | DISPLAY_OFF,    // Turn display off before doing changes
+        SSD1306_DISPLAY_ON_OFF | DISPLAY_OFF,   // Turn display off before doing changes
         SSD1306_SET_DISPLAY_CLOCK_DIV,          // Set display clock division
         0x80,                                   // 0b1000 oscillator / 0b0000 division -> ~105Hz F_FRM
         SSD1306_SET_MULTIPLEX,                  // Set multiplex ratio
@@ -38,9 +38,9 @@ void ssd1306Setup(void) {
         
     };
     
-    status |= putsI2C1Sync(I2C_OLED_ADDR, oledSetupData, sizeof(oledSetupData), NULL, 0);
+    status &= putsI2C1Sync(I2C_OLED_ADDR, oledSetupData, sizeof(oledSetupData), NULL, 0);
     
-    if (status == 0) {
+    if (status) {
         putsUART1("Display configured.\r\n");
     } else {
         putsUART1("Error setting up the display!\r\n");

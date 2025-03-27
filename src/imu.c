@@ -113,14 +113,14 @@ void imuReadGyro(void) {
 bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]) {
     static uint8_t measurementRegisterStart = ICM20948_GYRO_XOUT_H;
     
-    bool status = 0;
+    bool status = 1;
     
     // Switch to User Bank 0
     imuSetUsrBank(0);
     
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawGyroMeasurements, 6);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawGyroMeasurements, 6);
     
-    if (status != 0) {
+    if (!status) {
         return status;
     }
     
@@ -234,13 +234,13 @@ void magSelfTest(void)
 // Synchronously configure the IMU.
 void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode, TempMode_t tempMode)
 {
-    bool status = 0; // track the status of all operations
+    bool status = 1; // track the status of all operations
     
     // USR0 / PWR_MGMT_1
     // bit 7 -> 1 | reset IMU
     // 0x41 on reset -> change to 0xC1
     static uint8_t imuRstData[] = { ICM20948_PWR_MGMT_1, 0xC1 };
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, imuRstData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, imuRstData, 2, NULL, 0);
     
     // Wait for the device to reset.
     __delay_ms(5);
@@ -252,13 +252,13 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     
     static uint8_t pwrData[] = { ICM20948_PWR_MGMT_1, 0x01 };
     pwrData[1] |= tempMode << 3;
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, pwrData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, pwrData, 2, NULL, 0);
 
     // USR0 / INT_PIN_CFG
     // bit 1 -> 1 | bridge auxiliary I2C bus with main bus (for magnetometer)
     // 0x00 on reset -> change to 0x02
     static uint8_t i2cData[] = { ICM20948_INT_PIN_CFG, 0x02 };
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, i2cData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, i2cData, 2, NULL, 0);
     
     // Switch to User Bank 2
     imuSetUsrBank(2);
@@ -267,7 +267,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     // bit 0 -> 1 | align sampling rates of sensors
     // 0x00 on reset -> change to 0x01
     static uint8_t odrAlignData[] = { ICM20948_ODR_ALIGN_EN, 0x01 };
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, odrAlignData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, odrAlignData, 2, NULL, 0);
     
     // USR2 / GYRO_SMPLRT_DIV
     // bit 7:0 -> Gyro sample rate divider
@@ -289,7 +289,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     static uint8_t gyroData[] = { ICM20948_GYRO_CONFIG_1, 0x0 };
     gyroData[1] = gyroConfig;
     
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, gyroData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, gyroData, 2, NULL, 0);
     
     // Store the selected LSB
     gyroLSB = gyroLSBTable[gyroRange];
@@ -319,7 +319,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     
     static uint8_t accelData[] = { ICM20948_ACCEL_CONFIG, 0x0 };
     accelData[1] = accelConfig;
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, accelData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, accelData, 2, NULL, 0);
 
     // Store the selected LSB
     accelLSB = accelLSBTable[accelRange];
@@ -334,7 +334,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     // bit 0 -> reset magnetometer
     // 0x00 on reset -> change to 0x01
     static uint8_t magRstData[] = { AK09916_CNTL3, 0x01 };
-    status |= putsI2C1Sync(I2C_IMU_MAG_ADDR, magRstData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_MAG_ADDR, magRstData, 2, NULL, 0);
     
     // Wait for magnetometer to reset.
     __delay_ms(5);
@@ -343,12 +343,12 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     // bit 4:0 -> Magnetometer operation mode setting
     static uint8_t magData[] = { AK09916_CNTL2, 0x0 };
     magData[1] = magMode;
-    status |= putsI2C1Sync(I2C_IMU_MAG_ADDR, magData, 2, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_MAG_ADDR, magData, 2, NULL, 0);
     
     // Wait for settings to take effect.
     __delay_ms(1000);
     
-    if (status == 0) {
+    if (status) {
         putsUART1("IMU configured.\r\n");
     } else {
         putsUART1("Error setting up the IMU!\r\n");
@@ -369,7 +369,7 @@ bool imuCalibrateGyro() {
 
         bool status = imuReadGyroSync(rawGyroMeasurements, NULL);
 
-        if (status != 0) {
+        if (!status) {
             continue;
         }
 
@@ -400,7 +400,7 @@ bool imuCalibrateGyro() {
         gyroOffsets[axis] = (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
     }
     
-    bool status = 0;
+    bool status = 1;
     
     uint8_t offsetValues[7] = {
         ICM20948_XG_OFFSET_H,             // Register start address
@@ -409,9 +409,13 @@ bool imuCalibrateGyro() {
         HIGH_BYTE(gyroOffsets[2]), LOW_BYTE(gyroOffsets[2])
     };
     
-    status |= putsI2C1Sync(I2C_IMU_GYRO_ADDR, offsetValues, 7, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, offsetValues, 7, NULL, 0);
     
-    putsUART1("Gyroscope calibrated.\r\n");
+    if (status) {
+        putsUART1("Gyroscope calibrated.\r\n");
+    } else {
+        putsUART1("Error calibrating the IMU!\r\n");
+    }
     
     return status;
 }

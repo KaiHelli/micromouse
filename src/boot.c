@@ -35,7 +35,8 @@ void bootSetup() {
     imuCalibrateGyro(); // Calibrate gyroscope.
     
     oledSetup();
-    
+    oledClearDisplay();
+    oledRefresh();
     
     initDmaChannel4(); // Initialize DMA to copy sensor readings in the background
     setupADC1();       // Initialize ADC to sample sensor reading
@@ -43,15 +44,15 @@ void bootSetup() {
 
     initSwitch1();     // Initialize switch 1 for interrupts
     
-    initTimerInMs(TIMER_1, 100); //creates a 10ms timer interrupt
+    //initTimerInMs(TIMER_1, 100); //creates a 10ms timer interrupt
     // setTimerState(TIMER_1, 1);
 
     // initTimerInMs(TIMER_2, 50); //creates a 10ms timer interrupt
     // setTimerState(TIMER_2, 1);
 
-    initTimerInMs(TIMER_3, 1); // creates a 1ms timer interrupt
-    parseAllSongs();
-    playSong(SONG_MUPPETS, true);
+    //initTimerInMs(TIMER_3, 1); // creates a 1ms timer interrupt
+    //parseAllSongs();
+    //playSong(SONG_MUPPETS, true);
     
     // setTimerState(TIMER_3, 1);
     

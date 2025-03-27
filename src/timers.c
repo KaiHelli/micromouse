@@ -263,8 +263,8 @@ int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs)
         // period is given in us
         // Approach: convert frequency to kHz and multiply by the number of ms
 
-        // for 16-bit timers 64bit is safe as timeInMs <= 630_000us and adj_fcy <= 40_000_000 so log2(630_000*40_000_000) = 44.52 bits
-        // for 32-bit timers 64bit is safe as timeInMs <= 41_232_000_000us and adj_fcy <= 40_000_000 so log2(41_232_000_000*40_000_000) = 60.52 bits
+        // for 16-bit timers 64bit is safe as timeInUs <= 630_000us and adj_fcy <= 40_000_000 so log2(630_000*40_000_000) = 44.52 bits
+        // for 32-bit timers 64bit is safe as timeInUs <= 41_232_000_000us and adj_fcy <= 40_000_000 so log2(41_232_000_000*40_000_000) = 60.52 bits
         uint64_t required_ticks = ((uint64_t)timeInUs * adj_fcy) / 1000000ULL;
 
         if (required_ticks <= max_count) {
@@ -280,7 +280,7 @@ int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs)
     if (match_found == 0) {
         return -1;
     }
-
+    
     switch (timer) {
     case TIMER_1:
         initTimer1((uint16_t)count, prescaler);
@@ -308,11 +308,11 @@ int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs)
     }
 
     // Minimal timer interrupt time
-    // In theory 37.5ns but this will likely break as the interrupt is not finished yet.
+    // In theory 25ns but this will likely break as the interrupt is not finished yet.
     // Maximal timer interrupt time (16-bit timers)
-    // 37.5 * 10^{-9} * 256 * 65536 = 0.6291456s
+    // 25 * 10^{-9} * 256 * 65536 = 0.4194304
     // Maximal timer interrupt time (32-bit timers)
-    // 37.5 * 10^{-9} * 256 * (2^{32} - 1) = 41_231.686032s = 687.1947672min = 11.45324612h
+    // 25 * 10^{-9} * 256 * (2^{32} - 1) = 27_487.790688s = 458.1298448min = 7.6354974133h
     // For longer times: Add a separate counter in software to wait x interrupts of y ms.
 
     return 0;
@@ -341,28 +341,30 @@ static volatile TimerCallback_t timerCallbacks[NUM_TIMERS][TIMER_CALLBACK_BUFFER
 static volatile uint8_t registeredTimerCallbacks[NUM_TIMERS];
 
 int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
+    Timer_t idx = timer;
+    
     // In case a combined timer is used, select the respective timer that handles 
-    // the ISR.
+    // the ISR. 
     if (timer == TIMER_32_COMBINED) {
-        timer = TIMER_3;
+        idx = TIMER_3;
     }
     if (timer == TIMER_54_COMBINED) {
-        timer = TIMER_5;
+        idx = TIMER_5;
     }
 
     // Check if there buffer of interrupt callbacks is already full.
-    if (registeredTimerCallbacks[timer] == TIMER_CALLBACK_BUFFER_SIZE) {
+    if (registeredTimerCallbacks[idx] == TIMER_CALLBACK_BUFFER_SIZE) {
         return -1;
     }
     
     // Temporarily disable timer interrupts during modifying callbacks.
     setTimerInterruptState(timer, false);
 
-    timerCallbacks[timer][registeredTimerCallbacks[timer]] = callback;
-    registeredTimerCallbacks[timer]++;
+    timerCallbacks[idx][registeredTimerCallbacks[idx]] = callback;
+    registeredTimerCallbacks[idx]++;
     
     // Enable the timer itself, if we are the first callback.
-    if (registeredTimerCallbacks[timer] == 1) {
+    if (registeredTimerCallbacks[idx] == 1) {
         setTimerState(timer, true);
     }
     
@@ -373,27 +375,38 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
 }
 
 int16_t removeTimerCallback(Timer_t timer, TimerCallback_t callback) {
+    Timer_t idx = timer;
+    
+    // In case a combined timer is used, select the respective timer that handles 
+    // the ISR. 
+    if (timer == TIMER_32_COMBINED) {
+        idx = TIMER_3;
+    }
+    if (timer == TIMER_54_COMBINED) {
+        idx = TIMER_5;
+    }
+    
     // Temporarily disable timer interrupts during modifying callbacks.
     setTimerInterruptState(timer, false);
     
     bool recoverInterruptState = true;
     int16_t status = -1;
     
-    for (uint8_t i = 0; i < registeredTimerCallbacks[timer]; i++) {
-        if (timerCallbacks[timer][i] != callback) {
+    for (uint8_t i = 0; i < registeredTimerCallbacks[idx]; i++) {
+        if (timerCallbacks[idx][i] != callback) {
             continue;
         }
         
-        registeredTimerCallbacks[timer]--;
+        registeredTimerCallbacks[idx]--;
 
-        if (registeredTimerCallbacks[timer] == 0) {
+        if (registeredTimerCallbacks[idx] == 0) {
             // Disable the interrupts itself, if there are no callbacks left.
             recoverInterruptState = false;
         }
 
         // Only swap if we're not already at the last position
-        if (i < registeredTimerCallbacks[timer]) {
-            timerCallbacks[timer][i] = timerCallbacks[timer][registeredTimerCallbacks[timer]];
+        if (i < registeredTimerCallbacks[idx]) {
+            timerCallbacks[idx][i] = timerCallbacks[idx][registeredTimerCallbacks[idx]];
         }
 
         status = 0;

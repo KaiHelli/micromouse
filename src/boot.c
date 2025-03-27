@@ -44,15 +44,12 @@ void bootSetup() {
 
     initSwitch1();     // Initialize switch 1 for interrupts
     
-    //initTimerInMs(TIMER_1, 100); //creates a 10ms timer interrupt
-    // setTimerState(TIMER_1, 1);
-
-    // initTimerInMs(TIMER_2, 50); //creates a 10ms timer interrupt
-    // setTimerState(TIMER_2, 1);
+    initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
+    initTimerInMs(TIMER_2, 1); //creates a 1ms timer interrupt
 
     //initTimerInMs(TIMER_3, 1); // creates a 1ms timer interrupt
     //parseAllSongs();
-    //playSong(SONG_MUPPETS, true);
+    //playSong(SONG_MUPPETS, true, TIMER_2);
     
     // setTimerState(TIMER_3, 1);
     

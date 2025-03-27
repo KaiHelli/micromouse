@@ -440,7 +440,7 @@ bool parseAllSongs(void) {
     return status;
 }
 
-bool playSong(RtttlSong song, bool repeat) {
+bool playSong(RtttlSong song, bool repeat, Timer_t timer) {
     if (song >= SONG_COUNT)
         return false;
 
@@ -458,7 +458,7 @@ bool playSong(RtttlSong song, bool repeat) {
     }
 
     setPWMDutyCycle(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, 0.5);
-    registerTimerCallback(TIMER_3, songISR);
+    registerTimerCallback(timer, songISR);
 
     return true;
 }

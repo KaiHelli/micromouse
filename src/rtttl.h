@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "timers.h"
+
 typedef enum {
     SONG_MISSION_IMPOSSIBLE,
     SONG_CANTINA,
@@ -71,7 +73,7 @@ bool parseRTTTL(RtttlReader *input, RtttlNotes *output);
  * to choose the song and a boolean indicating whether it should repeat.
  * Returns true if the song was successfully started, false otherwise.
  */
-bool playSong(RtttlSong song, bool repeat);
+bool playSong(RtttlSong song, bool repeat, Timer_t timer);
 
 /**
  * @brief Stops the currently playing song if any is active.

@@ -50,6 +50,9 @@ void oledDrawFrame(void) {
 
 void oledRefresh(void)
 {
+    // Writing the display buffer to the screen takes about 5.805ms to complete
+    // Calculation:
+    // (4 pages * 64 columns + 1 control byte + 1 i2c address byte) * 9 bits / 400kHz
     ssd1306SetColumnAddress(OLED_FIRST_COL, OLED_LAST_COL);
     ssd1306SetPageAddress(OLED_FIRST_PAGE, OLED_LAST_PAGE);
 

@@ -65,13 +65,16 @@ void bootSetup() {
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
     initTimerInMs(TIMER_2, 1);  // high frequency 1ms timer interrupt for sensor readings and rtttl
 
-    // parseAllSongs();
-    // playSong(SONG_MUPPETS, true, TIMER_2);
+    //parseAllSongs();
+    //playSong(SONG_MUPPETS, true, TIMER_2);
     
-    //initTimerInMs(TIMER_3, 300); // 300ms timer interrupt for testing
+    initTimerInMs(TIMER_3, 300); // 100ms timer interrupt for testing
+
+    registerTimerCallback(TIMER_1, moveForward);
     //registerTimerCallback(TIMER_3, moveForward);
-    
-    steerMotors(30, 30);
+
+
+    //steerMotors(30, 30);
     //setMotorPower(MOTOR_LEFT, 50);
     //SET_MOTOR_LEFT(50);
     

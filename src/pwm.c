@@ -29,7 +29,7 @@ void setupPWM1()
      */
     P1TCONbits.PTEN = 0; // Switch off PWM generator
     
-    setPWMFrequency(1, 1000); // Sets prescaler and P1TPER to obtain 1kHz.
+    setPWMFrequency(1, 20000); // Sets prescaler and P1TPER to obtain 1kHz.
     
     PWM1CON1bits.PMOD1 = 1; // set PWM unit 1 to independent mode
 
@@ -202,10 +202,6 @@ int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq)
  */
 int8_t setPWMDutyCycle(uint8_t pwmModule, uint8_t channel, uint8_t fraction)
 {
-    char buffer[100];
-    snprintf(buffer, sizeof(buffer), "pwm fraction: %d", fraction);
-    putsUART1(buffer);
-    
     // Clamp fraction to 0..1
     if (fraction < 0) fraction = 0;
     if (fraction > 100) fraction = 100;

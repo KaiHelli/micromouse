@@ -1,6 +1,6 @@
 #include "mouseController.h"
 #include "motorEncoders.h"
-#include "pid.h"
+#include "fastPID.h"
 #include "motors.h"
 #include "uart.h"
 #include "sensors.h"
@@ -9,6 +9,9 @@
 MouseState_t mouseState = MOUSE_STATE_INITIALIZING;
 
 MovementState_t movementState = MOVEMENT_STATE_NONE;
+
+static FastPid pid;
+
 
 int16_t moveForward() {
     //resetPid
@@ -23,18 +26,21 @@ int16_t moveForward() {
     uint16_t right = getSensorDistance(SENSOR_RIGHT);
     uint16_t front = getSensorDistance(SENSOR_CENTER);
     
-    updatePID(left, right, front);
-    float powerLeft = powerInPercentLeft() * 100;
-    float powerRight = powerInPercentRight() * 100;
+    int16_t step = fastPidStep(&pid, 0, (int16_t) left-right);
+    
+    uint8_t defaultPower = 60;
+    
+    int8_t powerLeft = defaultPower + (int8_t) step;
+    int8_t powerRight = defaultPower - (int8_t) step;
     
     setMotorPower(MOTOR_RIGHT, powerRight);
     setMotorPower(MOTOR_LEFT, powerLeft);
     
     char buffer[100];
-    snprintf(buffer, sizeof(buffer), "Power in percent left: %f, right: %f\r\n",powerLeft, powerRight);
-    putsUART1(buffer);
-    snprintf(buffer, sizeof(buffer), "Sensor readings in mm left: %u, right: %u, center: %u\r\n",left, right, front);
-    putsUART1(buffer);
+    //snprintf(buffer, sizeof(buffer), "Power [%] - Step: %d, Left: %d, Right: %d\r\n", (int8_t) step, powerLeft, powerRight);
+    //putsUART1(buffer);
+    //snprintf(buffer, sizeof(buffer), "Sensor readings in mm left: %u, right: %u, center: %u\r\n",left, right, front);
+    //putsUART1(buffer);
     return 1;
 }
 
@@ -63,10 +69,17 @@ uint8_t turnRight() {
 uint8_t initMouseState() {
     //set state to standby, LED1:ON 
     //button callback: discovery
+    bool status = true;
     
-    //initialize pid
-    init_PID();
-    //setMotorsState(MOTORS_FORWARD);
+    fastPidInit(&pid);
+    //status &= fastPidConfigure(&pid, 0.6f, 0.006f, 0.0f, 3.3333f, 8, true);
+    status &= fastPidConfigure(&pid, 0.8f, 0.0f, 0.0f, 100.0f, 8, true);
+    status &= fastPidSetOutputRange(&pid, -100, 100);
+            
+    if (!status) {
+        putsUART1("PID setup failed.\r\n");
+    }
+    
     return 1;
 }
 

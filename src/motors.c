@@ -4,6 +4,11 @@
 #include "IOConfig.h"
 #include <math.h>
 
+void initMotorsState(void) {
+    // Set motors to standby on startup
+    setMotorsStandbyState(true);
+}
+
 void setMotorsStandbyState(bool state) {
     M_STDBY = !state;
 }
@@ -47,39 +52,70 @@ void setMotorsState(MotorState_t state){
     }
 }
 
-void steerMotors(int8_t steering, float powerInPercent){
-    if (powerInPercent < 0.0f) powerInPercent = 0.0f;
-    if (powerInPercent > 100.0f) powerInPercent = 100.0f;
-    if (steering < -100) steering = -100;
-    if (steering > 100) steering = 100;
-    
-    float ratio = (50.0 - fabs(steering)) / 50.0;
-    
-     float leftPercent = powerInPercent;
-     float rightPercent = powerInPercent;
-
-    if (steering >= 0) {
-        rightPercent = rightPercent  * ratio;
-    } else {
-        leftPercent = leftPercent  * ratio;
+void steerMotors(int8_t steering, uint8_t powerInPercent)
+{
+    // Clamp power to [0..100]
+    if (powerInPercent > 100) {
+        powerInPercent = 100;
     }
-     
-    SET_MOTOR_LEFT(leftPercent);
-    SET_MOTOR_RIGHT(rightPercent);
+
+    // Clamp steering to [-100..100]
+    if (steering < -100) {
+        steering = -100;
+    }
+    if (steering > 100) {
+        steering = 100;
+    }
+
+    // Compute ratio as integer in range [-50..50]
+    int16_t ratio = 50 - (steering >= 0 ? steering : -steering);
+
+    // Start with both motors at full requested power
+    int16_t leftPercent  = powerInPercent;
+    int16_t rightPercent = powerInPercent;
+
+    // Scale only the appropriate side
+    if (steering >= 0) {
+        // Steer right => reduce right motor by ratio
+        rightPercent = (rightPercent * ratio) / 50;
+    } else {
+        // Steer left => reduce left motor by ratio
+        leftPercent  = (leftPercent  * ratio) / 50;
+    }
+    
+    // Send the integer speeds (possibly negative) to the motors
+    setMotorPower(MOTOR_LEFT, (int8_t) leftPercent);
+    setMotorPower(MOTOR_RIGHT, (int8_t) rightPercent);
 }
+
 
 void turnDegrees(int16_t degrees){
     //TODO
 }
 
-void setMotorPower(Motor_t motor, float powerInPercent){
-    if(powerInPercent < 0)
+void setMotorPower(Motor_t motor, int8_t powerInPercent)
+{
+    // Determine motor direction based on sign
+    if (powerInPercent < 0)
+    {
         setMotorDirection(motor, false);
+        // Convert to positive for further use
+        powerInPercent = -powerInPercent;
+    }
     else
+    {
         setMotorDirection(motor, true);
-     powerInPercent = fabs(powerInPercent);
-    if (powerInPercent > 100.0f) powerInPercent = 100.0f;
-    switch (motor) { 
+    }
+
+    // Clamp power to [0..100]
+    if (powerInPercent > 100)
+    {
+        powerInPercent = 100;
+    }
+
+    // Now use the clamped/positive power to drive the motor
+    switch (motor)
+    {
         case MOTOR_LEFT:
             SET_MOTOR_LEFT(powerInPercent);
             break;

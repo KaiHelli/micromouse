@@ -251,32 +251,32 @@ static bool parseNote(RtttlReader *input, uint8_t *note) {
 
   switch(*(input->pos)) {
     case 'c':
-      *note = C;
+      *note = NOTE_C;
       break;
     case 'd':
-      *note = D;
+      *note = NOTE_D;
       break;
     case 'e':
-      *note = E;
+      *note = NOTE_E;
       checkForSharp = false;
       break;
     case 'f':
-      *note = F;
+      *note = NOTE_F;
       break;
     case 'g':
-      *note = G;
+      *note = NOTE_G;
       break;
     case 'a':
-      *note = A;
+      *note = NOTE_A;
       break;
     // Also allow b as this is often used instead of h.
     case 'b':
     case 'h':
-      *note = H;
+      *note = NOTE_H;
       checkForSharp = false;
       break;
     case 'p':
-      *note = P;
+      *note = NOTE_P;
       checkForSharp = false;
       break;
      default:
@@ -457,7 +457,7 @@ bool playSong(RtttlSong song, bool repeat, Timer_t timer) {
         setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
     }
 
-    setPWMDutyCycle(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, 0.5);
+    setPWMDutyCycle(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, 50);
     registerTimerCallback(timer, songISR);
 
     return true;

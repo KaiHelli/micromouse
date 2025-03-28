@@ -34,10 +34,10 @@ int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq);
  * @brief Sets the duty cycle for a specified PWM module channel.
  * 
  * Takes the PWM module index, the channel index, and a fraction
- * (0.0 to 1.0) representing the desired duty cycle. Returns 0 on
- * success or a negative error code on failure.
+ * (0 to 100) representing the desired duty cycle in percent. 
+ * Returns 0 on success or a negative error code on failure.
  */
-int8_t setPWMDutyCycle(uint8_t pwmModule, uint8_t channel, float fraction);
+int8_t setPWMDutyCycle(uint8_t pwmModule, uint8_t channel, uint8_t fraction);
 
 /**
  * @brief Enables or disables a specified PWM module channel.

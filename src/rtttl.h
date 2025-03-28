@@ -47,19 +47,19 @@ typedef struct
 }
 RtttlDefaults;
 
-#define C  0
-#define CS 1
-#define D  2
-#define DS 3
-#define E  4
-#define F  5
-#define FS 6
-#define G  7
-#define GS 8
-#define A  9
-#define AS 10
-#define H  11
-#define P  12
+#define NOTE_C  0
+#define NOTE_CS 1
+#define NOTE_D  2
+#define NOTE_DS 3
+#define NOTE_E  4
+#define NOTE_F  5
+#define NOTE_FS 6
+#define NOTE_G  7
+#define NOTE_GS 8
+#define NOTE_A  9
+#define NOTE_AS 10
+#define NOTE_H  11
+#define NOTE_P  12
 
 /**
  * @brief Parses an RTTTL string into structured note data. Requires an

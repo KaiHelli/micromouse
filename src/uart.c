@@ -109,7 +109,7 @@ void controlPWMCycle(char c)
 
             // Use sscanf to parse the number (supporting both integers and floats)
             if (sscanf(rxBuffer, "%f", &value) == 1 && value >= MIN_NUMBER && value <= MAX_NUMBER) {
-                setPWMDutyCycle(LED5_PWM_MODULE, LED5_PWM_CHANNEL, (1 - value / 100));
+                setPWMDutyCycle(LED5_PWM_MODULE, LED5_PWM_CHANNEL, (1 - value));
             }
             // Reset state
             rxState = STATE_IDLE;

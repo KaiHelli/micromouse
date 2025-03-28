@@ -24,8 +24,8 @@ int16_t moveForward() {
     uint16_t front = getSensorDistance(SENSOR_CENTER);
     
     updatePID(left, right, front);
-    float powerLeft = powerInPercentLeft() * 35;
-    float powerRight = powerInPercentRight() * 35;
+    float powerLeft = powerInPercentLeft() * 100;
+    float powerRight = powerInPercentRight() * 100;
     
     setMotorPower(MOTOR_RIGHT, powerRight);
     setMotorPower(MOTOR_LEFT, powerLeft);

@@ -367,7 +367,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     status &= putsI2C1Sync(I2C_IMU_MAG_ADDR, magData, 2, NULL, 0);
     
     // Wait for settings to take effect.
-    __delay_ms(1000);
+    __delay_ms(100);
     
     if (status) {
         putsUART1("IMU configured.\r\n");

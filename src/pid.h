@@ -5,7 +5,7 @@
 
 void init_PID(void);
 void resetPID(void);
-uint16_t updatePID(uint16_t left, uint16_t right, uint16_t front);
+void updatePID(uint16_t left, uint16_t right, uint16_t front);
 uint16_t updatePID2(void);
 void setPIDGoalD(int16_t distance);
 void setPIDGoalA(int16_t angle);

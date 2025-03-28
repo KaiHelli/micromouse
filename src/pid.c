@@ -53,7 +53,7 @@ void init_PID() {
     pid2.w_f = 0.35;
 }
 
-uint16_t updatePID(uint16_t left, uint16_t right, uint16_t front) {
+void updatePID(uint16_t left, uint16_t right, uint16_t front) {
     //TODO set w_f according to front distance
     float error = (float)(left - right);
     pid2.w_l = pid2.w_f - pid2.K_p * error - pid2.K_d * (error - pid2.last_error);
@@ -81,9 +81,9 @@ void resetPID(void) {
 
     pid.count1 = getPositionInCounts_1();
     pid.count2 = getPositionInCounts_2();
-    
+
     pid.goalReached = 0;
-    
+
     pid.powerInPercentLeft = 0;
     pid.powerInPercentRight = 0;
 
@@ -92,9 +92,9 @@ void resetPID(void) {
 }
 
 uint16_t updatePID2(void) {
-    
+
     char buffer[100];
-    
+
     long posInCount1 = getPositionInCounts_1() - pid.count1;
     long posInCount2 = getPositionInCounts_2() - pid.count2;
 
@@ -106,33 +106,33 @@ uint16_t updatePID2(void) {
     pid.distanceError = pid.goalDistance - ((posInCount1 + posInCount2) / 2);
     float distanceCorr = pid.kPx * pid.distanceError + pid.kDx * (pid.distanceError - pid.oldDistanceError);
     pid.oldDistanceError = pid.distanceError;
-    
+
     //pid.powerInPercentLeft = fabs(distanceCorr + angleCorr);
     //pid.powerInPercentRight = fabs(distanceCorr - angleCorr);
-    
+
     //pid.powerInPercentLeft = fabs(distanceCorr - angleCorr);
     //pid.powerInPercentRight = fabs(distanceCorr + angleCorr);
-    
+
     pid.powerInPercentLeft = distanceCorr + angleCorr;
     pid.powerInPercentRight = distanceCorr - angleCorr;
-    
+
     snprintf(buffer, sizeof (buffer), "PWM powerInPercentLeft raw: %f\r\n", pid.powerInPercentLeft);
     putsUART1(buffer);
     snprintf(buffer, sizeof (buffer), "PWM powerInPercentRight raw: %f\r\n", pid.powerInPercentRight);
     putsUART1(buffer);
-    
+
     if (pid.powerInPercentLeft > MAX_POWER) {
         pid.powerInPercentLeft = MAX_POWER;
     } else if (pid.powerInPercentLeft < MIN_POWER) {
         pid.powerInPercentLeft = MIN_POWER;
     }
-    
+
     if (pid.powerInPercentRight > MAX_POWER) {
         pid.powerInPercentRight = MAX_POWER;
     } else if (pid.powerInPercentRight < MIN_POWER) {
         pid.powerInPercentRight = MIN_POWER;
     }
-    
+
     snprintf(buffer, sizeof (buffer), "PWM powerInPercentLeft: %f\r\n", pid.powerInPercentLeft);
     putsUART1(buffer);
     snprintf(buffer, sizeof (buffer), "PWM powerInPercentRight: %f\r\n", pid.powerInPercentRight);
@@ -149,18 +149,18 @@ uint16_t updatePID2(void) {
     putsUART1(buffer);
     snprintf(buffer, sizeof (buffer), "distanceCorr: %f\r\n", distanceCorr);
     putsUART1(buffer);
-    
+
     float errorTotal = pid.distanceError + pid.angleError;
     if (errorTotal < THRESHHOLD) {
         pid.powerInPercentLeft = 0;
         pid.powerInPercentRight = 0;
         pid.goalReached = 1;
-        
+
         snprintf(buffer, sizeof (buffer), "Goal reached! Error total = %f\r\n", errorTotal);
         putsUART1(buffer);
         return 0;
     }
-    
+
     return 1;
 }
 
@@ -175,7 +175,7 @@ void setPIDGoalA(int16_t angle) {
 }
 
 int8_t PIDdone(void) {
-    
+
     return pid.goalReached;
 }
 

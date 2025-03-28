@@ -18,8 +18,8 @@ static uint16_t pwmFrequency[2] = {0, 0};
  * Store duty cycle fractions (range 0.0f..1.0f).
  * PWM1 has up to 3 independent channels, PWM2 has 1 channel.
  */
-static float pwmDC1[3] = {0.0f, 0.0f, 0.0f};  // for PWM module #1, channels 1..3
-static float pwmDC2    = 0.0f;                // for PWM module #2, channel 1
+static uint8_t pwmDC1[3] = {0, 0, 0};  // for PWM module #1, channels 1..3
+static uint8_t pwmDC2    = 0;                  // for PWM module #2, channel 1
 
 void setupPWM1()
 {
@@ -83,15 +83,15 @@ static void recalcPWMDutyCycles(uint8_t pwmModule)
 {
     switch (pwmModule) {
         case 1:
-            // P1DCx must be (fraction � (2 * PTPER))
-            P1DC1 = (uint16_t)(pwmDC1[0] * (float)pwmFrequency[0]);
-            P1DC2 = (uint16_t)(pwmDC1[1] * (float)pwmFrequency[0]);
-            P1DC3 = (uint16_t)(pwmDC1[2] * (float)pwmFrequency[0]);
+            // P1DCx must be (fraction of (2 * PTPER))
+            P1DC1 = (uint16_t) (((uint32_t) pwmDC1[0] * pwmFrequency[0]) / 100);
+            P1DC2 = (uint16_t) (((uint32_t) pwmDC1[1] * pwmFrequency[0]) / 100);
+            P1DC3 = (uint16_t) (((uint32_t) pwmDC1[2] * pwmFrequency[0]) / 100);
             break;
 
         case 2:
             // Only channel 1 in this example
-            P2DC1 = (uint16_t)(pwmDC2 * (float)pwmFrequency[1]);
+            P2DC1 = (uint16_t) (((uint32_t) pwmDC2 * pwmFrequency[1]) / 100);
             break;
 
         default:
@@ -197,39 +197,43 @@ int8_t setPWMFrequency(uint8_t pwmModule, uint32_t desiredFreq)
  *
  * @param pwmModule  Which PWM module to configure (1 or 2).
  * @param channel    Channel number within that module (e.g. 1,2,3 for PWM1, or 1 for PWM2).
- * @param fraction   Duty cycle fraction (0.0 = 0%, 1.0 = 100%).
+ * @param fraction   Duty cycle fraction (0 = 0%, 100 = 100%).
  * @return 0 if successful, -1 if invalid module/channel.
  */
-int8_t setPWMDutyCycle(uint8_t pwmModule, uint8_t channel, float fraction)
+int8_t setPWMDutyCycle(uint8_t pwmModule, uint8_t channel, uint8_t fraction)
 {
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), "pwm fraction: %d", fraction);
+    putsUART1(buffer);
+    
     // Clamp fraction to 0..1
-    if (fraction < 0.0f) fraction = 0.0f;
-    if (fraction > 1.0f) fraction = 1.0f;
+    if (fraction < 0) fraction = 0;
+    if (fraction > 100) fraction = 100;
 
     switch (pwmModule) {
         case 1:
             switch (channel) {
                 case 1:
                     pwmDC1[0] = fraction;
-                    P1DC1 = (uint16_t)(fraction * (float)pwmFrequency[0]);
+                    P1DC1 = (uint16_t) (((uint32_t) fraction * pwmFrequency[0]) / 100);
                     return 0;
                 case 2:
                     pwmDC1[1] = fraction;
-                    P1DC2 = (uint16_t)(fraction * (float)pwmFrequency[0]);
+                    P1DC2 = (uint16_t) (((uint32_t) fraction * pwmFrequency[0]) / 100);
                     return 0;
                 case 3:
                     pwmDC1[2] = fraction;
-                    P1DC3 = (uint16_t)(fraction * (float)pwmFrequency[0]);
+                    P1DC3 = (uint16_t) (((uint32_t) fraction * pwmFrequency[0]) / 100);
                     return 0;
                 default:
                     return -1;
             }
 
         case 2:
-            // Only channel 1 is used in this example
+            // Only channel 1 is available for pwm module 2
             if (channel == 1) {
                 pwmDC2 = fraction;
-                P2DC1 = (uint16_t)(fraction * (float)pwmFrequency[1]);
+                P2DC1 = (uint16_t) (((uint32_t) fraction * pwmFrequency[1]) / 100);
                 return 0;
             } else {
                 return -1;

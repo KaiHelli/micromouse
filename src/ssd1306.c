@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
 
@@ -20,7 +19,7 @@ void ssd1306Setup(void) {
         SSD1306_SET_DISPLAY_CLOCK_DIV,          // Set display clock division
         0x80,                                   // 0b1000 oscillator / 0b0000 division
         SSD1306_SET_MULTIPLEX,                  // Set multiplex ratio
-        0x1f,                                     // 32-row display | changed from default 63 | try 0x2f
+        0x1f,                                     // 32-row display | changed from default 63
         SSD1306_SET_DISPLAY_OFFSET,             // Set display offset
         0,                                      // 0 offset - display starts from very top
         SSD1306_SET_START_LINE | 0,             // Set display start line to 0
@@ -33,7 +32,7 @@ void ssd1306Setup(void) {
         SSD1306_SET_CONTRAST,                   // Set Contrast
         0xCF,                                   // Mid contrast | switched from default 0xFF
         SSD1306_SET_PRECHARGE,                  // Set pre-charge period
-        0x22,                                   // Set pre-charge period param | Try 1F / F1
+        0x22,                                   // Set pre-charge period param
         SSD1306_SET_VCOM_DESELECT,              // Set deselect Vcomh level
         LEVEL_0_83V,                            // Vcomh level param | switched from default 0x40
         SSD1306_DEACTIVATE_SCROLL,              // Disable scrolling
@@ -41,7 +40,7 @@ void ssd1306Setup(void) {
         MODE_HORIZONTAL,                        // Set mode to be horizontal adressing
         SSD1306_ENTIRE_DISPLAYALL_ON | RESUME_TO_RAM,   // Set entire display on, content from RAM
         SSD1306_NORM_INV_DISPLAY | DISPLAY_NORMAL,      // Set normal display
-        SSD1306_DISPLAY_ON_OFF | DISPLAY_ON,    // Turn display on
+        // SSD1306_DISPLAY_ON_OFF | DISPLAY_ON,    // Turn display on
     };
     
     status &= putsI2C1Sync(I2C_OLED_ADDR, oledSetupData, sizeof(oledSetupData), NULL, 0);
@@ -56,19 +55,34 @@ void ssd1306Setup(void) {
     }
 }
 
+static void ssd1306CommCb(bool success) {
+    if (!success)
+    {
+        putsUART1("Asynchronous SSD1306 error!\r\n");
+    }
+}
+
 void ssd1306SetColumnAddress(uint8_t startAddress, uint8_t endAddress) {
     static uint8_t i2cData[] = {0x00, SSD1306_SET_COLUMN_ADDR, 0x0, 0x0};
-    i2cData[1] = startAddress & 0x7F;
-    i2cData[2] = endAddress & 0x7F;
+    i2cData[2] = startAddress & 0x7F;
+    i2cData[3] = endAddress & 0x7F;
     
-    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, NULL);
+    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, ssd1306CommCb);
 }
 
 void ssd1306SetPageAddress(uint8_t startAddress, uint8_t endAddress)
 {
     static uint8_t i2cData[] = {0x00, SSD1306_SET_PAGE_ADDR, 0x0, 0x0};
-    i2cData[1] = startAddress & 0x07;
-    i2cData[2] = endAddress & 0x07;
+    i2cData[2] = startAddress & 0x07;
+    i2cData[3] = endAddress & 0x07;
     
-    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, NULL);
+    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, ssd1306CommCb);
+}
+
+
+void ssd1306SetDisplayState(uint8_t state) {
+    static uint8_t i2cData[] = {0x00, 0x0};
+    i2cData[1] = SSD1306_DISPLAY_ON_OFF | (state & 0x01);
+    
+    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, ssd1306CommCb);
 }

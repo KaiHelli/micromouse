@@ -52,9 +52,7 @@ void bootSetup() {
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
     //imuCalibrateGyro(); // Calibrate gyroscope.
     
-    oledSetup();
-    oledClearDisplay();
-    oledRefresh();
+    oledSetup();    // Setup oled display
     
     initMotorsState();
     initMouseState();

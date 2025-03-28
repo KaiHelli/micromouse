@@ -10,8 +10,14 @@
 
 #define OLED_BUFFSIZE       (OLED_WIDTH * OLED_HEIGHT / 8U)
 #define OLED_NPAGES         (OLED_HEIGHT / 8U)
+
+#define OLED_COL_OFFSET     32U
+
+#define OLED_FIRST_PAGE     0U
 #define OLED_LAST_PAGE      (OLED_NPAGES - 1U)
-#define OLED_LAST_COL       (OLED_WIDTH - 1U)
+
+#define OLED_FIRST_COL      0U + OLED_COL_OFFSET
+#define OLED_LAST_COL       (OLED_WIDTH - 1U) + OLED_COL_OFFSET
 
 /**
  * @brief Initializes the OLED display.
@@ -25,7 +31,9 @@ void oledSetup(void);
  *
  * Resets the display memory to remove any current pixel data.
  */
-void oledClearDisplay(void);
+void oledClearDisplay(uint8_t defaultValue);
+
+void oledDrawFrame(void);
 
 /**
  * @brief Refreshes the OLED display.

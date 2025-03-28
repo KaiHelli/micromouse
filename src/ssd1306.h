@@ -115,4 +115,7 @@ void ssd1306SetColumnAddress(uint8_t startAddress, uint8_t endAddress);
  */
 void ssd1306SetPageAddress(uint8_t startAddress, uint8_t endAddress);
 
+
+void ssd1306SetDisplayState(uint8_t state);
+
 #endif	/* SSD1306_H */

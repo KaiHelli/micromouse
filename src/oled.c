@@ -42,7 +42,7 @@ void oledDrawFrame(void) {
         oledSetPixel(i, OLED_HEIGHT - 1);
     }
     
-    for (uint8_t i = 0; i < OLED_HEIGHT; i++) {
+    for (uint8_t i = 1; i < OLED_HEIGHT - 1; i++) {
         oledSetPixel(0, i);
         oledSetPixel(OLED_WIDTH - 1, i);
     }

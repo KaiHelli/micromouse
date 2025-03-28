@@ -3,6 +3,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+
+#include "clock.h" // Has to be imported before libpic30, as it defines FCY
+#include <libpic30.h>
+
 #include "ssd1306.h"
 #include "i2c.h"
 #include "uart.h"
@@ -10,15 +14,16 @@
 void ssd1306Setup(void) {
     bool status = 1; // track the status of all operations
     
-    static uint8_t oledSetupData[] = { 
+    static uint8_t oledSetupData[] = {
+        0x00,                                   // All bytes following are command bytes
         SSD1306_DISPLAY_ON_OFF | DISPLAY_OFF,   // Turn display off before doing changes
         SSD1306_SET_DISPLAY_CLOCK_DIV,          // Set display clock division
-        0x80,                                   // 0b1000 oscillator / 0b0000 division -> ~105Hz F_FRM
+        0x80,                                   // 0b1000 oscillator / 0b0000 division
         SSD1306_SET_MULTIPLEX,                  // Set multiplex ratio
-        63,                                     // 64-row display
+        0x1f,                                     // 32-row display | changed from default 63 | try 0x2f
         SSD1306_SET_DISPLAY_OFFSET,             // Set display offset
         0,                                      // 0 offset - display starts from very top
-        SSD1306_SET_START_LINE,                 // Set display start line
+        SSD1306_SET_START_LINE | 0,             // Set display start line to 0
         SSD1306_CHARGE_PUMP,                    // Set charge pump
         CHARGE_ENABLE,                          // Enable charge pump
         SSD1306_SET_SEGMENT_REMAP | ADDR_127,   // Set segment remap to 127
@@ -26,19 +31,23 @@ void ssd1306Setup(void) {
         SSD1306_SET_COM_PINS,                   // Set COM hardware config
         COM_SEQUENTIAL_ENABLE_COM_REMAP,        // sequential COM remap
         SSD1306_SET_CONTRAST,                   // Set Contrast
-        0xFF,                                   // Highest contrast
+        0xCF,                                   // Mid contrast | switched from default 0xFF
         SSD1306_SET_PRECHARGE,                  // Set pre-charge period
-        0x22,                                   // Set pre-charge period param
+        0x22,                                   // Set pre-charge period param | Try 1F / F1
         SSD1306_SET_VCOM_DESELECT,              // Set deselect Vcomh level
-        0x40,                                   // Vcomh level param
+        LEVEL_0_83V,                            // Vcomh level param | switched from default 0x40
         SSD1306_DEACTIVATE_SCROLL,              // Disable scrolling
+        SSD1306_SET_MEMORY_MODE,                // Set memory adressing mode
+        MODE_HORIZONTAL,                        // Set mode to be horizontal adressing
         SSD1306_ENTIRE_DISPLAYALL_ON | RESUME_TO_RAM,   // Set entire display on, content from RAM
         SSD1306_NORM_INV_DISPLAY | DISPLAY_NORMAL,      // Set normal display
         SSD1306_DISPLAY_ON_OFF | DISPLAY_ON,    // Turn display on
-        
     };
     
     status &= putsI2C1Sync(I2C_OLED_ADDR, oledSetupData, sizeof(oledSetupData), NULL, 0);
+    
+    // Wait for settings to take effect.
+    __delay_ms(500);
     
     if (status) {
         putsUART1("Display configured.\r\n");
@@ -48,18 +57,18 @@ void ssd1306Setup(void) {
 }
 
 void ssd1306SetColumnAddress(uint8_t startAddress, uint8_t endAddress) {
-    static uint8_t i2cData[] = {SSD1306_SET_COLUMN_ADDR, 0x0, 0x0};
+    static uint8_t i2cData[] = {0x00, SSD1306_SET_COLUMN_ADDR, 0x0, 0x0};
     i2cData[1] = startAddress & 0x7F;
     i2cData[2] = endAddress & 0x7F;
     
-    putsI2C1(I2C_OLED_ADDR, i2cData, 3, NULL, 0, NULL);
+    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, NULL);
 }
 
 void ssd1306SetPageAddress(uint8_t startAddress, uint8_t endAddress)
 {
-    static uint8_t i2cData[] = {SSD1306_SET_PAGE_ADDR, 0x0, 0x0};
+    static uint8_t i2cData[] = {0x00, SSD1306_SET_PAGE_ADDR, 0x0, 0x0};
     i2cData[1] = startAddress & 0x07;
     i2cData[2] = endAddress & 0x07;
     
-    putsI2C1(I2C_OLED_ADDR, i2cData, 3, NULL, 0, NULL);
+    putsI2C1(I2C_OLED_ADDR, i2cData, 4, NULL, 0, NULL);
 }

@@ -8,7 +8,7 @@
 #include "uart.h"
 #include "i2c.h"
 
-static uint8_t displayBuffer[OLED_BUFFSIZE] = {0};
+static uint8_t displayBuffer[OLED_BUFFSIZE + 1] = {0};
 
 
 void oledSetup(void) {
@@ -24,7 +24,13 @@ static void oledCommCb(bool success) {
 }
 
 void oledClearDisplay(void) {
-    memset(displayBuffer, 0, OLED_BUFFSIZE);
+    memset(displayBuffer, 0x0, OLED_BUFFSIZE + 1);
+    displayBuffer[0] = 0x40;
+    
+    //for (int i = 0; i < OLED_HEIGHT; i++) {
+    //    displayBuffer[i * OLED_WIDTH] = 1;
+        //oledSetPixel(i, 0);
+    //}
 }
 
 void oledRefresh(void)
@@ -32,7 +38,7 @@ void oledRefresh(void)
     ssd1306SetColumnAddress(0, OLED_LAST_COL);
     ssd1306SetPageAddress(0, OLED_LAST_PAGE);
     
-    putsI2C1(I2C_OLED_ADDR, displayBuffer, OLED_BUFFSIZE, NULL, 0, oledCommCb);
+    putsI2C1(I2C_OLED_ADDR, displayBuffer, sizeof(displayBuffer), NULL, 0, oledCommCb);
 }
 
 

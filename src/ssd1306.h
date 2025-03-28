@@ -39,13 +39,13 @@
 #define ADDR_0              0
 #define ADDR_127            1
 // Set COM output scan direction
-#define COM_NORMAL          0
+#define COM_NORMAL          0x00
 #define COM_REMAPPED        0x08
 // Set COM pins hardware configuration
 #define COM_SEQUENTIAL_DISABLE_COM_REMAP    0x02
 #define COM_SEQUENTIAL_ENABLE_COM_REMAP     0x12
-#define COM_ALTERNATIVE__DISABLE_COM_REMAP  0x22
-#define COM_ALTERNATIVE__ENABLE_COM_REMAP   0x32
+#define COM_ALTERNATIVE_DISABLE_COM_REMAP   0x22
+#define COM_ALTERNATIVE_ENABLE_COM_REMAP    0x32
 // Set V_comh Deselect
 #define LEVEL_0_65V         0x00
 #define LEVEL_0_77V         0x20
@@ -53,10 +53,10 @@
 
 /* Charge Pump ****************************************************************/
 #define CHARGE_DISABLE      0x10
-#define CHARGE_ENABLE        0x14
+#define CHARGE_ENABLE       0x14
 
 
-/* Command talbe, page 28 of SSD1306 datasheet ********************************/
+/* Command table, page 28 of SSD1306 datasheet ********************************/
 // Fundamental
 #define SSD1306_SET_CONTRAST            0x81
 #define SSD1306_ENTIRE_DISPLAYALL_ON    0xA4

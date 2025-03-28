@@ -28,6 +28,11 @@ volatile int16_t rawAccelMeasurements[3];
 volatile int16_t rawMagMeasurements[3];
 volatile int16_t rawTempMeasurement;
 
+volatile float gyroMeasurements[3];
+volatile float accelMeasurements[3];
+volatile float magMeasurements[3];
+volatile float tempMeasurement;
+
 // Local variables that are "unstable".
 volatile int16_t localGyroMeasurements[3];
 volatile int16_t localAccelMeasurements[3];
@@ -43,14 +48,12 @@ void imuReadGyroCb(bool success) {
         rawGyroMeasurements[i] = SWAP_BYTES(localGyroMeasurements[i]);
     }
     
-    char measurementStr[70];
-    
-    float gyroMeasurements[3];
-    
+    // Scale measurements
     imuScaleGyroMeasurements(rawGyroMeasurements, gyroMeasurements);
-        
-    snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
-    putsUART1(measurementStr);
+    
+    //char measurementStr[70];
+    //snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
+    //putsUART1(measurementStr);
 }
 
 void imuReadAccelCb(bool success) {
@@ -59,14 +62,12 @@ void imuReadAccelCb(bool success) {
         rawAccelMeasurements[i] = SWAP_BYTES(localAccelMeasurements[i]);
     }
     
-    char measurementStr[70];
-
-    float accelMeasurements[3];
-        
+    // Scale measurements
     imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
-
-    snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
-    putsUART1(measurementStr);
+    
+    // char measurementStr[70];
+    // snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
+    // putsUART1(measurementStr);
 }
 
 void imuReadMagCb(bool success) {
@@ -75,31 +76,27 @@ void imuReadMagCb(bool success) {
         rawMagMeasurements[i] = localMagMeasurements[i];
     }
     
-    char measurementStr[80];
-    
-    float magMeasurements[3];
-    
+    // Scale measurements
     imuScaleMagMeasurements(rawMagMeasurements, magMeasurements);
     
-    float heading =  magnetometerToHeading(magMeasurements);
+    // Calculate heading
+    //float heading =  magnetometerToHeading(magMeasurements);
     
-    snprintf(measurementStr, 80, "Magnetometer [uT]: X = %1.2f\tY = %1.2f\tZ = %1.2f\tHeading = %1.2f deg\r\n", magMeasurements[0], magMeasurements[1], magMeasurements[2], heading);
-    putsUART1(measurementStr);
+    //char measurementStr[80];
+    //snprintf(measurementStr, 80, "Magnetometer [uT]: X = %1.2f\tY = %1.2f\tZ = %1.2f\tHeading = %1.2f deg\r\n", magMeasurements[0], magMeasurements[1], magMeasurements[2], heading);
+    //putsUART1(measurementStr);
 }
 
 void imuReadTempCb(bool success) {
     // Fix endianness
     rawTempMeasurement = SWAP_BYTES(localTempMeasurement);
 
-    char measurementStr[70];
-
-    float tempMeasurement;
-    
+    // Scale measurement
     imuScaleTempMeasurements(&rawTempMeasurement, &tempMeasurement);
-
-    snprintf(measurementStr, 70, "Temperature [C]: %1.2f\r\n", tempMeasurement);
     
-    putsUART1(measurementStr);
+    //char measurementStr[70];
+    //snprintf(measurementStr, 70, "Temperature [C]: %1.2f\r\n", tempMeasurement);
+    //putsUART1(measurementStr);
 }
 
 void imuReadGyro(void) {
@@ -142,6 +139,30 @@ void imuReadAccel(void) {
     // Switch to User Bank 0
     imuSetUsrBank(0);
     putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localAccelMeasurements, 6, imuReadAccelCb);
+}
+
+bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3]) {
+    static uint8_t measurementRegisterStart = ICM20948_ACCEL_XOUT_H;
+    
+    bool status = 1;
+
+    imuSetUsrBank(0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawAccelMeasurements, 6);
+    
+    if (!status) {
+        return status;
+    }
+
+    // Fix endianness
+    for (int i = 0; i < 3; i++) {
+        rawAccelMeasurements[i] = SWAP_BYTES(rawAccelMeasurements[i]);
+    }
+
+    if (scaledAccelMeasurements) {
+        imuScaleAccelMeasurements(rawAccelMeasurements, scaledAccelMeasurements);
+    }
+
+    return status;
 }
 
 void imuReadMag(void) {

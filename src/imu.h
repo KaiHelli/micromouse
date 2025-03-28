@@ -244,6 +244,14 @@ bool imuCalibrateGyro(void);
  */
 void imuReadAccel(void);
 
+
+/**
+ * @brief Reads and scales the accelerometer data from the IMU. Populates rawAccelMeasurements
+ * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
+ */
+bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3]);
+
+
 /**
  * @brief Reads the raw magnetometer data from the IMU and updates the
  * global rawMagMeasurements array asynchronous.

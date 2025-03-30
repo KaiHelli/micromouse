@@ -44,8 +44,8 @@ static uint8_t currentBank = 0;
 
 void imuReadGyroCb(bool success) {
     // Fix endianness
-    for(int i = 0; i < 3; i++) {
-        rawGyroMeasurements[i] = SWAP_BYTES(localGyroMeasurements[i]);
+    for(uint8_t axis = 0; axis < 3; axis++) {
+        rawGyroMeasurements[axis] = SWAP_BYTES(localGyroMeasurements[axis]);
     }
     
     // Scale measurements
@@ -58,22 +58,22 @@ void imuReadGyroCb(bool success) {
 
 void imuReadAccelCb(bool success) {
     // Fix endianness
-    for(int i = 0; i < 3; i++) {
-        rawAccelMeasurements[i] = SWAP_BYTES(localAccelMeasurements[i]);
+    for(uint8_t axis = 0; axis < 3; axis++) {
+        rawAccelMeasurements[axis] = SWAP_BYTES(localAccelMeasurements[axis]);
     }
     
     // Scale measurements
     imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
     
-    // char measurementStr[70];
-    // snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
-    // putsUART1(measurementStr);
+    //char measurementStr[70];
+    //snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
+    //putsUART1(measurementStr);
 }
 
 void imuReadMagCb(bool success) {
     // Copy values
-    for(int i = 0; i < 3; i++) {
-        rawMagMeasurements[i] = localMagMeasurements[i];
+    for(uint8_t axis = 0; axis < 3; axis++) {
+        rawMagMeasurements[axis] = localMagMeasurements[axis];
     }
     
     // Scale measurements
@@ -122,8 +122,8 @@ bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurement
     }
     
     // Fix endianness
-    for (int i = 0; i < 3; i++) {
-        rawGyroMeasurements[i] = SWAP_BYTES(rawGyroMeasurements[i]);
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        rawGyroMeasurements[axis] = SWAP_BYTES(rawGyroMeasurements[axis]);
     }
     
     if (scaledGyroMeasurements) {
@@ -154,8 +154,8 @@ bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurem
     }
 
     // Fix endianness
-    for (int i = 0; i < 3; i++) {
-        rawAccelMeasurements[i] = SWAP_BYTES(rawAccelMeasurements[i]);
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        rawAccelMeasurements[axis] = SWAP_BYTES(rawAccelMeasurements[axis]);
     }
 
     if (scaledAccelMeasurements) {
@@ -334,7 +334,7 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     // bit 0 -> enable / disable low pass filter
     
     // Set accelerometer range selection.
-    uint8_t accelConfig = ((uint8_t)accelRange << 1);
+    uint8_t accelConfig = ((uint8_t)accelRange << 1 | 6 << 3);
     // Enable LPF in bit 0:
     accelConfig |= 0x01;
     
@@ -388,9 +388,9 @@ bool imuCalibrateGyro() {
     while (numMeasurements < numSamples) {
         int16_t rawGyroMeasurements[3];
 
-        bool status = imuReadGyroSync(rawGyroMeasurements, NULL);
+        bool readStatus = imuReadGyroSync(rawGyroMeasurements, NULL);
 
-        if (!status) {
+        if (!readStatus) {
             continue;
         }
 
@@ -417,7 +417,7 @@ bool imuCalibrateGyro() {
     // we might have to scale it.
     float sensitivityScaling = gyroLSB / gyroLSBTable[GYRO_RANGE_1000DPS];
     
-    for (int axis = 0; axis < 3; axis++) {
+    for (uint8_t axis = 0; axis < 3; axis++) {
         gyroOffsets[axis] = (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
     }
     
@@ -434,6 +434,112 @@ bool imuCalibrateGyro() {
     
     if (status) {
         putsUART1("Gyroscope calibrated.\r\n");
+    } else {
+        putsUART1("Error calibrating the IMU!\r\n");
+    }
+    
+    return status;
+}
+
+bool imuCalibrateAccel() {
+    putsUART1("Calibrating IMU Accelerometer. Hold still.\r\n");
+
+    // Read factory calibration
+    // Seems to be: X = 1190 Y = -1365 Z = -269
+    int16_t accelOffsets[3] = {0, 0, 0};
+    
+    // Unfortunately addresses of registers are not consecutive.
+    static uint8_t xOffsetRegisterStart = ICM20948_XA_OFFSET_H;
+    static uint8_t yOffsetRegisterStart = ICM20948_YA_OFFSET_H;
+    static uint8_t zOffsetRegisterStart = ICM20948_ZA_OFFSET_H;
+    
+    bool status = 1;
+    
+    // Switch to User Bank 1
+    imuSetUsrBank(1);
+    
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &xOffsetRegisterStart, 1, (uint8_t*) &accelOffsets[0], 2);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &yOffsetRegisterStart, 1, (uint8_t*) &accelOffsets[1], 2);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, &zOffsetRegisterStart, 1, (uint8_t*) &accelOffsets[2], 2);
+    
+    uint8_t temperatureBit[3] = {0, 0, 0};
+
+    // Fix endianness
+    for(uint8_t axis = 0; axis < 3; axis++) {
+        accelOffsets[axis] = SWAP_BYTES(accelOffsets[axis]);
+        
+        // Store the lsb reserved bit of the low byte.
+        temperatureBit[axis] = accelOffsets[axis] & 0x01;
+        
+        // Strip off the reserved bit from the bytes read.
+        accelOffsets[axis] >>= 1;
+    }
+    
+    const uint16_t numSamples = 500;
+    uint16_t numMeasurements = 0;
+    
+    // Use float for accuracy of running average calculations
+    float runningAverage[3] = {0.0f, 0.0f, 0.0f};
+
+    while (numMeasurements < numSamples) {
+        int16_t rawAccelMeasurements[3];
+
+        bool readStatus = imuReadAccelSync(rawAccelMeasurements, NULL);
+
+        if (!readStatus) {
+            continue;
+        }
+
+        // Incremental running average calculation
+        for (uint8_t axis = 0; axis < 3; axis++) {
+            runningAverage[axis] = ((runningAverage[axis] * numMeasurements) + rawAccelMeasurements[axis])
+                                    / (numMeasurements + 1);
+        }
+
+        numMeasurements++;
+
+        // At a sampling rate of 1.125kHz, wait 1ms before next reading
+        __delay_ms(10);
+    }
+    
+    // We expect gravity to have 1G.
+    runningAverage[2] -= (float) accelLSB;
+    
+    // After calibration, offsets are available in runningAverage[]
+    // (Write these values to the IMU offset registers as needed)
+    imuSetUsrBank(1);
+    
+    // The offsets have to be set in the +-16 G sensitivity range. Therefore,
+    // we might have to scale it.
+    float sensitivityScaling = accelLSB / accelLSBTable[ACCEL_RANGE_16G];
+    
+    // TODO: Magic factor of 2, that we are currently unsure where it stems from.
+    sensitivityScaling *= 2;
+    
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        accelOffsets[axis] += (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
+        
+        // Add temperature bit back in
+        accelOffsets[axis] <<= 1;
+        accelOffsets[axis] |= temperatureBit[axis];
+    }
+    
+    uint8_t xOffsetValues[3] = {
+        xOffsetRegisterStart, HIGH_BYTE(accelOffsets[0]), LOW_BYTE(accelOffsets[0])
+    };
+    uint8_t yOffsetValues[3] = {
+        yOffsetRegisterStart, HIGH_BYTE(accelOffsets[1]), LOW_BYTE(accelOffsets[1])
+    };
+    uint8_t zOffsetValues[3] = {
+        zOffsetRegisterStart, HIGH_BYTE(accelOffsets[2]), LOW_BYTE(accelOffsets[2])
+    };
+    
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, xOffsetValues, 3, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, yOffsetValues, 3, NULL, 0);
+    status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, zOffsetValues, 3, NULL, 0);
+    
+    if (status) {
+        putsUART1("Accelerometer calibrated.\r\n");
     } else {
         putsUART1("Error calibrating the IMU!\r\n");
     }

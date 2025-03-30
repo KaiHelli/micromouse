@@ -28,6 +28,12 @@ int16_t toggleMotors(void) {
     return 1;
 }
 
+int16_t readIMU(void) {
+    imuReadAccel();
+    
+    return 1;
+}
+
 void bootSetup() {
     setupClock(); // configures oscillator circuit
     
@@ -51,6 +57,7 @@ void bootSetup() {
     
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
     //imuCalibrateGyro(); // Calibrate gyroscope.
+    imuCalibrateAccel(); // Calibrate accelerometer.
     
     oledSetup();    // Setup oled display
     
@@ -67,10 +74,9 @@ void bootSetup() {
     //playSong(SONG_MUPPETS, true, TIMER_2);
     
     initTimerInMs(TIMER_3, 300); // 100ms timer interrupt for testing
-
+    
     registerTimerCallback(TIMER_1, moveForward);
     //registerTimerCallback(TIMER_3, moveForward);
-
 
     //steerMotors(30, 30);
     //setMotorPower(MOTOR_LEFT, 50);

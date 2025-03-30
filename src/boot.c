@@ -14,6 +14,7 @@
 #include "switches.h"
 #include "motors.h"
 #include "mouseController.h"
+#include "odometry.h"
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
@@ -31,6 +32,24 @@ int16_t toggleMotors(void) {
 int16_t readIMU(void) {
     imuReadAccel();
     
+    return 1;
+}
+
+int16_t printOdometry(void) {
+    char buffer[200];
+    
+    // TODO: print
+    //extern volatile float velocity[3];       // x, y, z velocity (e.g., mm/s)
+    //extern volatile float position[3];       // x, y, z position (e.g., mm)
+    //extern volatile float yaw;               // Yaw angle in degrees or radians
+    
+    snprintf(buffer, sizeof(buffer),
+         "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Yaw: %.2f deg\r\n",
+         velocity[0], velocity[1], velocity[2],
+         position[0], position[1], position[2],
+         yaw);
+    putsUART1(buffer);
+
     return 1;
 }
 
@@ -56,7 +75,7 @@ void bootSetup() {
     __delay_ms(100); // Wait a bit for the peripherals to start up
     
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
-    //imuCalibrateGyro(); // Calibrate gyroscope.
+    imuCalibrateGyro(); // Calibrate gyroscope.
     imuCalibrateAccel(); // Calibrate accelerometer.
     
     oledSetup();    // Setup oled display
@@ -78,6 +97,10 @@ void bootSetup() {
     registerTimerCallback(TIMER_1, moveForward);
     //registerTimerCallback(TIMER_3, moveForward);
 
+    setupOdometry(TIMER_2); // track odometry every 1ms
+    registerTimerCallback(TIMER_3, printOdometry);
+
+    
     //steerMotors(30, 30);
     //setMotorPower(MOTOR_LEFT, 50);
     //SET_MOTOR_LEFT(50);

@@ -14,6 +14,11 @@ extern volatile int16_t rawAccelMeasurements[3];
 extern volatile int16_t rawMagMeasurements[3];
 extern volatile int16_t rawTempMeasurement;
 
+extern volatile float gyroMeasurements[3];
+extern volatile float accelMeasurements[3];
+extern volatile float magMeasurements[3];
+extern volatile float tempMeasurement;
+
 typedef enum {
     GYRO_RANGE_250DPS = 0,
     GYRO_RANGE_500DPS,
@@ -270,17 +275,23 @@ void imuReadTemp(void);
  */
 void imuScaleGyroMeasurements(int16_t rawGyro[3], float scaledGyro[3]);
 
+void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro);
+
 /**
  * @brief Scales the raw accelerometer data (in rawAccel) into units of g,
  * placing the result in scaledAccel.
  */
 void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]);
 
+void imuScaleAccelMeasurement(int16_t *rawAccel, float *scaledAccel);
+
 /**
  * @brief Scales the raw magnetometer data (in rawMag) into microteslas,
  * placing the result in scaledMag.
  */
 void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3]);
+
+void imuScaleMagMeasurement(int16_t *rawMag, float *scaledMag);
 
 /**
  * @brief Scales the raw temperature data (pointed to by rawTemp) into degrees

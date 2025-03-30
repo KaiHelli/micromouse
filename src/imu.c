@@ -11,6 +11,7 @@
 #include "imu.h"
 #include "uart.h"
 #include "IOconfig.h"
+#include "odometry.h"
 
 static uint8_t imuWhoAmI = 0xFF;  // Buffer to store read result
 static uint8_t magWhoAmI = 0xFF;  // Buffer to store read result
@@ -21,7 +22,7 @@ static const uint16_t accelLSBTable[] = { 16384, 8192, 4096, 2048 };
 
 // These will store the selected LSB values:
 static float gyroLSB  = 131.0f;  // default -- gyroLSBTable[0]
-static float accelLSB = 16384;   // default -- accelLSBTable[0]
+static uint16_t accelLSB = 16384;   // default -- accelLSBTable[0]
 
 volatile int16_t rawGyroMeasurements[3];
 volatile int16_t rawAccelMeasurements[3];
@@ -49,7 +50,11 @@ void imuReadGyroCb(bool success) {
     }
     
     // Scale measurements
-    imuScaleGyroMeasurements(rawGyroMeasurements, gyroMeasurements);
+    // imuScaleGyroMeasurements(rawGyroMeasurements, gyroMeasurements);
+    
+    // Update odometry
+    odometryIMUGyroUpdate();
+    
     
     //char measurementStr[70];
     //snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
@@ -63,7 +68,10 @@ void imuReadAccelCb(bool success) {
     }
     
     // Scale measurements
-    imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
+    // imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
+    
+    // Update odometry
+    odometryIMUAccelUpdate();
     
     //char measurementStr[70];
     //snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
@@ -77,7 +85,7 @@ void imuReadMagCb(bool success) {
     }
     
     // Scale measurements
-    imuScaleMagMeasurements(rawMagMeasurements, magMeasurements);
+    // imuScaleMagMeasurements(rawMagMeasurements, magMeasurements);
     
     // Calculate heading
     //float heading =  magnetometerToHeading(magMeasurements);
@@ -92,7 +100,7 @@ void imuReadTempCb(bool success) {
     rawTempMeasurement = SWAP_BYTES(localTempMeasurement);
 
     // Scale measurement
-    imuScaleTempMeasurements(&rawTempMeasurement, &tempMeasurement);
+    // imuScaleTempMeasurements(&rawTempMeasurement, &tempMeasurement);
     
     //char measurementStr[70];
     //snprintf(measurementStr, 70, "Temperature [C]: %1.2f\r\n", tempMeasurement);
@@ -573,24 +581,40 @@ void imuSetUsrBank(uint8_t bank)
 
 void imuScaleGyroMeasurements(int16_t rawGyro[3], float scaledGyro[3])
 {
-    scaledGyro[0]  = (float)rawGyro[0]  / gyroLSB;
-    scaledGyro[1]  = (float)rawGyro[1]  / gyroLSB;
-    scaledGyro[2]  = (float)rawGyro[2]  / gyroLSB;
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        imuScaleGyroMeasurement(&rawGyro[axis], &scaledGyro[axis]);
+    }
+}
+
+void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro)
+{
+    *scaledGyro = (float)(*rawGyro) / gyroLSB;
 }
 
 void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]) 
 {
-    scaledAccel[0] = (float)rawAccel[0] / accelLSB;
-    scaledAccel[1] = (float)rawAccel[1] / accelLSB;
-    scaledAccel[2] = (float)rawAccel[2] / accelLSB;
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        imuScaleAccelMeasurement(&rawAccel[axis], &scaledAccel[axis]);
+    }
+}
+
+void imuScaleAccelMeasurement(int16_t *rawAccel, float *scaledAccel)
+{
+    *scaledAccel = (float)(*rawAccel) / accelLSB;
 }
 
 void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3])
 {
-    scaledMag[0] = (float)rawMag[0] * AK09916_UT_PER_LSB;
-    scaledMag[1] = (float)rawMag[1] * AK09916_UT_PER_LSB;
-    scaledMag[2] = (float)rawMag[2] * AK09916_UT_PER_LSB;
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        imuScaleMagMeasurement(&rawMag[axis], &scaledMag[axis]);
+    }
 }
+
+void imuScaleMagMeasurement(int16_t *rawMag, float *scaledMag)
+{
+    *scaledMag = (float)(*rawMag) * AK09916_UT_PER_LSB;
+}
+
 
 void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp)
 {

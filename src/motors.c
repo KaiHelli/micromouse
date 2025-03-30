@@ -1,8 +1,15 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <math.h>
+#include <stdlib.h>
+
+#include "clock.h" // Has to be imported before libpic30, as it defines FCY
+#include <libpic30.h>
+
 #include "motors.h"
 #include "IOConfig.h"
-#include <math.h>
+#include "odometry.h"
+#include "timers.h"
 
 void initMotorsState(void) {
     // Set motors to standby on startup
@@ -88,11 +95,6 @@ void steerMotors(int8_t steering, uint8_t powerInPercent)
     setMotorPower(MOTOR_RIGHT, (int8_t) rightPercent);
 }
 
-
-void turnDegrees(int16_t degrees){
-    //TODO
-}
-
 void setMotorPower(Motor_t motor, int8_t powerInPercent)
 {
     // Determine motor direction based on sign
@@ -147,5 +149,88 @@ void setMotorDirection(Motor_t motor, bool forward){
                 MB_DIR2 = L;
             }
             break;
+    }
+}
+
+
+static volatile bool turnInProgress = false;
+static float startYaw = 0.0f;
+static float targetYaw = 0.0f;
+static int8_t turnDirection = 0;
+
+static float angleError(float current, float target)
+{
+    // Returns a signed difference from current to target in (-180..180]
+    float diff = target - current;
+    while (diff > 180.0f)
+    {
+        diff -= 360.0f;
+    }
+    while (diff <= -180.0f)
+    {
+        diff += 360.0f;
+    }
+    return diff;
+}
+
+int16_t turnDegreesCallback(void)
+{
+    // How many degrees left to target? (wrapped to -180..+180)
+    float error = angleError(yaw, targetYaw);
+
+    // If turning CW (turnDirection > 0), we're done once error <= 0
+    // If turning CCW (turnDirection < 0), we're done once error >= 0
+    if ((turnDirection > 0 && error <= 0) ||
+        (turnDirection < 0 && error >= 0))
+    {
+        setMotorsState(MOTORS_BRAKE);
+        __delay_ms(100);
+        setMotorsStandbyState(true);
+        turnInProgress = false;
+        return 0; // Unregister callback
+    }
+
+    return 1; // Keep going
+}
+
+void turnDegrees(Timer_t timer, int16_t degrees, uint8_t powerInPercent)
+{
+    // Limit the input to ±359
+    degrees = degrees % 360;
+    if (degrees == 0)
+    {
+        return; // No turn needed
+    }
+
+    // Decide direction (+1 CW, -1 CCW)
+    turnDirection  = (degrees > 0) ? 1 : -1;
+    turnInProgress = true;
+
+    // Record current yaw as start
+    startYaw = yaw;
+
+    // Compute final yaw after turning (wrapped to [0..360))
+    float newTarget = startYaw + degrees;
+    while (newTarget >= 360.0f)
+    {
+        newTarget -= 360.0f;
+    }
+    while (newTarget < 0.0f)
+    {
+        newTarget += 360.0f;
+    }
+    targetYaw = newTarget;
+
+    // Register callback and start motors
+    registerTimerCallback(timer, turnDegreesCallback);
+
+    // Motor power: steer them in correct direction
+    steerMotors(100 * turnDirection, powerInPercent);
+    setMotorsStandbyState(false);
+
+    // Wait until we finish the turn
+    while (turnInProgress)
+    {
+        // This loop blocks until turnDegreesCallback() stops the turn
     }
 }

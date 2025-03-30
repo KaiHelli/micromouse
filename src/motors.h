@@ -2,6 +2,7 @@
 #define MOTORS_H
 #include "pwm.h"
 #include "IOconfig.h"
+#include "timers.h"
 
 static const uint16_t PWM_MOTOR_MAX_DC = (60U * 100U) / 84U;  // voltage ranges from 2*3.7V = 7.4V to 2*4.2V = 8.4V
 
@@ -52,8 +53,12 @@ void steerMotors(int8_t steering, uint8_t powerInPercent);
 /**
  * @brief Rotates the robot by the specified angle in degrees on the spot.
  * Takes an int16_t degrees value; positive rotates CW, negative CCW.
+ * The powerInPercent parameter (float) defines the overall base power level
+ * as a percentage of the motor's maximum (0 for no power, 100 for full power).
+ * Registers a timer callback on the stated timer to check for turn completion
+ * periodically.
  */
-void turnDegrees(int16_t degrees);
+void turnDegrees(Timer_t timer, int16_t degrees, uint8_t powerInPercent);
 
 /**
  * @brief Sets the power level for a specific motor. Takes a Motor_t identifier

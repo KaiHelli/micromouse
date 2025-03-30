@@ -2,18 +2,19 @@
 #define MOTORENCODERS_H
 
 #include <xc.h>
+#include <stdint.h>
 
 /**
  * @brief Initializes QEI1 using the specified start position.
  * The 'startPos' parameter sets the initial position for QEI1.
  */
-void initQEI1(unsigned int startPos);
+void initQEI1(uint16_t startPos);
 
 /**
  * @brief Initializes QEI2 using the specified start position.
  * The 'startPos' parameter sets the initial position for QEI2.
  */
-void initQEI2(unsigned int startPos);
+void initQEI2(uint16_t startPos);
 
 /**
  * @brief Returns the current position in radians based on encoder data.
@@ -28,25 +29,25 @@ float getVelocityInRadPerSecond();
 /**
  * @brief Returns the current position (QEI1) in encoder counts.
  */
-long getPositionInCounts_1();
+int32_t getPositionInCounts_1();
 
 /**
  * @brief Returns the current velocity (QEI1) in encoder counts per sample.
  */
-int getVelocityInCountsPerSample_1();
+int16_t getVelocityInCountsPerSample_1();
 
 /**
  * @brief Returns the current position (QEI2) in encoder counts.
  */
-long getPositionInCounts_2();
+int32_t getPositionInCounts_2();
 
 /**
  * @brief Returns the current velocity (QEI2) in encoder counts per sample.
  */
-int getVelocityInCountsPerSample_2();
+int16_t getVelocityInCountsPerSample_2();
 
-extern long rotationCount1;
-extern long rotationCount2;
+extern int32_t rotationCount1;
+extern int32_t rotationCount2;
 
 #define GET_ENCODER_1(RIGHT_ENCODER_POSITION_VALUE) (RIGHT_ENCODER_POSITION_VALUE = rotationCount1 + POSCNT)
 #define GET_ENCODER_2(LEFT_ENCODER_POSITION_VALUE) (LEFT_ENCODER_POSITION_VALUE = rotationCount2 + POS2CNT)

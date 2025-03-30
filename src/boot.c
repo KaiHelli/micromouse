@@ -46,9 +46,15 @@ int16_t printOdometry(void) {
     snprintf(buffer, sizeof(buffer),
          "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Yaw: %.2f deg\r\n",
          velocity[0], velocity[1], velocity[2],
-         position[0], position[1], position[2],
+        position[0], position[1], position[2],
          yaw);
     putsUART1(buffer);
+
+    //imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
+    
+    //char measurementStr[70];
+    //snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
+    //putsUART1(measurementStr);
 
     return 1;
 }
@@ -87,14 +93,14 @@ void bootSetup() {
     registerSwitchCallback(SWITCH_1, toggleMotors);
     
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
-    initTimerInMs(TIMER_2, 1);  // high frequency 1ms timer interrupt for sensor readings and rtttl
+    initTimerInMs(TIMER_2, 2);  // high frequency 2ms timer interrupt for sensor readings and rtttl
 
     //parseAllSongs();
     //playSong(SONG_MUPPETS, true, TIMER_2);
     
     initTimerInMs(TIMER_3, 300); // 100ms timer interrupt for testing
     
-    registerTimerCallback(TIMER_1, moveForward);
+    //registerTimerCallback(TIMER_1, moveForward);
     //registerTimerCallback(TIMER_3, moveForward);
 
     setupOdometry(TIMER_2); // track odometry every 1ms
@@ -110,6 +116,11 @@ void bootSetup() {
     // initTimerInMs(TIMER_32_COMBINED, 250); //creates a 10ms timer interrupt
     // setTimerState(TIMER_32_COMBINED, 1);
 
+    //for (uint8_t i = 0; i < 6; i++) {
+    //    int8_t degrees = i % 2 == 0 ? 90 : -90;
+    //    turnDegrees(TIMER_1, degrees, 50);
+    //}
+    
     LED1 = LEDOFF;
     LED2 = LEDOFF;
     LED3 = LEDOFF;

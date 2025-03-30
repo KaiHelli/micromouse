@@ -36,7 +36,7 @@ int16_t moveForward() {
     setMotorPower(MOTOR_RIGHT, powerRight);
     setMotorPower(MOTOR_LEFT, powerLeft);
     
-    char buffer[100];
+    //char buffer[100];
     //snprintf(buffer, sizeof(buffer), "Power [%] - Step: %d, Left: %d, Right: %d\r\n", (int8_t) step, powerLeft, powerRight);
     //putsUART1(buffer);
     //snprintf(buffer, sizeof(buffer), "Sensor readings in mm left: %u, right: %u, center: %u\r\n",left, right, front);

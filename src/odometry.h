@@ -53,4 +53,6 @@ void odometryIMUAccelUpdate(void);
  */
 void odometryMotorEncoderUpdate(void);
 
+bool robotIsStationary(void);
+
 #endif // ODOMETRY_H

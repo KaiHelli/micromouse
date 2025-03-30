@@ -1,6 +1,7 @@
 
 #include <xc.h>
 #include <math.h>
+#include <stdint.h>
 
 #include "interrupts.h"
 #include "IOconfig.h"
@@ -8,14 +9,14 @@
 #include "uart.h"
 // file global
 
-long rotationCount1;
-long rotationCount2;
-// long currentEncoderPosition;
+int32_t rotationCount1;
+int32_t rotationCount2;
+// int32_t currentEncoderPosition;
 
 
 //****************************************************************INITIALISE QEI************************
 
-void initQEI1(unsigned int startPos)
+void initQEI1(uint16_t startPos)
 {
 
     QEI1CONbits.QEISIDL = 1; // discontinue module operation in idle mode
@@ -37,7 +38,7 @@ void initQEI1(unsigned int startPos)
     IPC14bits.QEI1IP = IP_QEI;
 }
 
-void initQEI2(unsigned int startPos)
+void initQEI2(uint16_t startPos)
 {
 
     QEI2CONbits.QEISIDL = 1; // discontinue module operation in idle mode
@@ -64,9 +65,9 @@ void __attribute__((__interrupt__, auto_psv)) _QEI1Interrupt(void)
     IFS3bits.QEI1IF = 0; // clear interrupt
 
     if (POSCNT < 32768) {
-        rotationCount1 = rotationCount1 + (long)0x10000; // we had a positive roll-over
+        rotationCount1 = rotationCount1 + (int32_t)0x10000; // we had a positive roll-over
     } else {
-        rotationCount1 = rotationCount1 - (long)0x10000; // we had a negative roll-over
+        rotationCount1 = rotationCount1 - (int32_t)0x10000; // we had a negative roll-over
     }
 }
 
@@ -76,15 +77,15 @@ void __attribute__((__interrupt__, auto_psv)) _QEI2Interrupt(void)
     IFS4bits.QEI2IF = 0; // clear interrupt
 
     if (POS2CNT < 32768) {
-        rotationCount2 = rotationCount2 + (long)0x10000; // we had a positive roll-over
+        rotationCount2 = rotationCount2 + (int32_t)0x10000; // we had a positive roll-over
     } else {
-        rotationCount2 = rotationCount2 - (long)0x10000; // we had a negative roll-over
+        rotationCount2 = rotationCount2 - (int32_t)0x10000; // we had a negative roll-over
     }
 }
 
 float getPositionInRad()
 {
-    long currentEncoderPosition;
+    int32_t currentEncoderPosition;
     // disable interrupts to make sure we have consistent data
     _NSTDIS = 1;
     GET_ENCODER_1(currentEncoderPosition);
@@ -93,18 +94,18 @@ float getPositionInRad()
     return 3.141592 * 2 * currentEncoderPosition / (16 * 4 * 33);
 }
 
-long getPositionInCounts_1()
+int32_t getPositionInCounts_1()
 {
-    long currentEncoderPosition;
+    int32_t currentEncoderPosition;
     GET_ENCODER_1(currentEncoderPosition);
     return currentEncoderPosition;
 }
 
-int getVelocityInCountsPerSample_1()
+int16_t getVelocityInCountsPerSample_1()
 {
-    static long oldPosition = 0;
-    long currentPosition;
-    int velocity;
+    static int32_t oldPosition = 0;
+    int32_t currentPosition;
+    int16_t velocity;
 
     // disable interrupts to make sure we have consistent data
     _NSTDIS = 1;
@@ -116,18 +117,18 @@ int getVelocityInCountsPerSample_1()
     return velocity;
 }
 
-long getPositionInCounts_2()
+int32_t getPositionInCounts_2()
 {
-    long currentEncoderPosition;
+    int32_t currentEncoderPosition;
     GET_ENCODER_2(currentEncoderPosition);
     return currentEncoderPosition;
 }
 
-int getVelocityInCountsPerSample_2()
+int16_t getVelocityInCountsPerSample_2()
 {
-    static long oldPosition;
-    long currentPosition;
-    int velocity;
+    static int32_t oldPosition;
+    int32_t currentPosition;
+    int16_t velocity;
 
     // disable interrupts to make sure we have consistent data
     _NSTDIS = 1;
@@ -142,9 +143,9 @@ int getVelocityInCountsPerSample_2()
 float getVelocityInRadPerSecond()
 {
 
-    static long oldPosition;
+    static int32_t oldPosition;
     float velocity;
-    long currentPosition;
+    int32_t currentPosition;
 
     // disable interrupts to make sure we have consistent data
     _NSTDIS = 1;

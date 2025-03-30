@@ -600,7 +600,7 @@ void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3])
 
 void imuScaleAccelMeasurement(int16_t *rawAccel, float *scaledAccel)
 {
-    *scaledAccel = (float)(*rawAccel) / accelLSB;
+    *scaledAccel = (float)(*rawAccel) / (float)(accelLSB);
 }
 
 void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3])

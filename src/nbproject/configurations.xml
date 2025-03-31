@@ -27,6 +27,8 @@
       <itemPath>mouseController.h</itemPath>
       <itemPath>mazeSolver.h</itemPath>
       <itemPath>pid.h</itemPath>
+      <itemPath>odometry.h</itemPath>
+      <itemPath>fastPID.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -62,6 +64,8 @@
       <itemPath>mazeSolver.c</itemPath>
       <itemPath>pid.c</itemPath>
       <itemPath>switches.c</itemPath>
+      <itemPath>odometry.c</itemPath>
+      <itemPath>fastPID.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>

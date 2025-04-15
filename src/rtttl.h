@@ -86,11 +86,4 @@ void stopSong(void);
  */
 bool parseAllSongs(void);
 
-/**
- * @brief Interrupt service routine for song playback. Called periodically to
- * advance the song's notes. Returns an 0 when the song has been played or stopped.
- * Returns 1 otherwise.
- */
-static int16_t songISR(void);
-
 #endif	/* RTTTL_H */

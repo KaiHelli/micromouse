@@ -61,6 +61,11 @@ void steerMotors(int8_t steering, uint8_t powerInPercent);
 void turnDegrees(Timer_t timer, int16_t degrees, uint8_t powerInPercent);
 
 /**
+ * @brief TODO
+ */
+void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent);
+
+/**
  * @brief Sets the power level for a specific motor. Takes a Motor_t identifier
  * (MOTOR_LEFT or MOTOR_RIGHT) and a integer percentage for speed control.
  */

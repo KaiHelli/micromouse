@@ -43,10 +43,38 @@ volatile int16_t localTempMeasurement;
 // Track the user bank we are currently on
 static uint8_t currentBank = 0;
 
+/**
+ * @brief Callback for asynchronous gyroscope read completion.
+ *
+ * This function:
+ * 1) Fixes raw big-endian sensor data into little-endian.
+ * 2) Remaps the IMU?s physical gyro axes to the robot?s internal axes.
+ *    - X rotation: Sensor: +X CW around Z axis -> Robot: +X CW around X axis
+ *    - Y rotation: Sensor: +Y CCW around Y axis -> Robot: +Y CW around Y axis
+ *    - Z rotation: Sensor: +Z CCW around Z axis -> Robot: +Z CW around C axis
+ * 3) Stores the remapped gyro readings into global rawGyroMeasurements[].
+ * 4) Invokes odometryIMUGyroUpdate() to integrate the new rotational data.
+ */
 void imuReadGyroCb(bool success) {
+    if (!success) {
+        putsUART1("Asynchronous IMU gyroscope error!\r\n");
+        return;
+    }
+    
     // Fix endianness
     for(uint8_t axis = 0; axis < 3; axis++) {
-        rawGyroMeasurements[axis] = SWAP_BYTES(localGyroMeasurements[axis]);
+        localGyroMeasurements[axis] = SWAP_BYTES(localGyroMeasurements[axis]);
+    }
+    
+    // Remap from the IMU's physical frame to your robot frame
+    int16_t remapped[3];
+    remapped[0] =  localGyroMeasurements[0]; // +X should be CW from right
+    remapped[1] = -localGyroMeasurements[1]; // +Y should be CW from back
+    remapped[2] = -localGyroMeasurements[2]; // +Z should be CW from top
+    
+    // Copy the remapped data into the global rawAccelMeasurements
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        rawGyroMeasurements[axis] = remapped[axis];
     }
     
     // Scale measurements
@@ -56,15 +84,44 @@ void imuReadGyroCb(bool success) {
     odometryIMUGyroUpdate();
     
     
-    //char measurementStr[70];
-    //snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
-    //putsUART1(measurementStr);
+    // char measurementStr[70];
+    // snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
+    // putsUART1(measurementStr);
 }
 
+
+/**
+ * @brief Callback for asynchronous accelerometer read completion.
+ *
+ * This function:
+ * 1) Fixes raw big-endian sensor data into little-endian.
+ * 2) Remaps the IMU?s physical axes to the robot?s internal axes:
+ *    - IMU +X = left  -> Robot +X = right  (flip sign)
+ *    - IMU +Y = back  -> Robot +Y = forward (flip sign)
+ *    - IMU +Z = up    -> Robot +Z = up     (no flip)
+ * 3) Stores the remapped readings into global rawAccelMeasurements[].
+ * 4) Invokes odometryIMUAccelUpdate() to integrate these new data.
+ */
 void imuReadAccelCb(bool success) {
+    if (!success) {
+        putsUART1("Asynchronous IMU accelerometer error!\r\n");
+        return;
+    }
+    
     // Fix endianness
     for(uint8_t axis = 0; axis < 3; axis++) {
-        rawAccelMeasurements[axis] = SWAP_BYTES(localAccelMeasurements[axis]);
+        localAccelMeasurements[axis] = SWAP_BYTES(localAccelMeasurements[axis]);
+    }
+    
+    // Remap from the IMU's physical frame to your robot frame
+    int16_t remapped[3];
+    remapped[0] = -localAccelMeasurements[0]; // X: left -> right
+    remapped[1] = -localAccelMeasurements[1]; // Y: backward -> forward
+    remapped[2] =  localAccelMeasurements[2]; // Z: up -> up
+    
+    // Copy the remapped data into the global rawAccelMeasurements
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        rawAccelMeasurements[axis] = remapped[axis];
     }
     
     // Scale measurements
@@ -78,10 +135,37 @@ void imuReadAccelCb(bool success) {
     //putsUART1(measurementStr);
 }
 
+/**
+ * @brief Callback for asynchronous magnetometer read completion.
+ *
+ * This function:
+ * 1) Copies the raw magnetometer data from localMagMeasurements[] to rawMagMeasurements[].
+ * 2) Remaps the IMU?s physical magnetometer axes to the robot?s internal axes:
+ *    - IMU +X = left   -> Robot +X = right   (flip sign)
+ *    - IMU +Y = forward-> Robot +Y = forward (no flip)
+ *    - IMU +Z = down   -> Robot +Z = up      (flip sign)
+ * 3) Optionally calls scaling or heading computations.
+ */
 void imuReadMagCb(bool success) {
+    if (!success) {
+        putsUART1("Asynchronous IMU magnetometer error!\r\n");
+        return;
+    }
+    
     // Copy values
     for(uint8_t axis = 0; axis < 3; axis++) {
-        rawMagMeasurements[axis] = localMagMeasurements[axis];
+        localMagMeasurements[axis] = localMagMeasurements[axis];
+    }
+    
+    // Remap from the IMU's physical frame to your robot frame
+    int16_t remapped[3];
+    remapped[0] = -localMagMeasurements[0]; // X: left -> right
+    remapped[1] =  localMagMeasurements[1]; // Y: forward -> forward
+    remapped[2] = -localMagMeasurements[2]; // Z: down -> up
+    
+    // Copy the remapped data into the global rawAccelMeasurements
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        rawMagMeasurements[axis] = remapped[axis];
     }
     
     // Scale measurements
@@ -96,6 +180,11 @@ void imuReadMagCb(bool success) {
 }
 
 void imuReadTempCb(bool success) {
+    if (!success) {
+        putsUART1("Asynchronous IMU temperature error!\r\n");
+        return;
+    }
+    
     // Fix endianness
     rawTempMeasurement = SWAP_BYTES(localTempMeasurement);
 

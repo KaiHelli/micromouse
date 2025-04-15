@@ -4,6 +4,8 @@
 #include "motors.h"
 #include "uart.h"
 #include "sensors.h"
+#include "globalTimers.h"
+
 #include <stdio.h>
 
 MouseState_t mouseState = MOUSE_STATE_INITIALIZING;

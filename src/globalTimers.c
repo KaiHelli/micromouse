@@ -4,6 +4,12 @@
 #include "globalTimers.h"
 #include "timers.h"
 
+/**
+ * @brief Interrupt service routine for global timer. Called periodically to
+ * increment the overflow counter.
+ */
+static int16_t globalTimerISR(void);
+
 static volatile uint16_t globalTimerOverflows;
 
 void initGlobalTimekeeping(void) {

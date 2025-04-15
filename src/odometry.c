@@ -7,6 +7,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define G_TO_MM_S2             9.80665f * 1000.0f
 #define DEG2RAD                (M_PI / 180.0f)
@@ -54,7 +55,6 @@ int16_t triggerIMUMeasurements()
     // Will trigger async polls of gyro / accel readings from the IMU.
     // Each call will call back to odometryIMUGyroUpdate / odometryIMUAccelUpdate
     // once new measurements are available to process.
-
     imuReadGyro();
     imuReadAccel();
     
@@ -81,7 +81,6 @@ void odometryIMUGyroUpdate(void)
     }
     
     // Convert microseconds to seconds in fixed or float format:
-    // Minimizing float usage, but one float multiplication for dt is acceptable:
     float dt = (float) deltaUs * 1.0e-6f;  // seconds
 
     // Scale the raw Z gyro reading to deg/s.
@@ -89,7 +88,7 @@ void odometryIMUGyroUpdate(void)
     imuScaleGyroMeasurement(&rawGyroMeasurements[2], &yaw_dps);
 
     // Integrate yaw:
-    yaw -= yaw_dps * dt;  // [degrees]
+    yaw += yaw_dps * dt;  // [degrees]
 
     // Keep yaw in [0, 360) to avoid numeric blowup
     if (yaw >= 360.0f) {
@@ -114,7 +113,7 @@ void odometryIMUAccelUpdate(void)
 
     float dt = (float)deltaUs * 1.0e-6f;  // seconds
 
-    // Scale raw accelerometer to g?s:
+    // Scale raw accelerometer to g's:
     
     float accelX_g;
     float accelY_g;
@@ -137,13 +136,17 @@ void odometryIMUAccelUpdate(void)
     float accelY_mm_s2 = accelY_g * G_TO_MM_S2;
     
     // Transform accelerations from local robot frame to global frame using yaw.
-    float yaw_rad = yaw * DEG2RAD;
-    float cosYaw = cosf(yaw_rad);
-    float sinYaw = sinf(yaw_rad);
+    //float yaw_rad = yaw * DEG2RAD;
+    //float cosYaw = cosf(yaw_rad);
+    //float sinYaw = sinf(yaw_rad);
     
     // local (robot) axes: y forward, x left/right
-    float accelGlobalX = accelY_mm_s2 * sinYaw + accelX_mm_s2 * cosYaw;
-    float accelGlobalY = accelY_mm_s2 * cosYaw - accelX_mm_s2 * sinYaw;
+    //float accelGlobalX = accelY_mm_s2 * sinYaw + accelX_mm_s2 * cosYaw;
+    //float accelGlobalY = accelY_mm_s2 * cosYaw - accelX_mm_s2 * sinYaw;
+    
+    // TODO: For now we only track in a local frame.
+    float accelGlobalX = accelX_mm_s2;
+    float accelGlobalY = accelY_mm_s2;
     
     // Integrate to get velocity in global frame (x,y):
     velocity[0] += accelGlobalX * dt;  // vx
@@ -157,8 +160,6 @@ void odometryIMUAccelUpdate(void)
 bool robotIsStationary(void) {
     
     static uint64_t lastCheckTimeUs = 0;
-    static int32_t lastEncoder1 = 0;
-    static int32_t lastEncoder2 = 0;
     static bool lastResult = true;
 
     uint64_t currentTimeUs = getTimeInUs();
@@ -169,21 +170,15 @@ bool robotIsStationary(void) {
     if (currentTimeUs - lastCheckTimeUs < intervalUs) {
         // Return previous stationary state between intervals
         return lastResult;
-        LED1 = ~LED1;
     }
 
-    int32_t currentEncoder1 = getPositionInCounts_1();
-    int32_t currentEncoder2 = getPositionInCounts_2();
-
-    int32_t diff1 = abs(currentEncoder1 - lastEncoder1);
-    int32_t diff2 = abs(currentEncoder2 - lastEncoder2);
-
+    int16_t leftVelocityCounts = abs(getVelocityInCountsPerSample(ENCODER_LEFT));
+    int16_t rightVelocityCounts = abs(getVelocityInCountsPerSample(ENCODER_RIGHT));
+    
     const int32_t stationaryThreshold = 2;
 
-    lastResult = (diff1 <= stationaryThreshold) && (diff2 <= stationaryThreshold);
+    lastResult = (leftVelocityCounts <= stationaryThreshold) && (rightVelocityCounts <= stationaryThreshold);
 
-    lastEncoder1 = currentEncoder1;
-    lastEncoder2 = currentEncoder2;
     lastCheckTimeUs = currentTimeUs;
 
     return lastResult;

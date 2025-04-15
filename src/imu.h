@@ -244,6 +244,12 @@ bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurement
 bool imuCalibrateGyro(void);
 
 /**
+ * @brief Performs a accelerometer calibration routine. Returns true on success,
+ * false otherwise.
+ */
+bool imuCalibrateAccel(void);
+
+/**
  * @brief Reads the raw accelerometer data from the IMU and updates the
  * global rawAccelMeasurements array asynchronous.
  */

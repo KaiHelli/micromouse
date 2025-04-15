@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 int16_t toggleMotors(void) {
     static bool standby = 0;
@@ -43,11 +44,24 @@ int16_t printOdometry(void) {
     //extern volatile float position[3];       // x, y, z position (e.g., mm)
     //extern volatile float yaw;               // Yaw angle in degrees or radians
     
+    /*
     snprintf(buffer, sizeof(buffer),
          "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Yaw: %.2f deg\r\n",
          velocity[0], velocity[1], velocity[2],
         position[0], position[1], position[2],
          yaw);
+     */
+    
+    snprintf(buffer, sizeof(buffer),
+         "Left: %d, Right: %d, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Yaw: %.2f deg\r\n", 
+            getPositionInCounts(ENCODER_LEFT), 
+            getPositionInCounts(ENCODER_RIGHT), 
+            getPositionInDeg(ENCODER_LEFT), 
+            getPositionInDeg(ENCODER_RIGHT), 
+            getVelocityInDegPerSecond(ENCODER_LEFT), 
+            getVelocityInDegPerSecond(ENCODER_RIGHT), 
+            getEncoderYawDeg()
+            );
     putsUART1(buffer);
 
     //imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
@@ -71,8 +85,8 @@ void bootSetup() {
     setupPWM2(); // configure PWM2
     setupI2C1(); // configure I2C
     
-    initQEI1(0); // configure Quadrature Encoder 1
-    initQEI2(0); // configure Quadrature Encoder 2
+    initQEI(ENCODER_LEFT, 0);  // configure Quadrature Encoder 1
+    initQEI(ENCODER_RIGHT, 0); // configure Quadrature Encoder 2
     
     initDmaChannel4(); // Initialize DMA to copy sensor readings in the background
     setupADC1();       // Initialize ADC to sample sensor reading
@@ -120,6 +134,8 @@ void bootSetup() {
     //    int8_t degrees = i % 2 == 0 ? 90 : -90;
     //    turnDegrees(TIMER_1, degrees, 50);
     //}
+    
+    //moveDistance(TIMER_1, 200, 25);
     
     LED1 = LEDOFF;
     LED2 = LEDOFF;

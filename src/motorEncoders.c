@@ -1,4 +1,3 @@
-
 #include <xc.h>
 #include <math.h>
 #include <stdint.h>
@@ -7,152 +6,209 @@
 #include "IOconfig.h"
 #include "motorEncoders.h"
 #include "uart.h"
-// file global
+#include "globalTimers.h"
 
-int32_t rotationCount1;
-int32_t rotationCount2;
-// int32_t currentEncoderPosition;
+// Global variables for the rotation counts.
+// QEI1 is used for the right encoder and QEI2 for the left encoder.
+int32_t rotationCount1; // QEI1 (ENCODER_RIGHT)
+int32_t rotationCount2; // QEI2 (ENCODER_LEFT)
 
-
-//****************************************************************INITIALISE QEI************************
-
-void initQEI1(uint16_t startPos)
+/*-------------------------------------------------------------------------
+  Utility Function: readEncoderCount
+  Atomically reads the encoder count by combining the hardware position counter 
+  with the software-maintained rotation counter.
+-------------------------------------------------------------------------*/
+static inline int32_t readEncoderCount(MotorEncoder_t encoder)
 {
-
-    QEI1CONbits.QEISIDL = 1; // discontinue module operation in idle mode
-    QEI1CONbits.QEIM = 0b111; // Quadrature Encoder Interface enabled (x4mode) with position counter reset by match (MAX1CNT)
-    QEI1CONbits.SWPAB = 0; // Phase A and B not swapped
-    QEI1CONbits.PCDOUT = 0; // disable position counter direction pin
-    QEI1CONbits.TQGATE = 0; // timer gated time acc disabled
-    QEI1CONbits.POSRES = 0; // index does not reset position counter
-    QEI1CONbits.TQCS = 0; // internal clock source (Tcy))
-    QEI1CONbits.UPDN_SRC = 0; // direction of position counter determined using internal logic
-
-    MAXCNT = 0xffff;
-
-    POSCNT = startPos;
-    rotationCount1 = 0;
-
-    IFS3bits.QEI1IF = 0; // clear interrupt flag
-    IEC3bits.QEI1IE = 1; // enable interrupt
-    IPC14bits.QEI1IP = IP_QEI;
+    int32_t count;
+    _NSTDIS = 1;
+    switch(encoder)
+    {
+        case ENCODER_RIGHT:
+            count = rotationCount1 + POSCNT;
+            break;
+        case ENCODER_LEFT:
+            count = rotationCount2 + POS2CNT;
+            break;
+        default:
+            count = 0;
+            break;
+    }
+    _NSTDIS = 0;
+    return count;
 }
 
-void initQEI2(uint16_t startPos)
+/*-------------------------------------------------------------------------
+  Function: initQEI
+  Initializes either QEI1 (for ENCODER_RIGHT) or QEI2 (for ENCODER_LEFT) 
+  based on the encoder parameter.
+-------------------------------------------------------------------------*/
+void initQEI(MotorEncoder_t encoder, uint16_t startPos)
 {
-
-    QEI2CONbits.QEISIDL = 1; // discontinue module operation in idle mode
-    QEI2CONbits.QEIM = 0b111; // Quadrature Encoder Interface enabled (x4mode) with position counter reset by match (MAX1CNT)
-    QEI2CONbits.SWPAB = 0; // Phase A and B  swapped
-    QEI2CONbits.PCDOUT = 0; // disable position counter direction pin
-    QEI2CONbits.TQGATE = 0; // timer gated time acc disabled
-    QEI2CONbits.POSRES = 0; // index does not reset position counter
-    QEI2CONbits.TQCS = 0; // internal clock source (Tcy))
-    QEI2CONbits.UPDN_SRC = 0; // direction of position counter determined using internal logic
-
-    MAX2CNT = 0xffff;
-
-    POS2CNT = startPos;
-    rotationCount2 = 0;
-    IFS4bits.QEI2IF = 0; // clear interrupt flag
-    IEC4bits.QEI2IE = 1; // enable interrupt
-    IPC18bits.QEI2IP = IP_QEI;
+    switch(encoder)
+    {
+        case ENCODER_RIGHT:
+            QEI1CONbits.QEISIDL = 1;       // Disable module in idle mode
+            QEI1CONbits.QEIM = 0b111;        // 4x mode with reset by match
+            QEI1CONbits.SWPAB = 0;           // Do not swap Phase A and B
+            QEI1CONbits.PCDOUT = 0;
+            QEI1CONbits.TQGATE = 0;
+            QEI1CONbits.POSRES = 0;
+            QEI1CONbits.TQCS = 0;
+            QEI1CONbits.UPDN_SRC = 0;
+            
+            MAXCNT = 0xffff;
+            POSCNT = startPos;
+            rotationCount1 = 0;
+            
+            IFS3bits.QEI1IF = 0;
+            IEC3bits.QEI1IE = 1;
+            IPC14bits.QEI1IP = IP_QEI;
+            break;
+        case ENCODER_LEFT:
+            QEI2CONbits.QEISIDL = 1;       // Disable module in idle mode
+            QEI2CONbits.QEIM = 0b111;        // 4x mode with reset by match
+            QEI2CONbits.SWPAB = 0;           // Configure as needed for your hardware
+            QEI2CONbits.PCDOUT = 0;
+            QEI2CONbits.TQGATE = 0;
+            QEI2CONbits.POSRES = 0;
+            QEI2CONbits.TQCS = 0;
+            QEI2CONbits.UPDN_SRC = 0;
+            
+            MAX2CNT = 0xffff;
+            POS2CNT = startPos;
+            rotationCount2 = 0;
+            
+            IFS4bits.QEI2IF = 0;
+            IEC4bits.QEI2IE = 1;
+            IPC18bits.QEI2IP = IP_QEI;
+            break;
+        default:
+            break;
+    }
 }
 
+/*-------------------------------------------------------------------------
+  Interrupt Service Routines for QEI roll-over/under detection
+-------------------------------------------------------------------------*/
 void __attribute__((__interrupt__, auto_psv)) _QEI1Interrupt(void)
 {
-    // Interrupt generated by QEI roll over/under
-    IFS3bits.QEI1IF = 0; // clear interrupt
-
+    IFS3bits.QEI1IF = 0; 
     if (POSCNT < 32768) {
-        rotationCount1 = rotationCount1 + (int32_t)0x10000; // we had a positive roll-over
+        rotationCount1 += ENC_MAX_VALUE;  // Positive roll-over
     } else {
-        rotationCount1 = rotationCount1 - (int32_t)0x10000; // we had a negative roll-over
+        rotationCount1 -= ENC_MAX_VALUE;  // Negative roll-over
     }
 }
 
 void __attribute__((__interrupt__, auto_psv)) _QEI2Interrupt(void)
 {
-    // Interrupt generated by QEI roll over/under
-    IFS4bits.QEI2IF = 0; // clear interrupt
-
+    IFS4bits.QEI2IF = 0; 
     if (POS2CNT < 32768) {
-        rotationCount2 = rotationCount2 + (int32_t)0x10000; // we had a positive roll-over
+        rotationCount2 += ENC_MAX_VALUE;  // Positive roll-over
     } else {
-        rotationCount2 = rotationCount2 - (int32_t)0x10000; // we had a negative roll-over
+        rotationCount2 -= ENC_MAX_VALUE;  // Negative roll-over
     }
 }
 
-float getPositionInRad()
+/*-------------------------------------------------------------------------
+  Function: getPositionInCounts
+  Returns the current encoder position (including any rotation adjustments).
+-------------------------------------------------------------------------*/
+int32_t getPositionInCounts(MotorEncoder_t encoder)
 {
-    int32_t currentEncoderPosition;
-    // disable interrupts to make sure we have consistent data
-    _NSTDIS = 1;
-    GET_ENCODER_1(currentEncoderPosition);
-    // disable interrupts to make sure we have consistent data
-    _NSTDIS = 0;
-    return 3.141592 * 2 * currentEncoderPosition / (16 * 4 * 33);
+    return readEncoderCount(encoder);
 }
 
-int32_t getPositionInCounts_1()
+/*-------------------------------------------------------------------------
+  Function: getPositionInRad
+  Converts the encoder count into a position in radians.
+-------------------------------------------------------------------------*/
+float getPositionInRad(MotorEncoder_t encoder)
 {
-    int32_t currentEncoderPosition;
-    GET_ENCODER_1(currentEncoderPosition);
-    return currentEncoderPosition;
+    int32_t currentEncoderPosition = readEncoderCount(encoder);
+    return (2.0f * M_PI * currentEncoderPosition) / TICKS_PER_REV;
 }
 
-int16_t getVelocityInCountsPerSample_1()
+/*-------------------------------------------------------------------------
+  Function: getPositionInRad
+  Converts the encoder count into a position in degrees.
+-------------------------------------------------------------------------*/
+float getPositionInDeg(MotorEncoder_t encoder)
 {
-    static int32_t oldPosition = 0;
-    int32_t currentPosition;
-    int16_t velocity;
+    int32_t currentEncoderPosition = readEncoderCount(encoder);
+    return (360.0f * currentEncoderPosition) / TICKS_PER_REV;
+}
 
-    // disable interrupts to make sure we have consistent data
-    _NSTDIS = 1;
-    GET_ENCODER_1(currentPosition);
-    _NSTDIS = 0;
-    velocity = (currentPosition - oldPosition);
-
-    oldPosition = currentPosition;
+/*-------------------------------------------------------------------------
+  Function: getVelocityInCountsPerSample
+  Computes the change in encoder counts between calls.
+-------------------------------------------------------------------------*/
+int16_t getVelocityInCountsPerSample(MotorEncoder_t encoder)
+{
+    // Using a static array to store previous positions for each encoder.
+    static int32_t oldPosition[2] = {0, 0};
+    int32_t currentPosition = readEncoderCount(encoder);
+    int16_t velocity = (int16_t)(currentPosition - oldPosition[encoder]);
+    oldPosition[encoder] = currentPosition;
     return velocity;
 }
 
-int32_t getPositionInCounts_2()
+/*-------------------------------------------------------------------------
+  Function: getVelocityInRadPerSecond
+  Computes the rotational velocity in radians per second.
+-------------------------------------------------------------------------*/
+float getVelocityInRadPerSecond(MotorEncoder_t encoder)
 {
-    int32_t currentEncoderPosition;
-    GET_ENCODER_2(currentEncoderPosition);
-    return currentEncoderPosition;
-}
+    // Static arrays to store timing and previous position for each encoder.
+    static uint64_t lastGyroUpdateTime[2] = {0, 0};
+    static int32_t oldPosition[2] = {0, 0};
 
-int16_t getVelocityInCountsPerSample_2()
-{
-    static int32_t oldPosition;
-    int32_t currentPosition;
-    int16_t velocity;
-
-    // disable interrupts to make sure we have consistent data
-    _NSTDIS = 1;
-    GET_ENCODER_2(currentPosition);
-    _NSTDIS = 0;
-    velocity = (currentPosition - oldPosition);
-
-    oldPosition = currentPosition;
+    uint64_t currentTimeUs = getTimeInUs();
+    uint64_t deltaUs = currentTimeUs - lastGyroUpdateTime[encoder];
+    lastGyroUpdateTime[encoder] = currentTimeUs;
+    
+    int32_t currentPosition = readEncoderCount(encoder);
+    float velocity = 2.0f * M_PI * ((currentPosition - oldPosition[encoder]) * deltaUs * 1e-6f) / TICKS_PER_REV;
+    oldPosition[encoder] = currentPosition;
     return velocity;
 }
 
-float getVelocityInRadPerSecond()
+/*-------------------------------------------------------------------------
+  Function: getVelocityInDegPerSecond
+  Computes the rotational velocity in degrees per second.
+-------------------------------------------------------------------------*/
+float getVelocityInDegPerSecond(MotorEncoder_t encoder)
 {
+    // Static arrays to hold the previous update time and previous position for each encoder.
+    static uint64_t lastUpdateTime[2] = {0, 0};
+    static int32_t oldPosition[2] = {0, 0};
 
-    static int32_t oldPosition;
-    float velocity;
-    int32_t currentPosition;
+    // Get current time in microseconds.
+    uint64_t currentTimeUs = getTimeInUs();
+    // Calculate time elapsed since the last update in microseconds.
+    uint64_t deltaUs = currentTimeUs - lastUpdateTime[encoder];
+    // Update the last update time for the current encoder.
+    lastUpdateTime[encoder] = currentTimeUs;
 
-    // disable interrupts to make sure we have consistent data
-    _NSTDIS = 1;
-    GET_ENCODER_1(currentPosition);
-    _NSTDIS = 0;
-    velocity = 3.141592 * 2 * ((currentPosition - oldPosition) * 0.01) / (33 * 4 * 16);
-
-    oldPosition = currentPosition;
+    // Read the current encoder position.
+    int32_t currentPosition = readEncoderCount(encoder);
+    // Calculate the velocity in degrees per second.
+    // Multiply delta counts by the elapsed time (converted to seconds) then convert to degrees.
+    float velocity = (360.0f * ((currentPosition - oldPosition[encoder]) * deltaUs * 1e-6f)) / TICKS_PER_REV;
+    // Update the old position for the current encoder.
+    oldPosition[encoder] = currentPosition;
     return velocity;
+}
+
+/*-------------------------------------------------------------------------
+  Function: getEncoderYawDeg
+  Computes an approximate yaw (in degrees) from the difference between
+  the right and left encoder distances.
+-------------------------------------------------------------------------*/
+float getEncoderYawDeg(void)
+{
+    float rightDistance = readEncoderCount(ENCODER_RIGHT) * DIST_PER_TICK;
+    float leftDistance  = readEncoderCount(ENCODER_LEFT) * DIST_PER_TICK;
+    return (rightDistance - leftDistance) * RAD2DEG / WHEEL_BASE_MM;
 }

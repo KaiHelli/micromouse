@@ -11,6 +11,13 @@
 #include "pwm.h"
 #include "IOconfig.h"
 
+/**
+ * @brief Interrupt service routine for song playback. Called periodically to
+ * advance the song's notes. Returns an 0 when the song has been played or stopped.
+ * Returns 1 otherwise.
+ */
+static int16_t songISR(void);
+
 /*
  * I've used the following EBNF to program the parser.
  * Some songs online are not in a valid format as they

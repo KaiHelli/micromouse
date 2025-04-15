@@ -24,10 +24,4 @@ void resetGlobalTimekeeping(void);
  */
 uint64_t getTimeInUs(void);
 
-/**
- * @brief Interrupt service routine for global timer. Called periodically to
- * increment the overflow counter.
- */
-static int16_t globalTimerISR(void);
-
 #endif /* GLOBALTIMERS_H */

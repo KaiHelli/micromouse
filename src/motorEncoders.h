@@ -3,61 +3,83 @@
 
 #include <xc.h>
 #include <stdint.h>
+#include <math.h>
+
+// Definitions and Constants
+#define ENC_MAX_VALUE          0x10000
+
+#define TICKS_PER_REV          (4 * 16 * 33)  // 4x QEI, 16 pulses, 33:1 gearbox
+#define WHEEL_DIAMETER_MM      60.0f
+#define WHEEL_CIRCUMFERENCE_MM (WHEEL_DIAMETER_MM * M_PI)
+#define DIST_PER_TICK          (WHEEL_CIRCUMFERENCE_MM / TICKS_PER_REV)
+
+#define WHEEL_BASE_MM          97.0f
+
+#define RAD2DEG                (180.0f / M_PI)
 
 /**
- * @brief Initializes QEI1 using the specified start position.
- * The 'startPos' parameter sets the initial position for QEI1.
+ * @brief Enumeration for selecting which encoder to use.
  */
-void initQEI1(uint16_t startPos);
+typedef enum {
+    ENCODER_LEFT,   // Refers to QEI2
+    ENCODER_RIGHT   // Refers to QEI1
+} MotorEncoder_t;
 
 /**
- * @brief Initializes QEI2 using the specified start position.
- * The 'startPos' parameter sets the initial position for QEI2.
+ * @brief Initializes the specified QEI encoder.
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @param startPos The initial position for the encoder.
  */
-void initQEI2(uint16_t startPos);
+void initQEI(MotorEncoder_t encoder, uint16_t startPos);
 
 /**
- * @brief Returns the current position in radians based on encoder data.
+ * @brief Returns the current encoder count (including any rollover adjustments).
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @return Current encoder count.
  */
-float getPositionInRad();
+int32_t getPositionInCounts(MotorEncoder_t encoder);
+
+/**
+ * @brief Returns the current position in radians.
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @return Position in radians.
+ */
+float getPositionInRad(MotorEncoder_t encoder);
+
+/**
+ * @brief Returns the current position in degrees.
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @return Position in degrees.
+ */
+float getPositionInDeg(MotorEncoder_t encoder);
+
+/**
+ * @brief Returns the current velocity in encoder counts per sample.
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @return Velocity in counts per sample.
+ */
+int16_t getVelocityInCountsPerSample(MotorEncoder_t encoder);
 
 /**
  * @brief Returns the current rotational velocity in radians per second.
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @return Rotational velocity in rad/s.
  */
-float getVelocityInRadPerSecond();
+float getVelocityInRadPerSecond(MotorEncoder_t encoder);
+
 
 /**
- * @brief Returns the current position (QEI1) in encoder counts.
+ * @brief Returns the current rotational velocity in degrees per second.
+ * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
+ * @return Rotational velocity in deg/s.
  */
-int32_t getPositionInCounts_1();
+float getVelocityInDegPerSecond(MotorEncoder_t encoder);
 
 /**
- * @brief Returns the current velocity (QEI1) in encoder counts per sample.
+ * @brief Computes the approximate yaw (in degrees) based on the difference
+ *        between the right and left encoder distances.
+ * @return Yaw in degrees.
  */
-int16_t getVelocityInCountsPerSample_1();
-
-/**
- * @brief Returns the current position (QEI2) in encoder counts.
- */
-int32_t getPositionInCounts_2();
-
-/**
- * @brief Returns the current velocity (QEI2) in encoder counts per sample.
- */
-int16_t getVelocityInCountsPerSample_2();
-
-extern int32_t rotationCount1;
-extern int32_t rotationCount2;
-
-#define GET_ENCODER_1(RIGHT_ENCODER_POSITION_VALUE) (RIGHT_ENCODER_POSITION_VALUE = rotationCount1 + POSCNT)
-#define GET_ENCODER_2(LEFT_ENCODER_POSITION_VALUE) (LEFT_ENCODER_POSITION_VALUE = rotationCount2 + POS2CNT)
-
-#define WHEEL_ROTATIONS_PERROBOT_ROTATION 2.5
-#define TICKS_PER_WHEELROTATION (64 * 33)
-#define TICKS_PER_CENTIMETER TICKS_PER_WHEELROTATION / 12.566
-#define METER_PER_TICkS 0.12566 / TICKS_PER_WHEELROTATION
-#define DELTATICKS_90_DEGREES (0.25 * WHEEL_ROTATIONS_PERROBOT_ROTATION * TICKS_PER_WHEELROTATION)
-#define DELTATICKS_180_DEGREES (0.5 * WHEEL_ROTATIONS_PERROBOT_ROTATION * TICKS_PER_WHEELROTATION)
-#define DELTATICKS_CELL_GAP (11.5 * TICKS_PER_CENTIMETER)
+float getEncoderYawDeg(void);
 
 #endif /* MOTORENCODERS_H */

@@ -94,11 +94,11 @@ void bootSetup() {
     
     __delay_ms(100); // Wait a bit for the peripherals to start up
     
+    oledSetup();    // Setup oled display
+    
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
     imuCalibrateGyro(); // Calibrate gyroscope.
     imuCalibrateAccel(); // Calibrate accelerometer.
-    
-    oledSetup();    // Setup oled display
     
     initMotorsState();
     initMouseState();

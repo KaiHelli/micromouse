@@ -11,13 +11,14 @@
 #include "uart.h"
 #include "i2c.h"
 
+
 static uint8_t displayBuffer[OLED_BUFFSIZE + 1] = {0};
 
 
 void oledSetup(void) {
     ssd1306Setup();
     oledClearDisplay(0x00);
-    oledDrawFrame();
+    oledDrawEmptyMaze();
     oledRefresh();
     ssd1306SetDisplayState(1);
 }
@@ -38,13 +39,13 @@ void oledClearDisplay(uint8_t defaultValue) {
 
 void oledDrawFrame(void) {
     for (uint8_t i = 0; i < OLED_WIDTH; i++) {
-        oledSetPixel(i, 0);
-        oledSetPixel(i, OLED_HEIGHT - 1);
+        oledSetPixel(i, 0, 1);
+        oledSetPixel(i, OLED_HEIGHT - 1, 1);
     }
     
     for (uint8_t i = 1; i < OLED_HEIGHT - 1; i++) {
-        oledSetPixel(0, i);
-        oledSetPixel(OLED_WIDTH - 1, i);
+        oledSetPixel(0, i, 1);
+        oledSetPixel(OLED_WIDTH - 1, i, 1);
     }
 }
 
@@ -60,14 +61,111 @@ void oledRefresh(void)
 }
 
 
-void oledSetPixel(uint8_t x, uint8_t y) {
+void oledSetPixel(uint8_t x, uint8_t y, bool state) {
     // Check for a valid position
     if (x >= OLED_WIDTH || y >= OLED_HEIGHT) {
         return;
     }
-
+    uint8_t prev_state = displayBuffer[x + ((y >> 3) * OLED_WIDTH) + 1];
     // NOTE: +1 due to the first byte in the buffer being reserved for the
     // control byte
     //displayBuffer[x + ((y / 8) * OLED_WIDTH)] = (1 << (y % 8));
-    displayBuffer[x + ((y >> 3) * OLED_WIDTH) + 1] |= (1 << (y & 7));
+    if(state)
+        displayBuffer[x + ((y >> 3) * OLED_WIDTH) + 1] |= (1 << (y & 7));
+    else
+        displayBuffer[x + ((y >> 3) * OLED_WIDTH) + 1] &= ~(1 << (y & 7));
+    
+}
+
+void oledPushArea(uint8_t start_x, uint8_t start_y, uint8_t end_x, uint8_t end_y){
+    static uint8_t db[OLED_BUFFSIZE + 1]  = {0};
+    db[0] = 0x40;
+    uint8_t start_y_byte = start_y >> 3;
+    uint8_t end_y_byte = end_y >> 3;
+    uint8_t num_bytes = (end_x - start_x + 1)*(end_y_byte  - start_y_byte + 1);
+    
+    ssd1306SetColumnAddress(OLED_FIRST_COL  + start_x, OLED_FIRST_COL + end_x);
+    ssd1306SetPageAddress(OLED_FIRST_PAGE + start_y_byte, OLED_FIRST_PAGE + end_y_byte);
+    uint8_t i = 1;
+    for(uint8_t y = start_y_byte; y<=end_y_byte; y++){
+        for(uint8_t x = start_x; x<=end_x; x++){
+            db[i] = displayBuffer[x + (y * OLED_WIDTH) + 1];
+            i++;
+        }
+    }
+      putsI2C1(I2C_OLED_ADDR, db, num_bytes +1, NULL, 0, oledCommCb);
+}
+
+void oledDrawMouse(uint8_t row, uint8_t col, bool state){
+    //Draw 2x2 Block at center of the cell
+    oledSetPixel(CELL_WIDTH*row + X_OFFSET + 3, CELL_WIDTH*col + 3, state);
+    oledSetPixel(CELL_WIDTH*row +X_OFFSET +4,CELL_WIDTH*col + 4, state);
+    oledSetPixel(CELL_WIDTH*row +X_OFFSET + 4,CELL_WIDTH*col + 3, state);
+    oledSetPixel(CELL_WIDTH*row +X_OFFSET + 3,CELL_WIDTH*col + 4, state);
+   
+}
+
+void oledDrawEmptyMaze(void) {
+    for (uint8_t i = 1; i < OLED_HEIGHT; i++) {
+        oledSetPixel(X_OFFSET + i, 1, 1);
+        oledSetPixel(X_OFFSET + i, OLED_HEIGHT - 1, 1);
+    }
+    
+    for (uint8_t i = 1; i < OLED_HEIGHT - 1; i++) {
+        oledSetPixel(X_OFFSET+1, i, 1);
+        oledSetPixel(X_OFFSET + OLED_HEIGHT-1, i, 1);
+    }
+    
+    //Draw wall markings
+    for (uint8_t i = 1; i < N; i++) {
+        for (uint8_t j = 1; j < N; j++) {
+            oledSetPixel(X_OFFSET + CELL_WIDTH*i + 1, CELL_WIDTH*j + 1, 1);
+        }
+    }
+    
+    //Draw mouse at initial position (Bottom left corner)
+    oledDrawMouse(0,0,1);
+}
+
+void oledPushMouse(uint8_t row, uint8_t col){
+    oledPushArea(CELL_WIDTH*row + X_OFFSET + 3, CELL_WIDTH*col + 3,CELL_WIDTH*row +X_OFFSET + 3,CELL_WIDTH*col + 4);
+}
+
+void oledUpdateMouse(Mouse* mouse){
+    static uint8_t prev_row = 0, prev_col = 0;
+    
+    if(prev_row == mouse->row && prev_col == mouse->col){
+        return;
+    }
+    
+    oledDrawMouse(prev_row, prev_col, 0);
+    oledPushMouse(prev_row, prev_col);
+            
+    prev_row = mouse->row;
+    prev_col =  mouse->col;
+    
+    oledDrawMouse(prev_row, prev_col, 0);
+    oledPushMouse(prev_row, prev_col);
+}
+
+void oledDrawCell(Cell cell,uint8_t row, uint8_t col) {
+    for (uint8_t i = 1; i < N; i++){
+        if(cell.wallTop){
+            oledSetPixel(CELL_WIDTH * row + X_OFFSET + i, CELL_WIDTH * (col + 1) + 1, 1);
+        }
+        
+        if(cell.wallBottom){
+            oledSetPixel(CELL_WIDTH * row + X_OFFSET + i, CELL_WIDTH * col + 1, 1);
+        }
+        
+        if(cell.wallLeft){
+            oledSetPixel(CELL_WIDTH * row + X_OFFSET + 1, CELL_WIDTH * col + i, 1);
+        }
+        
+        if(cell.wallRight){
+            oledSetPixel(CELL_WIDTH * (row+1) + X_OFFSET + 1, CELL_WIDTH * col + i, 1);
+        }   
+    }
+    
+    oledPushArea(CELL_WIDTH*row + X_OFFSET, CELL_WIDTH*col,CELL_WIDTH*(row+1) +X_OFFSET,CELL_WIDTH*(col+1));
 }

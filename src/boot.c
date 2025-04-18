@@ -136,23 +136,21 @@ void bootSetup() {
     //registerTimerCallback(TIMER_3, moveForward);
 
     setupOdometry(TIMER_2, TIMER_1); // track odometry
-    //registerTimerCallback(TIMER_3, printOdometry);
+    registerTimerCallback(TIMER_3, printOdometry);
     
     //steerMotors(30, 30);
-    
     //setMotorPower(MOTOR_LEFT, 52);    
     //setMotorPower(MOTOR_RIGHT, 50);
     //setMotorsStandbyState(false);
-    
-    // setTimerState(TIMER_3, 1);
-    
+    //setTimerState(TIMER_3, 1);
     // initTimerInMs(TIMER_32_COMBINED, 250); //creates a 10ms timer interrupt
     // setTimerState(TIMER_32_COMBINED, 1);
 
-    //__delay_ms(2000);
+    __delay_ms(2000);
     
     setMotorSpeedLeft(100);
     setMotorSpeedRight(100);
+    setMotorsStandbyState(false);
     
     //turnDegrees(TIMER_1, 90, 50, 100.0f);
     

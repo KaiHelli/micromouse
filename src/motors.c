@@ -38,14 +38,15 @@ static int16_t wheelPidStep(void)
     int16_t pLeft = fastPidStep(&pidL, (int16_t) (motorSpeedLeft),  (int16_t) (vLeft));
     int16_t pRight = fastPidStep(&pidR, (int16_t) (motorSpeedRight), (int16_t) (vRight));
 
+    /*
     static uint16_t i = 0;
-    
     if (i % 10 == 0) {
         char buf[100];
         snprintf(buf, sizeof(buf), "Left: sp %d, is %d, ctl %d | Right: sp %d, is %d, ctl %d\r\n", (int16_t) (motorSpeedLeft * 10), (int16_t) (vLeft * 10), pLeft, (int16_t) (motorSpeedRight * 10), (int16_t) (vRight * 10), pRight);
         putsUART1(buf);
     }
     i++;
+    */
     
     setMotorPower(MOTOR_LEFT,  pLeft);
     setMotorPower(MOTOR_RIGHT, pRight);

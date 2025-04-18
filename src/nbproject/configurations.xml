@@ -1343,7 +1343,7 @@
         <property key="memories.programmemory.ranges" value="0-157ff"/>
         <property key="poweroptions.powerenable" value="false"/>
         <property key="programmerToGoFilePath"
-                  value="/Users/kai.helli/MPLABXProjects/micromouseLC.X/src/debug/default/micromouseLC_ptg"/>
+                  value="/Users/kai.helli/MPLABXProjects/micromouseLC.X/debug/default/micromouseLC_ptg"/>
         <property key="programmerToGoImageName" value="micromouseLC_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>

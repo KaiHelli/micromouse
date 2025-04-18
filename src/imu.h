@@ -235,7 +235,7 @@ void imuReadGyro(void);
  * @brief Reads and scales the gyroscope data from the IMU. Populates rawGyroMeasurements
  * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
  */
-bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]);
+bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3], bool remap);
 
 /**
  * @brief Performs a gyroscope calibration routine. Returns true on success,
@@ -260,7 +260,7 @@ void imuReadAccel(void);
  * @brief Reads and scales the accelerometer data from the IMU. Populates rawAccelMeasurements
  * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
  */
-bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3]);
+bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3], bool remap);
 
 
 /**
@@ -268,6 +268,13 @@ bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurem
  * global rawMagMeasurements array asynchronous.
  */
 void imuReadMag(void);
+
+/**
+ * @brief Reads and scales the magnetometer data from the IMU. Populates rawMagMeasurements
+ * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
+ */
+bool imuReadMagSync(int16_t rawMagMeasurements[3], float scaledMagMeasurements[3], bool remap);
+
 
 /**
  * @brief Reads the raw temperature data from the IMU and updates the
@@ -287,6 +294,10 @@ void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro);
  * @brief Scales the raw accelerometer data (in rawAccel) into units of g,
  * placing the result in scaledAccel.
  */
+void imuScaleAccelMeasurementsFloat(float rawAccel[3], float scaledAccel[3]);
+
+void imuScaleAccelMeasurementFloat(float *rawAccel, float *scaledAccel);
+
 void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]);
 
 void imuScaleAccelMeasurement(int16_t *rawAccel, float *scaledAccel);
@@ -305,16 +316,21 @@ void imuScaleMagMeasurement(int16_t *rawMag, float *scaledMag);
  */
 void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp);
 
+void imuCalibrateAccelMeasurements(int16_t *rawAccel, float *scaledAccel);
+
+void imuCalibrateMagMeasurements(int16_t *rawMag, float *scaledMag);
+
 /**
  * @brief Converts the scaled magnetometer data (in scaledMag) into a heading
  * (in degrees).
  */
 float magnetometerToHeading(float scaledMag[3]);
 
-/**
- * @brief Converts a measurement in degrees per second into radians per second.
- */
-float dpsToRadps(float dps);
+float magnetometerToTiltCompensatedHeading(float scaledMag[3], float pitchRad, float rollRad);
+
+void imuGetAccelCalibrationData(void);
+
+void imuGetMagCalibrationData(void);
 
 #endif	/* IMU_H */
 

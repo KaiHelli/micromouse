@@ -177,7 +177,7 @@ static float angleError(float current, float target)
 int16_t turnDegreesCallback(void)
 {
     // How many degrees left to target? (wrapped to -180..+180)
-    float error = angleError(yaw, targetYaw);
+    float error = angleError(mouseAngle[YAW], targetYaw);
 
     // If turning CW (turnDirection > 0), we're done once error <= 0
     // If turning CCW (turnDirection < 0), we're done once error >= 0
@@ -208,7 +208,7 @@ void turnDegrees(Timer_t timer, int16_t degrees, uint8_t powerInPercent)
     turnInProgress = true;
 
     // Record current yaw as start
-    startYaw = yaw;
+    startYaw = mouseAngle[YAW];
 
     // Compute final yaw after turning (wrapped to [0..360))
     float newTarget = startYaw + degrees;
@@ -247,10 +247,9 @@ static uint8_t movePowerInPercent = 0;
 int16_t moveDistanceCallback(void)
 {
     // How many millimeters left to target?
-    float error = position[1] - targetPos;
+    float error = mousePosition[Y] - targetPos;
     
-    
-    int16_t step = fastPidStep(&pid, 0, (int16_t) angleError(yaw, moveStartYaw));
+    int16_t step = fastPidStep(&pid, 0, (int16_t) angleError(mouseAngle[YAW], moveStartYaw));
     
     uint8_t defaultPower = movePowerInPercent;
     
@@ -284,8 +283,8 @@ void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent)
     moveInProgress = true;
 
     // Record current yaw, position and power as start
-    startPos = position[1];
-    moveStartYaw = yaw;
+    startPos = mousePosition[Y];
+    moveStartYaw = mouseAngle[YAW];
     movePowerInPercent = powerInPercent;
 
     // Compute final position after moving
@@ -317,5 +316,5 @@ void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent)
     }
     
     // Fix final angle error
-    turnDegrees(timer, (int16_t) -angleError(yaw, moveStartYaw), powerInPercent);
+    turnDegrees(timer, (int16_t) -angleError(mouseAngle[YAW], moveStartYaw), powerInPercent);
 }

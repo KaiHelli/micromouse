@@ -12,6 +12,7 @@
 #include "uart.h"
 #include "IOconfig.h"
 #include "odometry.h"
+#include "constants.h"
 
 static uint8_t imuWhoAmI = 0xFF;  // Buffer to store read result
 static uint8_t magWhoAmI = 0xFF;  // Buffer to store read result
@@ -43,15 +44,90 @@ volatile int16_t localTempMeasurement;
 // Track the user bank we are currently on
 static uint8_t currentBank = 0;
 
+// Total Field in nT in Garching (at 48.26274629587023, 11.667870576826944, 482m Elevation)
+// https://www.ncei.noaa.gov/products/world-magnetic-model
+const float totalField = 47738.8;
+const float totalFieldLSB = 318.2586;
+
+// External magnetometer and accelerometer calibration constants
+const float imuAccelBias[3] = { 26.24 , 233.71 , 273.55 };
+const float imuAccelScale[3][3] = {{ 0.9992 , 1e-05 , 0.00196 },
+                                 { 1e-05 , 0.99849 , -0.00139 },
+                                 { 0.00196 , -0.00139 , 0.9951 }};
+
+const float imuMagBias[3] = { 496.55 , -271.5 , 74.85 };
+const float imuMagScale[3][3] = {{ 1.02868 , 0.03231 , 0.00354 },
+                                 { 0.03231 , 0.9826 , -6e-05 },
+                                 { 0.00354 , -6e-05 , 0.93955 }};
+
+static inline float wrapPi(float angle)
+{
+    if      (angle >=  M_PI) angle -= 2.0f*M_PI;
+    else if (angle <  -M_PI) angle += 2.0f*M_PI;
+    
+    return angle;
+}
+
+/*
+ * remapGyroAxes(src, dst):
+ *   Remap raw gyro counts from sensor?robot frame.
+ *   Sensor [+X CW@Z, +Y CCW@Y, +Z CCW@Z]
+ *   ? Robot  [+X CW@X, +Y CW@Y, +Z CW@Z]
+ */
+static inline void remapGyroAxes(int16_t src[3], int16_t dst[3]) {
+    int16_t tmp[3];
+    
+    tmp[0] =  src[0];
+    tmp[1] = -src[1];
+    tmp[2] = -src[2];
+    
+    dst[0] = tmp[0];
+    dst[1] = tmp[1];
+    dst[2] = tmp[2];
+}
+
+/*
+ * remapAccelAxes(src, dst):
+ *   Remap raw accel counts from sensor?robot frame.
+ *   Sensor [+X left, +Y back, +Z up]
+ *   ? Robot  [+X right, +Y forward, +Z up]
+ */
+static inline void remapAccelAxes(int16_t src[3], int16_t dst[3]) {
+    int16_t tmp[3];
+    
+    tmp[0] = -src[0];
+    tmp[1] = -src[1];
+    tmp[2] =  src[2];
+    
+    dst[0] = tmp[0];
+    dst[1] = tmp[1];
+    dst[2] = tmp[2];
+}
+
+/*
+ * remapMagAxes(src, dst):
+ *   Remap raw mag counts from sensor?robot frame.
+ *   Sensor [+X left, +Y forward, +Z down]
+ *   ? Robot  [+X right, +Y forward, +Z up]
+ */
+static inline void remapMagAxes(int16_t src[3], int16_t dst[3]) {
+    int16_t tmp[3];
+    
+    tmp[0] = -src[0];
+    tmp[1] =  src[1];
+    tmp[2] = -src[2];
+    
+    dst[0] = tmp[0];
+    dst[1] = tmp[1];
+    dst[2] = tmp[2];
+}
+
 /**
  * @brief Callback for asynchronous gyroscope read completion.
  *
  * This function:
  * 1) Fixes raw big-endian sensor data into little-endian.
- * 2) Remaps the IMU?s physical gyro axes to the robot?s internal axes.
- *    - X rotation: Sensor: +X CW around Z axis -> Robot: +X CW around X axis
- *    - Y rotation: Sensor: +Y CCW around Y axis -> Robot: +Y CW around Y axis
- *    - Z rotation: Sensor: +Z CCW around Z axis -> Robot: +Z CW around C axis
+ * 2) Remaps the IMU's physical gyro axes to the robot's internal axes.
  * 3) Stores the remapped gyro readings into global rawGyroMeasurements[].
  * 4) Invokes odometryIMUGyroUpdate() to integrate the new rotational data.
  */
@@ -66,23 +142,14 @@ void imuReadGyroCb(bool success) {
         localGyroMeasurements[axis] = SWAP_BYTES(localGyroMeasurements[axis]);
     }
     
-    // Remap from the IMU's physical frame to your robot frame
-    int16_t remapped[3];
-    remapped[0] =  localGyroMeasurements[0]; // +X should be CW from right
-    remapped[1] = -localGyroMeasurements[1]; // +Y should be CW from back
-    remapped[2] = -localGyroMeasurements[2]; // +Z should be CW from top
-    
-    // Copy the remapped data into the global rawAccelMeasurements
-    for (uint8_t axis = 0; axis < 3; axis++) {
-        rawGyroMeasurements[axis] = remapped[axis];
-    }
+    // Remap and store in the global buffer
+    remapGyroAxes(localGyroMeasurements, rawGyroMeasurements);
     
     // Scale measurements
     // imuScaleGyroMeasurements(rawGyroMeasurements, gyroMeasurements);
     
     // Update odometry
     odometryIMUGyroUpdate();
-    
     
     // char measurementStr[70];
     // snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
@@ -95,10 +162,7 @@ void imuReadGyroCb(bool success) {
  *
  * This function:
  * 1) Fixes raw big-endian sensor data into little-endian.
- * 2) Remaps the IMU?s physical axes to the robot?s internal axes:
- *    - IMU +X = left  -> Robot +X = right  (flip sign)
- *    - IMU +Y = back  -> Robot +Y = forward (flip sign)
- *    - IMU +Z = up    -> Robot +Z = up     (no flip)
+ * 2) Remaps the IMU's physical axes to the robot's internal axes:
  * 3) Stores the remapped readings into global rawAccelMeasurements[].
  * 4) Invokes odometryIMUAccelUpdate() to integrate these new data.
  */
@@ -113,16 +177,8 @@ void imuReadAccelCb(bool success) {
         localAccelMeasurements[axis] = SWAP_BYTES(localAccelMeasurements[axis]);
     }
     
-    // Remap from the IMU's physical frame to your robot frame
-    int16_t remapped[3];
-    remapped[0] = -localAccelMeasurements[0]; // X: left -> right
-    remapped[1] = -localAccelMeasurements[1]; // Y: backward -> forward
-    remapped[2] =  localAccelMeasurements[2]; // Z: up -> up
-    
-    // Copy the remapped data into the global rawAccelMeasurements
-    for (uint8_t axis = 0; axis < 3; axis++) {
-        rawAccelMeasurements[axis] = remapped[axis];
-    }
+    // Remap and store in the global buffer
+    remapAccelAxes(localAccelMeasurements, rawAccelMeasurements);
     
     // Scale measurements
     // imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
@@ -140,10 +196,7 @@ void imuReadAccelCb(bool success) {
  *
  * This function:
  * 1) Copies the raw magnetometer data from localMagMeasurements[] to rawMagMeasurements[].
- * 2) Remaps the IMU?s physical magnetometer axes to the robot?s internal axes:
- *    - IMU +X = left   -> Robot +X = right   (flip sign)
- *    - IMU +Y = forward-> Robot +Y = forward (no flip)
- *    - IMU +Z = down   -> Robot +Z = up      (flip sign)
+ * 2) Remaps the IMU's physical magnetometer axes to the robot's internal axes:
  * 3) Optionally calls scaling or heading computations.
  */
 void imuReadMagCb(bool success) {
@@ -152,31 +205,22 @@ void imuReadMagCb(bool success) {
         return;
     }
     
-    // Copy values
-    for(uint8_t axis = 0; axis < 3; axis++) {
-        localMagMeasurements[axis] = localMagMeasurements[axis];
-    }
-    
-    // Remap from the IMU's physical frame to your robot frame
-    int16_t remapped[3];
-    remapped[0] = -localMagMeasurements[0]; // X: left -> right
-    remapped[1] =  localMagMeasurements[1]; // Y: forward -> forward
-    remapped[2] = -localMagMeasurements[2]; // Z: down -> up
-    
-    // Copy the remapped data into the global rawAccelMeasurements
-    for (uint8_t axis = 0; axis < 3; axis++) {
-        rawMagMeasurements[axis] = remapped[axis];
-    }
+    // Remap and store in the global buffer
+    remapMagAxes(localMagMeasurements, rawMagMeasurements);
+
+    // Update odometry
+    odometryIMUMagUpdate();
     
     // Scale measurements
     // imuScaleMagMeasurements(rawMagMeasurements, magMeasurements);
+    // imuCalibrateMagMeasurements(rawMagMeasurements, magMeasurements);
     
     // Calculate heading
-    //float heading =  magnetometerToHeading(magMeasurements);
+    // float heading =  magnetometerToHeading(magMeasurements);
     
-    //char measurementStr[80];
-    //snprintf(measurementStr, 80, "Magnetometer [uT]: X = %1.2f\tY = %1.2f\tZ = %1.2f\tHeading = %1.2f deg\r\n", magMeasurements[0], magMeasurements[1], magMeasurements[2], heading);
-    //putsUART1(measurementStr);
+    // char measurementStr[80];
+    // snprintf(measurementStr, 80, "Magnetometer [uT]: X = %1.2f\tY = %1.2f\tZ = %1.2f\tHeading = %1.2f deg\r\n", magMeasurements[0], magMeasurements[1], magMeasurements[2], heading);
+    // putsUART1(measurementStr);
 }
 
 void imuReadTempCb(bool success) {
@@ -204,7 +248,7 @@ void imuReadGyro(void) {
     putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localGyroMeasurements, 6, imuReadGyroCb);
 }
 
-bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3]) {
+bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3], bool remap) {
     static uint8_t measurementRegisterStart = ICM20948_GYRO_XOUT_H;
     
     bool status = 1;
@@ -223,6 +267,11 @@ bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurement
         rawGyroMeasurements[axis] = SWAP_BYTES(rawGyroMeasurements[axis]);
     }
     
+    // Remap and store in the buffer
+    if (remap) {
+        remapGyroAxes(rawGyroMeasurements, rawGyroMeasurements);
+    }
+    
     if (scaledGyroMeasurements) {
         imuScaleGyroMeasurements(rawGyroMeasurements, scaledGyroMeasurements);
     }
@@ -238,7 +287,7 @@ void imuReadAccel(void) {
     putsI2C1(I2C_IMU_GYRO_ADDR, &measurementRegisterStart, 1, (uint8_t*) localAccelMeasurements, 6, imuReadAccelCb);
 }
 
-bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3]) {
+bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3], bool remap) {
     static uint8_t measurementRegisterStart = ICM20948_ACCEL_XOUT_H;
     
     bool status = 1;
@@ -253,6 +302,11 @@ bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurem
     // Fix endianness
     for (uint8_t axis = 0; axis < 3; axis++) {
         rawAccelMeasurements[axis] = SWAP_BYTES(rawAccelMeasurements[axis]);
+    }
+    
+    // Remap and store in the buffer
+    if (remap) {
+        remapAccelAxes(rawAccelMeasurements, rawAccelMeasurements);
     }
 
     if (scaledAccelMeasurements) {
@@ -275,6 +329,36 @@ void imuReadMag(void) {
     putsI2C1(I2C_IMU_MAG_ADDR, &measurementStatusRegister, 1, &measurementStatus, 1, imuReadMagCb);
     
     // TODO: Check HOFL bit in measurementStatus for magnetic sensor overflow in callback and only update measurements if data is valid.
+}
+
+bool imuReadMagSync(int16_t rawMagMeasurements[3], float scaledMagMeasurements[3], bool remap) {
+    static uint8_t measurementRegisterStart = AK09916_XOUT_L;
+    
+    bool status = 1;
+    
+    // Reading measurements locks measured data until register ST2 is read.
+    status &= putsI2C1Sync(I2C_IMU_MAG_ADDR, &measurementRegisterStart, 1, (uint8_t*) rawMagMeasurements, 6);
+
+    // To unlock measurement registers after reading, status register ST2 has to be read. 
+    static uint8_t measurementStatusRegister = AK09916_ST2;
+    static uint8_t measurementStatus;
+    
+    status &= putsI2C1Sync(I2C_IMU_MAG_ADDR, &measurementStatusRegister, 1, &measurementStatus, 1);
+    
+    if (!status) {
+        return status;
+    }
+    
+    // Remap and store in the buffer
+    if (remap) {
+        remapMagAxes(rawMagMeasurements, rawMagMeasurements);
+    }
+
+    if (scaledMagMeasurements) {
+        imuScaleMagMeasurements(rawMagMeasurements, scaledMagMeasurements);
+    }
+
+    return status;
 }
 
 
@@ -485,7 +569,7 @@ bool imuCalibrateGyro() {
     while (numMeasurements < numSamples) {
         int16_t rawGyroMeasurements[3];
 
-        bool readStatus = imuReadGyroSync(rawGyroMeasurements, NULL);
+        bool readStatus = imuReadGyroSync(rawGyroMeasurements, NULL, false);
 
         if (!readStatus) {
             continue;
@@ -513,6 +597,10 @@ bool imuCalibrateGyro() {
     // The offsets have to be set in the +-1000 dps sensitivity range. Therefore,
     // we might have to scale it.
     float sensitivityScaling = gyroLSB / gyroLSBTable[GYRO_RANGE_1000DPS];
+    
+    char calibrationStr[40];
+    snprintf(calibrationStr, sizeof(calibrationStr), "Averages: %.2f, %.2f, %.2f\r\n", runningAverage[0], runningAverage[1], runningAverage[2]);
+    putsUART1(calibrationStr);
     
     for (uint8_t axis = 0; axis < 3; axis++) {
         gyroOffsets[axis] = (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
@@ -581,15 +669,22 @@ bool imuCalibrateAccel() {
     while (numMeasurements < numSamples) {
         int16_t rawAccelMeasurements[3];
 
-        bool readStatus = imuReadAccelSync(rawAccelMeasurements, NULL);
+        bool readStatus = imuReadAccelSync(rawAccelMeasurements, NULL, true);
 
         if (!readStatus) {
             continue;
         }
+        
+        float calibratedAccelMeasurements[3];
+        imuCalibrateAccelMeasurements(rawAccelMeasurements, calibratedAccelMeasurements);
+        
+        // Revert mapping to IMU frame
+        calibratedAccelMeasurements[0] = -calibratedAccelMeasurements[0];
+        calibratedAccelMeasurements[1] = -calibratedAccelMeasurements[1];
 
         // Incremental running average calculation
         for (uint8_t axis = 0; axis < 3; axis++) {
-            runningAverage[axis] = ((runningAverage[axis] * numMeasurements) + rawAccelMeasurements[axis])
+            runningAverage[axis] = ((runningAverage[axis] * numMeasurements) + calibratedAccelMeasurements[axis])
                                     / (numMeasurements + 1);
         }
 
@@ -612,6 +707,10 @@ bool imuCalibrateAccel() {
     
     // TODO: Magic factor of 2, that we are currently unsure where it stems from.
     sensitivityScaling *= 2;
+    
+    char calibrationStr[40];
+    snprintf(calibrationStr, sizeof(calibrationStr), "Averages: %.2f, %.2f, %.2f\r\n", runningAverage[0], runningAverage[1], runningAverage[2]);
+    putsUART1(calibrationStr);
     
     for (uint8_t axis = 0; axis < 3; axis++) {
         accelOffsets[axis] += (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
@@ -680,6 +779,18 @@ void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro)
     *scaledGyro = (float)(*rawGyro) / gyroLSB;
 }
 
+void imuScaleAccelMeasurementsFloat(float rawAccel[3], float scaledAccel[3]) 
+{
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        imuScaleAccelMeasurement(&rawAccel[axis], &scaledAccel[axis]);
+    }
+}
+
+void imuScaleAccelMeasurementFloat(float *rawAccel, float *scaledAccel)
+{
+    *scaledAccel = (*rawAccel) / (float)(accelLSB);
+}
+
 void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]) 
 {
     for (uint8_t axis = 0; axis < 3; axis++) {
@@ -704,25 +815,124 @@ void imuScaleMagMeasurement(int16_t *rawMag, float *scaledMag)
     *scaledMag = (float)(*rawMag) * AK09916_UT_PER_LSB;
 }
 
-
 void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp)
 {
     *scaledTemp = ((float)*rawTemp / ICM20948_LSB_PER_C) + 21;
 }
 
-float magnetometerToHeading(float scaledMag[3]) {
-    float headingRadians = atan2f(scaledMag[1], scaledMag[0]); // atan2(Y, X)
-    float headingDegrees = headingRadians * (180.0f / M_PI);
-
-    // Convert negative degrees (range -180 to +180) to compass range (0 to 360)
-    if (headingDegrees < 0) {
-        headingDegrees += 360.0f;
+void imuCalibrateAccelMeasurements(int16_t *rawAccel, float *scaledAccel)
+{
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        scaledAccel[axis] = ((float) rawAccel[axis] - imuAccelBias[axis]);
     }
-
-    return headingDegrees;
+    
+    scaledAccel[0] = imuAccelScale[0][0] * scaledAccel[0] + imuAccelScale[0][1] * scaledAccel[1] + imuAccelScale[0][2] * scaledAccel[2];
+    scaledAccel[1] = imuAccelScale[1][0] * scaledAccel[0] + imuAccelScale[1][1] * scaledAccel[1] + imuAccelScale[1][2] * scaledAccel[2];
+    scaledAccel[2] = imuAccelScale[2][0] * scaledAccel[0] + imuAccelScale[2][1] * scaledAccel[1] + imuAccelScale[2][2] * scaledAccel[2];    
 }
 
-float dpsToRadps(float dps)
+void imuCalibrateMagMeasurements(int16_t *rawMag, float *scaledMag)
 {
-    return dps * (M_PI / 180.0f);
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        scaledMag[axis] = ((float) rawMag[axis] - imuMagBias[axis]);
+    }
+    
+    scaledMag[0] = imuMagScale[0][0] * scaledMag[0] + imuMagScale[0][1] * scaledMag[1] + imuMagScale[0][2] * scaledMag[2];
+    scaledMag[1] = imuMagScale[1][0] * scaledMag[0] + imuMagScale[1][1] * scaledMag[1] + imuMagScale[1][2] * scaledMag[2];
+    scaledMag[2] = imuMagScale[2][0] * scaledMag[0] + imuMagScale[2][1] * scaledMag[1] + imuMagScale[2][2] * scaledMag[2];    
+}
+
+float magnetometerToHeading(float scaledMag[3]) {
+    float headingRadians = -atan2f(scaledMag[X], scaledMag[Y]);
+
+    headingRadians = wrapPi(headingRadians);
+
+    return headingRadians;
+}
+
+float magnetometerToTiltCompensatedHeading(float scaledMag[3], float pitchRad, float rollRad)
+{
+    // precompute sines & cosines
+    float pitchSin = sinf(pitchRad);
+    float pitchCos = cosf(pitchRad);
+    float rollSin  = sinf(rollRad);
+    float rollCos  = cosf(rollRad);
+    
+    // ?east? component (x-axis of horizontal plane)
+    float xHorizontal = scaledMag[Y] * pitchCos
+                      + scaledMag[Z] * pitchSin;
+
+    // ?north? component (y-axis of horizontal plane)
+    float yHorizontal = scaledMag[X] * rollCos
+                      - scaledMag[Y] * rollSin * pitchSin
+                      + scaledMag[Z] * rollSin * pitchCos;
+    
+    // heading = angle from north toward east
+    float headingRadians = -atan2f(yHorizontal, xHorizontal);
+    
+    // wrap into [?? ? +?)
+    headingRadians = wrapPi(headingRadians);
+
+    return headingRadians;
+}
+
+
+void imuGetAccelCalibrationData(void) {
+    putsUART1Sync("--- Accelerometer Calibration ---\r\n");
+    putsUART1Sync("Collecting a sample every 250ms.\r\n");
+    putsUART1Sync("Rotate the device to different positions and hold still.\r\n");
+    putsUART1Sync("Copy values for calibration for which you know only gravity acted on the accelerometer.\r\n");
+    putsUART1Sync("Endless loop, shutdown when finished.\r\n");
+    
+    __delay_ms(1000);
+    
+    int16_t rawAccelMeasurements[3];
+    char measurementStr[40];
+
+    uint32_t i = 0;
+    
+    while (true) {
+        bool status = imuReadAccelSync(rawAccelMeasurements, NULL, true);
+        if (!status) {
+            continue;
+        }
+    
+        i++;
+    
+        snprintf(measurementStr, sizeof(measurementStr), "%lu, %d, %d, %d\r\n", i, rawAccelMeasurements[0], rawAccelMeasurements[1], rawAccelMeasurements[2]);
+        //float scaledAccelMeasurements[3];
+        //imuCalibrateAccelMeasurements(rawAccelMeasurements, scaledAccelMeasurements);
+        //snprintf(measurementStr, sizeof(measurementStr), "%lu, %.2f, %.2f, %.2f\r\n", i, scaledAccelMeasurements[0], scaledAccelMeasurements[1], scaledAccelMeasurements[2]);
+        putsUART1Sync(measurementStr);
+        
+        __delay_ms(250);
+    }
+}
+
+void imuGetMagCalibrationData(void) {
+    putsUART1Sync("--- Magnetometer Calibration ---\r\n");
+    putsUART1Sync("Collecting samples -> rotate the device\r\n");
+    
+    __delay_ms(1000);
+    
+    const uint16_t numSamples = 2048;
+    
+    int16_t rawMagMeasurements[3];
+    char measurementStr[30];
+
+    uint16_t i = 0;
+    while (i < numSamples) {
+        bool status = imuReadMagSync(rawMagMeasurements, NULL, true);
+        if (!status) {
+            continue;
+        }
+        i++;
+        
+        snprintf(measurementStr, sizeof(measurementStr), "%d, %d, %d, %d\r\n", i, rawMagMeasurements[0], rawMagMeasurements[1], rawMagMeasurements[2]);
+        putsUART1Sync(measurementStr);
+        
+        __delay_ms(15);
+    }
+    
+    putsUART1Sync("Samples collected. Use provided values for calibration.\r\n");
 }

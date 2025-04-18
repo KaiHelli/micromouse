@@ -28,6 +28,7 @@
       <itemPath>mazeSolver.h</itemPath>
       <itemPath>odometry.h</itemPath>
       <itemPath>fastPID.h</itemPath>
+      <itemPath>constants.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -212,7 +213,7 @@
         <property key="oXC16ld-nostdlib" value="false"/>
         <property key="oXC16ld-stackguard" value="16"/>
         <property key="preprocessor-macros" value=""/>
-        <property key="remove-unused-sections" value="false"/>
+        <property key="remove-unused-sections" value="true"/>
         <property key="report-memory-usage" value="true"/>
         <property key="secure-eeprom" value="no_eeprom"/>
         <property key="secure-flash" value="no_flash"/>

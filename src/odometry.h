@@ -11,16 +11,30 @@
  * the corresponding definitions in the .c file are declared
  * without `static` so that there is only one instance of each.
  */
-extern volatile float velocity[3];       // x, y, z velocity (e.g., mm/s)
-extern volatile float position[3];       // x, y, z position (e.g., mm)
-extern volatile float yaw;               // Yaw angle in degrees or radians
+extern volatile float mouseVelocity[3];       // x, y, z velocity (e.g., mm/s)
+extern volatile float mousePosition[3];       // x, y, z position (e.g., mm)
+extern volatile float mouseAngle[3];          // pitch, roll, yaw, angles in degrees or radians
+
+// Helper enums to safely axxes the above arrays
+
+typedef enum {
+    X = 0,
+    Y,
+    Z
+} Axis_t;
+
+typedef enum {
+    PITCH = 0,
+    ROLL,
+    YAW
+} Angle_t;
 
 extern volatile uint64_t lastUpdateTimeUs;
 
 /**
  * @brief Setup odometry to trigger every 1ms, resets data.
  */
-void setupOdometry(Timer_t timer);
+void setupOdometry(Timer_t fastTimer, Timer_t slowTimer);
 
 /**
  * @brief Reset all integrated states.
@@ -28,11 +42,23 @@ void setupOdometry(Timer_t timer);
 void resetOdometry(void);
 
 /**
- * @brief Timer callback that triggers IMU measurement reads every 1 ms.
+ * @brief Timer callback that triggers IMU measurement reads (gyro / accel).
  *
- * Initiates asynchronous reads of gyro & accel from the IMU.
+ * This function is called by a timer; it initiates asynchronous
+ * reads of gyro & accel from the IMU. The completion of each read calls
+ * back to odometryIMUGyroUpdate() or odometryIMUAccelUpdate().
  */
-int16_t triggerIMUMeasurements(void);
+int16_t triggerGyroAccelUpdate();
+
+/**
+ * @brief Timer callback that triggers IMU measurement reads (mag) and updates
+ * quadrature encoder estimates.
+ *
+ * This function is called by a timer; it initiates asynchronous
+ * reads of mage from the IMU. The completion of each read calls
+ * back to odometryIMUMagUpdate().
+ */
+int16_t triggerEncoderMagUpdate();
 
 /**
  * @brief Integrates Z-gyro measurement to maintain yaw estimate.
@@ -49,9 +75,19 @@ void odometryIMUGyroUpdate(void);
 void odometryIMUAccelUpdate(void);
 
 /**
- * @brief Optional motor-encoder odometry fusion.
+ * @brief Integrates accelerometer data to maintain yaw headings.
+ *
+ * Called when new mag data are available.
  */
-void odometryMotorEncoderUpdate(void);
+void odometryIMUMagUpdate(void);
+
+/**
+ * @brief Integrates wheel encoder data to maintain yaw headings and position.
+ *
+ * Called when new wheel encoder data are available.
+ */
+void odometryEncoderUpdate(void);
+
 
 bool robotIsStationary(void);
 

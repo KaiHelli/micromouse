@@ -15,6 +15,7 @@
 #include "motors.h"
 #include "mouseController.h"
 #include "odometry.h"
+#include "constants.h"
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
@@ -42,28 +43,31 @@ int16_t printOdometry(void) {
     // TODO: print
     //extern volatile float velocity[3];       // x, y, z velocity (e.g., mm/s)
     //extern volatile float position[3];       // x, y, z position (e.g., mm)
-    //extern volatile float yaw;               // Yaw angle in degrees or radians
+    //extern volatile float angle[3];               // Yaw angle in degrees or radians
+    
+    snprintf(buffer, sizeof(buffer),
+         "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Pitch: %.2f deg, Roll: %.2f deg, Yaw: %.2f deg\r\n",
+         mouseVelocity[X], mouseVelocity[Y], mouseVelocity[Z],
+         mousePosition[X], mousePosition[Y], mousePosition[Z],
+         mouseAngle[PITCH]*RAD2DEG, mouseAngle[ROLL]*RAD2DEG, mouseAngle[YAW]*RAD2DEG);
     
     /*
     snprintf(buffer, sizeof(buffer),
-         "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Yaw: %.2f deg\r\n",
-         velocity[0], velocity[1], velocity[2],
-        position[0], position[1], position[2],
-         yaw);
-     */
-    
-    snprintf(buffer, sizeof(buffer),
-         "Left: %d, Right: %d, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Yaw: %.2f deg\r\n", 
-            getPositionInCounts(ENCODER_LEFT), 
-            getPositionInCounts(ENCODER_RIGHT), 
-            getPositionInDeg(ENCODER_LEFT), 
-            getPositionInDeg(ENCODER_RIGHT), 
-            getVelocityInDegPerSecond(ENCODER_LEFT), 
-            getVelocityInDegPerSecond(ENCODER_RIGHT), 
-            getEncoderYawDeg()
+         "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Yaw: %.2f dps, Lin Vel: %.2f mmps\r\n", 
+            getEncoderPositionCounts(ENCODER_LEFT), 
+            getEncoderPositionCounts(ENCODER_RIGHT), 
+            getEncoderPositionDeg(ENCODER_LEFT), 
+            getEncoderPositionDeg(ENCODER_RIGHT), 
+            getEncoderVelocityDegPerSec(ENCODER_LEFT), 
+            getEncoderVelocityDegPerSec(ENCODER_RIGHT),
+            getEncoderVelocityCountsPerSample(ENCODER_LEFT),
+            getEncoderVelocityCountsPerSample(ENCODER_RIGHT),
+            getEncoderYawRateDegPerSec(),
+            getEncoderLinearVelocityMmPerSec()
             );
+    */
     putsUART1(buffer);
-
+    
     //imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
     
     //char measurementStr[70];
@@ -97,8 +101,16 @@ void bootSetup() {
     oledSetup();    // Setup oled display
     
     imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
-    imuCalibrateGyro(); // Calibrate gyroscope.
-    imuCalibrateAccel(); // Calibrate accelerometer.
+    
+    __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
+    
+    //imuCalibrateAccel(); // Calibrate accelerometer.
+    //imuCalibrateGyro(); // Calibrate gyroscope.
+
+    //imuGetAccelCalibrationData();   // Output calibration data of accelerometer
+    //imuGetMagCalibrationData();   // Output calibration data of magnetometer
+    // For calibration -> remember to set current calibration to identity matrix and 0 bias beforehand)
+    
     
     initMotorsState();
     initMouseState();
@@ -107,7 +119,7 @@ void bootSetup() {
     registerSwitchCallback(SWITCH_1, toggleMotors);
     
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
-    initTimerInMs(TIMER_2, 2);  // high frequency 2ms timer interrupt for sensor readings and rtttl
+    initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
 
     //parseAllSongs();
     //playSong(SONG_MUPPETS, true, TIMER_2);
@@ -117,13 +129,15 @@ void bootSetup() {
     //registerTimerCallback(TIMER_1, moveForward);
     //registerTimerCallback(TIMER_3, moveForward);
 
-    setupOdometry(TIMER_2); // track odometry every 1ms
+    setupOdometry(TIMER_2, TIMER_1); // track odometry
     registerTimerCallback(TIMER_3, printOdometry);
 
     
     //steerMotors(30, 30);
-    //setMotorPower(MOTOR_LEFT, 50);
-    //SET_MOTOR_LEFT(50);
+    
+    //setMotorPower(MOTOR_LEFT, 52);    
+    //setMotorPower(MOTOR_RIGHT, 50);
+    //setMotorsStandbyState(false);
     
     // setTimerState(TIMER_3, 1);
     

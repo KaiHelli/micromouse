@@ -482,7 +482,7 @@ static int16_t songISR(void) {
     static uint32_t rtttlTimeCount = 0;
     
     // 1) First, increment the time counter.
-    rtttlTimeCount++;
+    rtttlTimeCount += 5;
     
     // 2) Check if we've reached the current note's duration.
     if (rtttlTimeCount >= rtttlNotes.notes[rtttlNotes.noteIndex].duration)

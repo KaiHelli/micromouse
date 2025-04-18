@@ -135,6 +135,7 @@ void oledUpdateMouse(Mouse* mouse){
     static uint8_t prev_row = 0, prev_col = 0;
     
     if(prev_row == mouse->row && prev_col == mouse->col){
+        //mouse didn't change position
         return;
     }
     
@@ -148,21 +149,21 @@ void oledUpdateMouse(Mouse* mouse){
     oledPushMouse(prev_row, prev_col);
 }
 
-void oledDrawCell(Cell cell,uint8_t row, uint8_t col) {
+void oledDrawCell(Cell* cell,uint8_t row, uint8_t col) {
     for (uint8_t i = 1; i < N; i++){
-        if(cell.wallTop){
+        if(cell->wallTop){
             oledSetPixel(CELL_WIDTH * row + X_OFFSET + i, CELL_WIDTH * (col + 1) + 1, 1);
         }
         
-        if(cell.wallBottom){
+        if(cell->wallBottom){
             oledSetPixel(CELL_WIDTH * row + X_OFFSET + i, CELL_WIDTH * col + 1, 1);
         }
         
-        if(cell.wallLeft){
+        if(cell->wallLeft){
             oledSetPixel(CELL_WIDTH * row + X_OFFSET + 1, CELL_WIDTH * col + i, 1);
         }
         
-        if(cell.wallRight){
+        if(cell->wallRight){
             oledSetPixel(CELL_WIDTH * (row+1) + X_OFFSET + 1, CELL_WIDTH * col + i, 1);
         }   
     }

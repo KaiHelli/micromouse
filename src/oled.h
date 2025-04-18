@@ -81,7 +81,7 @@ void oledUpdateMouse(Mouse* mouse);
  *
  * Draws the walls of a cell in the maze at the specified row and column.
  */
-void oledDrawCell(Cell cell,uint8_t row, uint8_t col);
+void oledDrawCell(Cell* cell,uint8_t row, uint8_t col);
 
 #endif	/* OLED_H */
 

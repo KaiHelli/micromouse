@@ -16,6 +16,7 @@
 #include "mouseController.h"
 #include "odometry.h"
 #include "constants.h"
+#include "move.h"
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
@@ -50,7 +51,6 @@ int16_t printOdometry(void) {
          mouseVelocity[X], mouseVelocity[Y], mouseVelocity[Z],
          mousePosition[X], mousePosition[Y], mousePosition[Z],
          mouseAngle[PITCH]*RAD2DEG, mouseAngle[ROLL]*RAD2DEG, mouseAngle[YAW]*RAD2DEG);
-    
     /*
     snprintf(buffer, sizeof(buffer),
          "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Yaw: %.2f dps, Lin Vel: %.2f mmps\r\n", 
@@ -68,11 +68,19 @@ int16_t printOdometry(void) {
     */
     putsUART1(buffer);
     
+    //imuCalibrateAccelMeasurements(rawAccelMeasurements, accelMeasurements);
     //imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
     
-    //char measurementStr[70];
-    //snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
-    //putsUART1(measurementStr);
+    
+    /*
+    float localAccelMeasurements[3];
+    imuCalibrateAccelMeasurements(rawAccelMeasurements, localAccelMeasurements);
+    imuScaleAccelMeasurementsFloat(localAccelMeasurements, localAccelMeasurements);
+    
+    char measurementStr[70];
+    snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", localAccelMeasurements[0], localAccelMeasurements[1], localAccelMeasurements[2]);
+    putsUART1(measurementStr);
+    */
 
     return 1;
 }
@@ -104,8 +112,8 @@ void bootSetup() {
     
     __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
     
-    //imuCalibrateAccel(); // Calibrate accelerometer.
-    //imuCalibrateGyro(); // Calibrate gyroscope.
+    imuCalibrateAccel(); // Calibrate accelerometer.
+    imuCalibrateGyro(); // Calibrate gyroscope.
 
     //imuGetAccelCalibrationData();   // Output calibration data of accelerometer
     //imuGetMagCalibrationData();   // Output calibration data of magnetometer

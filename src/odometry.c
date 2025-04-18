@@ -5,6 +5,7 @@
 #include "motorEncoders.h"
 #include "IOconfig.h"
 #include "constants.h"
+#include "uart.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -177,7 +178,18 @@ void odometryIMUAccelUpdate(void)
     // Scale raw accelerometer to g's:
     float accel_g[3];
     
-    imuScaleAccelMeasurements(rawAccelMeasurements, accel_g);
+    imuCalibrateAccelMeasurements(rawAccelMeasurements, accel_g);
+    imuScaleAccelMeasurementsFloat(accel_g, accel_g);
+    
+    /*
+    static uint32_t i = 0;
+    if (i % 20 == 0) {
+        char measurementStr[70];
+        snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accel_g[0], accel_g[1], accel_g[2]);
+        putsUART1(measurementStr);
+    }
+    i++;
+    */
     
     // Calculate roll and pitch estimates
     float roll = -atan2f(accel_g[X], accel_g[Z]); // atan(x/z)
@@ -200,6 +212,7 @@ void odometryIMUAccelUpdate(void)
     mouseAngle[YAW] = localAngle[YAW];
     
     // Zero-Velocity Update (ZUPT)
+    /*
     if(robotIsStationary()) {
         mouseVelocity[0] = 0.0f;
         mouseVelocity[1] = 0.0f;
@@ -209,10 +222,32 @@ void odometryIMUAccelUpdate(void)
         return;
     }
     
-    // Convert x,y from g to m/s^2. If your robot runs natively in mm/s^2,
-    // scale accordingly. For example in m/s^2:
-    float accelX_mm_s2 = accel_g[X] * G_TO_MM_S2;
-    float accelY_mm_s2 = accel_g[Y] * G_TO_MM_S2;
+    // GRAVITY COMPENSATION  (all math done in g?s)
+    //   body?frame gravity from current roll & pitch:
+    //        g_b = [?sin?,  sin?·cos?,  cos?·cos?]
+    float rollSin = sinf(mouseAngle[ROLL]);
+    float rollCos = cosf(mouseAngle[ROLL]);
+    float pitchSin = sinf(mouseAngle[PITCH]);
+    float pitchCos = cosf(mouseAngle[PITCH]);
+
+    float g_bx = -pitchSin;
+    float g_by =  rollSin * pitchCos;
+    //float g_bz =  rollCos * pitchCos;
+
+    // specific force (still in g?s)
+    float f_gx = accel_g[X] - g_bx;
+    float f_gy = accel_g[Y] - g_by;
+    
+    char buf[40];
+    snprintf(buf, sizeof(buf), "f_gx=%f  f_gy=%f\r\n", f_gx, f_gy);
+    putsUART1(buf);
+
+    // Z is not used for 2?D odometry, but you could keep it:
+    // float f_gz = a_g[Z] - g_bz;
+
+    // Convert x,y from g to m/s^2.
+    float accelX_mm_s2 = f_gx * G_TO_MM_S2;
+    float accelY_mm_s2 = f_gy * G_TO_MM_S2;
     
     // Transform accelerations from local robot frame to global frame using yaw.
     float cosYaw = cosf(mouseAngle[YAW]);
@@ -233,6 +268,7 @@ void odometryIMUAccelUpdate(void)
     // Integrate velocity to get position in global frame (x,y):
     mousePosition[0] += mouseVelocity[0] * dt;    // x
     mousePosition[1] += mouseVelocity[1] * dt;    // y
+    */
 }
 
 
@@ -247,18 +283,18 @@ void odometryIMUMagUpdate(void) {
     
     // Get magnetometer heading using pitch and roll estimates
     //float yaw = magnetometerToHeading(scaledMagMeasurements);
-    float yaw = magnetometerToTiltCompensatedHeading(scaledMagMeasurements, mouseAngle[PITCH], mouseAngle[ROLL]);
+    float magYaw = magnetometerToTiltCompensatedHeading(scaledMagMeasurements, mouseAngle[PITCH], mouseAngle[ROLL]);
 
     // Initialize estimates
     if (initMagEstimates)
     {
-        mouseAngle[YAW] = yaw;
+        mouseAngle[YAW] = magYaw;
         initMagEstimates = false;
     }
     
     // Fuse heading with estimated yaw of gyroscope
     const float alpha = 0.98f;
-    localAngle[YAW] = fuseAngle(localAngle[YAW], yaw, alpha);
+    localAngle[YAW] = fuseAngle(localAngle[YAW], magYaw, alpha);
     mouseAngle[YAW] = localAngle[YAW];
 }
 
@@ -280,13 +316,16 @@ void odometryEncoderUpdate(void)
         return;
     }
     
-    float dt = (float)deltaUs * 1.0e-6f;                   //  s
-    float yawRateBody = getEncoderYawRateRadPerSec();   // around body?z
-
+    float dt = (float)deltaUs * 1.0e-6f;
+    float yawRateBody;
+    float linearVelocityBody; 
+    
+    getEncoderLinearVelocityAndYawRate(&linearVelocityBody, &yawRateBody);
+    
     /* ---- compensate for tilt ---------------------------------------- */
     // float cosP = cosf(mouseAngle[PITCH]);
     // float cosR = cosf(mouseAngle[ROLL]);
-    // float yawRateWorld = yawRateBody * cosP * cosR;     // around world?z
+    // float yawRateWorld = yawRateBody * cosP * cosR;     // around world z
     /* ------------------------------------------------------------------ */
 
     /* integrate only once, starting from the cached value */
@@ -300,6 +339,26 @@ void odometryEncoderUpdate(void)
     
     /* save for the *next* cycle */
     yawAtLastEncUpdate = mouseAngle[YAW];
+    
+    
+    //mouseVelocity[Y] = linearVelocityBody;
+    //mousePosition[Y] += mouseVelocity[Y] * dt;
+    
+    /* ---------- NEW: transform encoder velocity to world frame ---------- */
+    float yaw = mouseAngle[YAW];      // current CW yaw
+    float cosYaw = cosf(yaw);
+    float sinYaw = sinf(yaw);
+
+    /* body?frame vel: +Y = forward, +X = right  (v_bx = 0 here)   */
+    float vx_global =  linearVelocityBody * sinYaw;   // +X world
+    float vy_global =  linearVelocityBody * cosYaw;   // +Y world
+
+    mouseVelocity[X] = vx_global;
+    mouseVelocity[Y] = vy_global;
+
+    /* integrate to get global position */
+    mousePosition[X] += vx_global * dt;
+    mousePosition[Y] += vy_global * dt;
     
     //uint64_t elapsedTimeInUs = getTimeInUs() - currentTimeUs;
     //char elapsedStr[30];

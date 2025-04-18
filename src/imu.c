@@ -782,7 +782,7 @@ void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro)
 void imuScaleAccelMeasurementsFloat(float rawAccel[3], float scaledAccel[3]) 
 {
     for (uint8_t axis = 0; axis < 3; axis++) {
-        imuScaleAccelMeasurement(&rawAccel[axis], &scaledAccel[axis]);
+        imuScaleAccelMeasurementFloat(&rawAccel[axis], &scaledAccel[axis]);
     }
 }
 
@@ -822,24 +822,28 @@ void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp)
 
 void imuCalibrateAccelMeasurements(int16_t *rawAccel, float *scaledAccel)
 {
+    float tempAccel[3];
+    
     for (uint8_t axis = 0; axis < 3; axis++) {
-        scaledAccel[axis] = ((float) rawAccel[axis] - imuAccelBias[axis]);
+        tempAccel[axis] = ((float) rawAccel[axis] - imuAccelBias[axis]);
     }
     
-    scaledAccel[0] = imuAccelScale[0][0] * scaledAccel[0] + imuAccelScale[0][1] * scaledAccel[1] + imuAccelScale[0][2] * scaledAccel[2];
-    scaledAccel[1] = imuAccelScale[1][0] * scaledAccel[0] + imuAccelScale[1][1] * scaledAccel[1] + imuAccelScale[1][2] * scaledAccel[2];
-    scaledAccel[2] = imuAccelScale[2][0] * scaledAccel[0] + imuAccelScale[2][1] * scaledAccel[1] + imuAccelScale[2][2] * scaledAccel[2];    
+    scaledAccel[0] = imuAccelScale[0][0] * tempAccel[0] + imuAccelScale[0][1] * tempAccel[1] + imuAccelScale[0][2] * tempAccel[2];
+    scaledAccel[1] = imuAccelScale[1][0] * tempAccel[0] + imuAccelScale[1][1] * tempAccel[1] + imuAccelScale[1][2] * tempAccel[2];
+    scaledAccel[2] = imuAccelScale[2][0] * tempAccel[0] + imuAccelScale[2][1] * tempAccel[1] + imuAccelScale[2][2] * tempAccel[2];    
 }
 
 void imuCalibrateMagMeasurements(int16_t *rawMag, float *scaledMag)
 {
+    float tempMag[3];
+    
     for (uint8_t axis = 0; axis < 3; axis++) {
-        scaledMag[axis] = ((float) rawMag[axis] - imuMagBias[axis]);
+        tempMag[axis] = ((float) rawMag[axis] - imuMagBias[axis]);
     }
     
-    scaledMag[0] = imuMagScale[0][0] * scaledMag[0] + imuMagScale[0][1] * scaledMag[1] + imuMagScale[0][2] * scaledMag[2];
-    scaledMag[1] = imuMagScale[1][0] * scaledMag[0] + imuMagScale[1][1] * scaledMag[1] + imuMagScale[1][2] * scaledMag[2];
-    scaledMag[2] = imuMagScale[2][0] * scaledMag[0] + imuMagScale[2][1] * scaledMag[1] + imuMagScale[2][2] * scaledMag[2];    
+    scaledMag[0] = imuMagScale[0][0] * tempMag[0] + imuMagScale[0][1] * tempMag[1] + imuMagScale[0][2] * tempMag[2];
+    scaledMag[1] = imuMagScale[1][0] * tempMag[0] + imuMagScale[1][1] * tempMag[1] + imuMagScale[1][2] * tempMag[2];
+    scaledMag[2] = imuMagScale[2][0] * tempMag[0] + imuMagScale[2][1] * tempMag[1] + imuMagScale[2][2] * tempMag[2];    
 }
 
 float magnetometerToHeading(float scaledMag[3]) {
@@ -870,7 +874,7 @@ float magnetometerToTiltCompensatedHeading(float scaledMag[3], float pitchRad, f
     // heading = angle from north toward east
     float headingRadians = -atan2f(yHorizontal, xHorizontal);
     
-    // wrap into [?? ? +?)
+    // wrap into [-pi, +pi)
     headingRadians = wrapPi(headingRadians);
 
     return headingRadians;
@@ -900,6 +904,7 @@ void imuGetAccelCalibrationData(void) {
         i++;
     
         snprintf(measurementStr, sizeof(measurementStr), "%lu, %d, %d, %d\r\n", i, rawAccelMeasurements[0], rawAccelMeasurements[1], rawAccelMeasurements[2]);
+        
         //float scaledAccelMeasurements[3];
         //imuCalibrateAccelMeasurements(rawAccelMeasurements, scaledAccelMeasurements);
         //snprintf(measurementStr, sizeof(measurementStr), "%lu, %.2f, %.2f, %.2f\r\n", i, scaledAccelMeasurements[0], scaledAccelMeasurements[1], scaledAccelMeasurements[2]);

@@ -29,6 +29,7 @@
       <itemPath>odometry.h</itemPath>
       <itemPath>fastPID.h</itemPath>
       <itemPath>constants.h</itemPath>
+      <itemPath>move.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -48,7 +49,6 @@
       <itemPath>uart.c</itemPath>
       <itemPath>pwm.c</itemPath>
       <itemPath>motorEncoders.c</itemPath>
-      <itemPath>adc.c</itemPath>
       <itemPath>dma.c</itemPath>
       <itemPath>clock.c</itemPath>
       <itemPath>i2c.c</itemPath>
@@ -65,6 +65,8 @@
       <itemPath>switches.c</itemPath>
       <itemPath>odometry.c</itemPath>
       <itemPath>fastPID.c</itemPath>
+      <itemPath>adc.c</itemPath>
+      <itemPath>move.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
@@ -144,7 +146,7 @@
         <property key="oXC16gcc-sfr-warn" value="false"/>
         <property key="oXC16gcc-smar-io-lvl" value="1"/>
         <property key="oXC16gcc-smart-io-fmt" value=""/>
-        <property key="optimization-level" value="2"/>
+        <property key="optimization-level" value="s"/>
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
         <property key="preprocessor-macros" value=""/>
@@ -1340,6 +1342,8 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-157ff"/>
         <property key="poweroptions.powerenable" value="false"/>
+        <property key="programmerToGoFilePath"
+                  value="/Users/kai.helli/MPLABXProjects/micromouseLC.X/src/debug/default/micromouseLC_ptg"/>
         <property key="programmerToGoImageName" value="micromouseLC_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>

@@ -75,7 +75,7 @@ uint8_t initMouseState() {
     
     fastPidInit(&pid);
     //status &= fastPidConfigure(&pid, 0.6f, 0.006f, 0.0f, 3.3333f, 8, true);
-    status &= fastPidConfigure(&pid, 0.8f, 0.0f, 0.0f, 100.0f, 8, true);
+    status &= fastPidConfigure(&pid, 0.8f, 0.0f, 0.0f, 0.0f, 100.0f, 8, true);
     status &= fastPidSetOutputRange(&pid, -100, 100);
             
     if (!status) {

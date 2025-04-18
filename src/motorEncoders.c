@@ -21,6 +21,7 @@ int32_t rotationCount2; // QEI2 (ENCODER_RIGHT)
 //--------------------------------------------------------------------------
 //volatile float currentVelocityDegPerSec[2] = {0.0f, 0.0f};
 volatile float currentVelocityRadPerSec[2] = {0.0f, 0.0f};
+volatile float currentVelocityMmPerSec[2] = {0.0f, 0.0f};
 volatile int32_t currentVelocityCounts[2]  = {0, 0};
 
 // Global storage for last encoder positions and the time at which they
@@ -195,6 +196,7 @@ void updateEncoderVelocities(void)
         
         currentVelocityCounts[ENCODER_LEFT] = deltaCounts;
         currentVelocityRadPerSec[ENCODER_LEFT] = alpha * newVelocityRad + (1 - alpha) * currentVelocityRadPerSec[ENCODER_LEFT];
+        currentVelocityMmPerSec[ENCODER_LEFT] = currentVelocityRadPerSec[ENCODER_LEFT] * WHEEL_RADIUS_MM;
         //currentVelocityDegPerSec[ENCODER_LEFT] = alpha * newVelocityDeg + (1 - alpha) * currentVelocityDegPerSec[ENCODER_LEFT];
         
         lastEncoderPosition[ENCODER_LEFT] = leftPos;
@@ -211,6 +213,7 @@ void updateEncoderVelocities(void)
         
         currentVelocityCounts[ENCODER_RIGHT] = deltaCounts;
         currentVelocityRadPerSec[ENCODER_RIGHT] = alpha * newVelocityRad + (1 - alpha) * currentVelocityRadPerSec[ENCODER_RIGHT];
+        currentVelocityMmPerSec[ENCODER_RIGHT] = currentVelocityRadPerSec[ENCODER_RIGHT] * WHEEL_RADIUS_MM;
         //currentVelocityDegPerSec[ENCODER_RIGHT] = alpha * newVelocityDeg + (1 - alpha) * currentVelocityDegPerSec[ENCODER_RIGHT];
 
         lastEncoderPosition[ENCODER_RIGHT] = rightPos;
@@ -235,7 +238,7 @@ float getEncoderVelocityDegPerSec(MotorEncoder_t encoder)
 
 float getEncoderVelocityMmPerSec(MotorEncoder_t encoder)
 {
-    return currentVelocityRadPerSec[encoder] * WHEEL_RADIUS_MM;
+    return currentVelocityMmPerSec[encoder];
 }
 
 float getEncoderYawRateRadPerSec(void)

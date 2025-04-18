@@ -112,34 +112,31 @@ void bootSetup() {
     
     __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
     
-    imuCalibrateAccel(); // Calibrate accelerometer.
-    imuCalibrateGyro(); // Calibrate gyroscope.
+    //imuCalibrateAccel(); // Calibrate accelerometer.
+    //imuCalibrateGyro(); // Calibrate gyroscope.
 
     //imuGetAccelCalibrationData();   // Output calibration data of accelerometer
     //imuGetMagCalibrationData();   // Output calibration data of magnetometer
     // For calibration -> remember to set current calibration to identity matrix and 0 bias beforehand)
-    
-    
-    initMotorsState();
-    initMouseState();
     
     initSwitch1();     // Initialize switch 1 for interrupts
     registerSwitchCallback(SWITCH_1, toggleMotors);
     
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
     initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
+    initTimerInMs(TIMER_3, 300); // 100ms timer interrupt for testing
 
+    initMotorsState(TIMER_1, 100.0f);
+    initMouseState();
+    
     //parseAllSongs();
     //playSong(SONG_MUPPETS, true, TIMER_2);
-    
-    initTimerInMs(TIMER_3, 300); // 100ms timer interrupt for testing
     
     //registerTimerCallback(TIMER_1, moveForward);
     //registerTimerCallback(TIMER_3, moveForward);
 
     setupOdometry(TIMER_2, TIMER_1); // track odometry
-    registerTimerCallback(TIMER_3, printOdometry);
-
+    //registerTimerCallback(TIMER_3, printOdometry);
     
     //steerMotors(30, 30);
     
@@ -152,6 +149,13 @@ void bootSetup() {
     // initTimerInMs(TIMER_32_COMBINED, 250); //creates a 10ms timer interrupt
     // setTimerState(TIMER_32_COMBINED, 1);
 
+    //__delay_ms(2000);
+    
+    setMotorSpeedLeft(100);
+    setMotorSpeedRight(100);
+    
+    //turnDegrees(TIMER_1, 90, 50, 100.0f);
+    
     //for (uint8_t i = 0; i < 6; i++) {
     //    int8_t degrees = i % 2 == 0 ? 90 : -90;
     //    turnDegrees(TIMER_1, degrees, 50);
@@ -164,6 +168,8 @@ void bootSetup() {
     LED3 = LEDOFF;
     LED4 = LEDOFF;
     LED5 = LEDOFF;
+    
+    //while (1) {}
 }
 
 void bootReset() {

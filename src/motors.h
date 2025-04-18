@@ -1,5 +1,6 @@
 #ifndef MOTORS_H
 #define MOTORS_H
+
 #include "pwm.h"
 #include "IOconfig.h"
 #include "timers.h"
@@ -24,8 +25,13 @@ typedef enum {
     MOTOR_RIGHT     // Motor B
 } Motor_t;
 
-void initMotorsState(void);
-    
+void initMotorsState(Timer_t timer, float pid_hz);
+
+
+void setMotorSpeedLeft(int16_t mmPerSec);
+
+void setMotorSpeedRight(int16_t mmPerSec);
+
 void setMotorsStandbyState(bool state);
 
 void toggleMotorsStandby(void);

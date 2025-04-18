@@ -12,10 +12,76 @@
 #include "timers.h"
 #include "fastPID.h"
 #include "uart.h"
+#include "motorEncoders.h"
 
-void initMotorsState(void) {
+#define WHEEL_PID_KP  0.45f
+#define WHEEL_PID_KI  1.0f
+#define WHEEL_PID_KD  0.0f
+#define WHEEL_PID_KF  0.183f
+#define WHEEL_PID_BC  0.0003f
+
+static FastPid pidL, pidR;
+static float motorSpeedLeft = 0;
+static float motorSpeedRight = 0;
+
+static int16_t wheelPidStep(void)
+{
+    // Don't control if motors are in standby
+    // TODO: Reads latch... correct?
+    if (!M_STDBY) {
+        return 1;
+    }
+    
+    float vLeft = getEncoderVelocityMmPerSec(ENCODER_LEFT);
+    float vRight = getEncoderVelocityMmPerSec(ENCODER_RIGHT);
+        
+    int16_t pLeft = fastPidStep(&pidL, (int16_t) (motorSpeedLeft),  (int16_t) (vLeft));
+    int16_t pRight = fastPidStep(&pidR, (int16_t) (motorSpeedRight), (int16_t) (vRight));
+
+    static uint16_t i = 0;
+    
+    if (i % 10 == 0) {
+        char buf[100];
+        snprintf(buf, sizeof(buf), "Left: sp %d, is %d, ctl %d | Right: sp %d, is %d, ctl %d\r\n", (int16_t) (motorSpeedLeft * 10), (int16_t) (vLeft * 10), pLeft, (int16_t) (motorSpeedRight * 10), (int16_t) (vRight * 10), pRight);
+        putsUART1(buf);
+    }
+    i++;
+    
+    setMotorPower(MOTOR_LEFT,  pLeft);
+    setMotorPower(MOTOR_RIGHT, pRight);
+    
+    return 1;
+}
+
+void initMotorsState(Timer_t timer, float pid_hz) {
     // Set motors to standby on startup
     setMotorsStandbyState(true);
+    
+    fastPidInit(&pidL);  
+    fastPidInit(&pidR);
+    fastPidConfigure(&pidL, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, pid_hz, 8, true);
+    fastPidConfigure(&pidR, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, pid_hz, 8, true);
+    fastPidSetOutputRange(&pidL, -100, 100);
+    fastPidSetOutputRange(&pidR, -100, 100);
+    fastPidSetAntiWindup(&pidL, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
+    fastPidSetAntiWindup(&pidR, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
+    
+    if (fastPidHasConfigError(&pidL) || fastPidHasConfigError(&pidR)) {
+        putsUART1("Failed to setup PIDs for motor control.\r\n");
+        return;
+    }
+    
+    registerTimerCallback(timer, wheelPidStep);
+}
+
+void setMotorSpeedLeft(int16_t mmPerSec)
+{
+    motorSpeedLeft = mmPerSec;
+}
+
+void setMotorSpeedRight(int16_t mmPerSec)
+{
+    motorSpeedRight = mmPerSec;
 }
 
 void setMotorsStandbyState(bool state) {

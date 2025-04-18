@@ -12,6 +12,7 @@ static void fastPidSetConfigError(FastPid *pid) {
     pid->pParameter = 0;
     pid->iParameter = 0;
     pid->dParameter = 0;
+    pid->fParameter = 0;
 }
 
 /*
@@ -48,8 +49,11 @@ void fastPidInit(FastPid *pid) {
     pid->pParameter     = 0;
     pid->iParameter     = 0;
     pid->dParameter     = 0;
+    pid->fParameter     = 0;
     pid->outputMax      = 0;
     pid->outputMin      = 0;
+    pid->awMode         = FASTPID_AW_NONE;
+    pid->bcParameter    = 0;
     pid->configError    = false;
 
     pid->lastSetpoint   = 0;
@@ -75,7 +79,7 @@ void fastPidClear(FastPid *pid) {
 /*
  * Configure the PID controller all at once with gains, loop frequency, output bits, and sign.
  */
-bool fastPidConfigure(FastPid *pid, float kp, float ki, float kd, float hz, int bits, bool sign) {
+bool fastPidConfigure(FastPid *pid, float kp, float ki, float kd, float kf, float hz, int bits, bool sign) {
     if (pid == NULL) {
         return false;
     }
@@ -83,7 +87,7 @@ bool fastPidConfigure(FastPid *pid, float kp, float ki, float kd, float hz, int 
     fastPidClear(pid);
     pid->configError = false;
 
-    fastPidSetCoefficients(pid, kp, ki, kd, hz);
+    fastPidSetCoefficients(pid, kp, ki, kd, kf, hz);
     fastPidSetOutputConfig(pid, bits, sign);
 
     // Return the overall config status
@@ -95,15 +99,17 @@ bool fastPidConfigure(FastPid *pid, float kp, float ki, float kd, float hz, int 
  *   kp = proportional gain
  *   ki = integral gain
  *   kd = derivative gain
+ *   kf = feed-forward gain
  * The code uses 1/hz for the integral term and hz for the derivative term.
  */
-bool fastPidSetCoefficients(FastPid *pid, float kp, float ki, float kd, float hz) {
+bool fastPidSetCoefficients(FastPid *pid, float kp, float ki, float kd, float kf, float hz) {
     if (pid == NULL) {
         return false;
     }
     pid->pParameter = fastPidFloatToParam(pid, kp);
     pid->iParameter = fastPidFloatToParam(pid, ki / hz);
     pid->dParameter = fastPidFloatToParam(pid, kd * hz);
+    pid->fParameter = fastPidFloatToParam(pid, kf);
 
     return !pid->configError;
 }
@@ -175,6 +181,11 @@ int16_t fastPidStep(FastPid *pid, int16_t setpoint, int16_t feedback) {
     int32_t proportionalTerm = 0;
     int32_t integralTerm     = 0;
     int32_t derivativeTerm   = 0;
+    int32_t feedForwardTerm  = 0;
+    
+    // Remember ?I so we can undo it if output is saturated
+    int64_t  integIncr = 0;                
+
 
     // Proportional
     if (pid->pParameter != 0) {
@@ -186,7 +197,8 @@ int16_t fastPidStep(FastPid *pid, int16_t setpoint, int16_t feedback) {
     if (pid->iParameter != 0) {
         // Accumulate integral in integralSum (64-bit to avoid overflow).
         // error is int32, iParameter is uint32 -> multiply -> int64
-        pid->integralSum += (int64_t)error * (int64_t)pid->iParameter;
+        integIncr        = (int64_t)error * (int64_t)pid->iParameter;
+        pid->integralSum += integIncr;
 
         // Limit sum to 32-bit signed to avoid overflow
         if (pid->integralSum > INTEG_MAX) {
@@ -217,9 +229,15 @@ int16_t fastPidStep(FastPid *pid, int16_t setpoint, int16_t feedback) {
         pid->lastSetpoint = setpoint;
         pid->lastError    = error;
     }
+    
+    if (pid->fParameter != 0) {
+        feedForwardTerm = (int32_t)pid->fParameter * (int32_t)setpoint;
+    }
 
     // Combine P, I, D terms (up to 34-bit internally)
-    int64_t output = (int64_t)proportionalTerm + (int64_t)integralTerm + (int64_t)derivativeTerm;
+    int64_t pidOnly      = (int64_t)proportionalTerm + (int64_t)integralTerm + (int64_t)derivativeTerm;
+    int64_t unsatOutput  = pidOnly + (int64_t)feedForwardTerm;
+    int64_t output       = unsatOutput;
 
     // Saturate output if beyond configured range
     if (output > pid->outputMax) {
@@ -228,6 +246,31 @@ int16_t fastPidStep(FastPid *pid, int16_t setpoint, int16_t feedback) {
         output = pid->outputMin;
     }
 
+    // Clamp Integral correction:
+    if (pid->awMode == FASTPID_AW_CLAMP && pid->iParameter != 0) {
+        bool satHigh = (output == pid->outputMax);
+        bool satLow  = (output == pid->outputMin);
+
+        // if controller is saturated and error pushes further into saturation,
+        // cancel the integrator increment applied this cycle
+        if ((satHigh && error > 0) || (satLow && error < 0)) {
+            pid->integralSum -= integIncr;
+
+            /* re?limit after removal in case bounds were previously hit */
+            if (pid->integralSum > INTEG_MAX)      pid->integralSum = INTEG_MAX;
+            else if (pid->integralSum < INTEG_MIN) pid->integralSum = INTEG_MIN;
+        }
+    }
+    
+    // Back-Calculation Integral correction:  ?I = Kt · (u_sat ? u_unsat)  (FF auto?cancels)
+    if (pid->awMode == FASTPID_AW_BACKCALC && pid->bcParameter != 0) {
+        int64_t trackingErr = output - unsatOutput;
+        pid->integralSum   += (int64_t)pid->bcParameter * trackingErr;
+
+        if (pid->integralSum > INTEG_MAX)      pid->integralSum = INTEG_MAX;
+        else if (pid->integralSum < INTEG_MIN) pid->integralSum = INTEG_MIN;
+    }
+    
     // Convert back to int16 from the fixed-point representation
     // Right-shift by PARAM_SHIFT, applying half-bit rounding
     int16_t result = (int16_t)(output >> PARAM_SHIFT);
@@ -250,4 +293,17 @@ bool fastPidHasConfigError(FastPid *pid) {
         return true;
     }
     return pid->configError;
+}
+
+bool fastPidSetAntiWindup(FastPid *pid, FastPidAntiWindup mode, float bcGain) {
+    if (pid == NULL) { return false; }
+
+    pid->awMode = mode;
+
+    if (mode == FASTPID_AW_BACKCALC) {
+        pid->bcParameter = fastPidFloatToParam(pid, bcGain);
+    } else {
+        pid->bcParameter = 0;
+    }
+    return !pid->configError;
 }

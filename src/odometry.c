@@ -109,10 +109,10 @@ static inline float wrapPi(float angle)
 
 /**
  * Fuse two angles (prev and measured) with a complementary filter,
- * wrapping the error over the ±? boundary and keeping the result in [0?2?).
+ * wrapping the error over the ±pi boundary and keeping the result in [-pi, pi).
  */
 static float fuseAngle(float prev, float measured, float alpha) {
-    // 1) short?way signed error in (???+?]
+    // 1) short way signed error in (pi, +pi]
     float err = measured - prev;
     if      (err >  M_PI) err -= 2.0f * M_PI;
     else if (err < -M_PI) err += 2.0f * M_PI;
@@ -155,7 +155,7 @@ void odometryIMUGyroUpdate(void)
     for (uint8_t axis = 0; axis < 3; axis++) {
         localAngle[axis] = mouseAngle[axis] + angles_dps[axis] * dt * DEG2RAD; // TODO!
         
-        // Wrap into [????)
+        // Wrap into [-pi, pi)
         localAngle[axis] = wrapPi(localAngle[axis]);
     }
 }
@@ -197,7 +197,9 @@ void odometryIMUAccelUpdate(void)
     
     // Initialize estimates
     if (initAccelEstimates) {
+        localAngle[PITCH] = pitch;
         mouseAngle[PITCH] = pitch;
+        localAngle[ROLL] = roll;
         mouseAngle[ROLL] = roll;
         
         initAccelEstimates = false;
@@ -288,6 +290,7 @@ void odometryIMUMagUpdate(void) {
     // Initialize estimates
     if (initMagEstimates)
     {
+        localAngle[YAW] = magYaw;
         mouseAngle[YAW] = magYaw;
         initMagEstimates = false;
     }

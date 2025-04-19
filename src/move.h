@@ -13,12 +13,12 @@
  * Registers a timer callback on the stated timer to check for turn completion
  * periodically.
  */
-void turnDegrees(Timer_t timer, int16_t degrees, uint8_t powerInPercent);
+void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float timer_hz);
 
 /**
  * @brief TODO
  */
-void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent);
+void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent, float timer_hz);
 
 #endif	/* MOVE_H */
 

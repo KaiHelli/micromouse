@@ -112,8 +112,8 @@ void bootSetup() {
     
     __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
     
-    //imuCalibrateAccel(); // Calibrate accelerometer.
-    //imuCalibrateGyro(); // Calibrate gyroscope.
+    imuCalibrateAccel(); // Calibrate accelerometer.
+    imuCalibrateGyro(); // Calibrate gyroscope.
 
     //imuGetAccelCalibrationData();   // Output calibration data of accelerometer
     //imuGetMagCalibrationData();   // Output calibration data of magnetometer
@@ -145,14 +145,10 @@ void bootSetup() {
     //setTimerState(TIMER_3, 1);
     // initTimerInMs(TIMER_32_COMBINED, 250); //creates a 10ms timer interrupt
     // setTimerState(TIMER_32_COMBINED, 1);
-
+    
     __delay_ms(2000);
     
-    setMotorSpeedLeft(100);
-    setMotorSpeedRight(100);
-    setMotorsStandbyState(false);
-    
-    //turnDegrees(TIMER_1, 90, 50, 100.0f);
+    //turnDegrees(TIMER_1, 90, 5, 100.0f);
     
     //for (uint8_t i = 0; i < 6; i++) {
     //    int8_t degrees = i % 2 == 0 ? 90 : -90;

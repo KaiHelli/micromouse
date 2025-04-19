@@ -256,13 +256,13 @@ int16_t fastPidStep(FastPid *pid, int16_t setpoint, int16_t feedback) {
         if ((satHigh && error > 0) || (satLow && error < 0)) {
             pid->integralSum -= integIncr;
 
-            /* re?limit after removal in case bounds were previously hit */
+            /* relimit after removal in case bounds were previously hit */
             if (pid->integralSum > INTEG_MAX)      pid->integralSum = INTEG_MAX;
             else if (pid->integralSum < INTEG_MIN) pid->integralSum = INTEG_MIN;
         }
     }
     
-    // Back-Calculation Integral correction:  ?I = Kt · (u_sat ? u_unsat)  (FF auto?cancels)
+    // Back-Calculation Integral correction:  deltaI = Kt · (u_sat - u_unsat)  (FF auto-cancels)
     if (pid->awMode == FASTPID_AW_BACKCALC && pid->bcParameter != 0) {
         int64_t trackingErr = output - unsatOutput;
         pid->integralSum   += (int64_t)pid->bcParameter * trackingErr;

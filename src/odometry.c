@@ -93,8 +93,6 @@ int16_t triggerEncoderMagUpdate()
     // Each call will call back to odometryIMUMagUpdate once new measurements
     // are available to process.
     imuReadMag();
-    updateEncoderVelocities();
-    odometryEncoderUpdate();
     
     return 1;
 }
@@ -296,9 +294,13 @@ void odometryIMUMagUpdate(void) {
     }
     
     // Fuse heading with estimated yaw of gyroscope
-    const float alpha = 0.98f;
+    const float alpha = 0.99f;
     localAngle[YAW] = fuseAngle(localAngle[YAW], magYaw, alpha);
     mouseAngle[YAW] = localAngle[YAW];
+    
+    // Update motor encoders
+    updateEncoderVelocities();
+    odometryEncoderUpdate();
 }
 
 // -------------------------------------------------------------------------
@@ -336,7 +338,7 @@ void odometryEncoderUpdate(void)
     
     encoderYaw = wrapPi(encoderYaw);
     
-    const float alphaEnc = 0.9f;                      // trust IMU more
+    const float alphaEnc = 0.2f;                      // trust IMU more
     localAngle[YAW] = fuseAngle(localAngle[YAW], encoderYaw, alphaEnc);
     mouseAngle[YAW] = localAngle[YAW];                // keep gyro seed aligned
     
@@ -352,7 +354,7 @@ void odometryEncoderUpdate(void)
     float cosYaw = cosf(yaw);
     float sinYaw = sinf(yaw);
 
-    /* body?frame vel: +Y = forward, +X = right  (v_bx = 0 here)   */
+    /* body-frame vel: +Y = forward, +X = right  (v_bx = 0 here)   */
     float vx_global =  linearVelocityBody * sinYaw;   // +X world
     float vy_global =  linearVelocityBody * cosYaw;   // +Y world
 

@@ -1,3 +1,33 @@
+// movement.c  - adaptive turning + wall-aligned straight driving
+// ----------------------------------------------------------------------------
+//  Public API (unchanged signatures)
+//
+//      void turnDegrees (Timer_t timer, int16_t degrees,
+//                        uint8_t powerInPercent);           // adaptive brake
+//
+//      void moveDistance(Timer_t timer, int16_t distance,
+//                        uint8_t cruisePowerPct,
+//                        float    timer_hz);                // 3 wall modes
+//
+// ----------------------------------------------------------------------------
+//  How it works
+//
+//  - turnDegrees()
+//        - keeps the original wrap/angleError logic
+//        - dynamically scales the motor power with the remaining angle
+//          so the mouse slows itself instead of hard?braking late.
+//
+//  - moveDistance()
+//        - at every PID callback it decides **one of three wall modes**
+//          (BOTH, SINGLE, NONE) purely from the side sensors.
+//        - the "error" fed into the same FastPID object changes according
+//          to that mode (wall offset or yaw drift) so *one* PID can
+//          handle them all.
+//        - as the remaining forward distance shrinks (or the front sensor
+//          is close to a wall) motor power is ramped down to avoid overshoot.
+//
+// ----------------------------------------------------------------------------
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
@@ -13,10 +43,30 @@
 #include "fastPID.h"
 #include "uart.h"
 #include "constants.h"
+#include "sensors.h"
+#include "motorEncoders.h"
+
+#define WALL_SEEN_THRESHOLD_MM     75          // side wall "in range"?
+#define WALL_TARGET_OFFSET_MM      30          // keep this gap to one wall
+#define BRAKE_DISTANCE_MM          20          // start decelerating here
+#define MIN_DRIVE_POWER_PCT        25          // don?t stall below this
+#define FRONT_STOP_MM              10          // hard stop before collision
+#define RAMP_ANGLE_DEG             45          // turn: begin braking here
+#define MIN_TURN_POWER_PCT         20
+#define TURN_EXIT_EPSILON          1
+
+#define TURN_PID_KP      0.0f       // tune for your bot
+#define TURN_PID_KD      0.0f
+#define TURN_PID_KI      0.0f      // small I to overcome static friction
+#define TURN_PID_KF      0.1f
+#define TURN_MAX_ACC_DPS2   800.0f    // deg/s²  (wheel torque / inertia)
+#define TURN_MAX_VEL_DPS    600.0f    // deg/s
+#define TURN_SETTLE_EPSILON    0.5f      // ° error small enough
+#define TURN_SETTLE_OUTPUT     5         // |PID| small enough to call it ?settled?
 
 
 //=============================================================================
-//  Wrap helper  ?? works in radians, heading in [?? ? ?)
+//  Wrap helper angle works in radians, heading in [-pi, pi)
 //=============================================================================
 static inline float wrapPi(float angle)
 {
@@ -27,179 +77,269 @@ static inline float wrapPi(float angle)
 }
 
 //=============================================================================
-//  Angle helper  ?? works in radians, heading in (?? ? ?]
+//  Angle helper works in radians, heading in [-pi, pi)
 //=============================================================================
 static float angleError(float current, float target)
 {
     float diff = target - current;          // signed error
-    while (diff >  M_PI) diff -= 2.0f * M_PI;
-    while (diff <= -M_PI) diff += 2.0f * M_PI;
-    return diff;                            // (?? ? ?]
-}
-
-//=============================================================================
-//  TURN (degrees)  ?? spin in place to an absolute heading
-//=============================================================================
-static volatile bool turnInProgress = false;
-static float         turnStartYaw   = 0.0f;
-static float         turnTargetYaw  = 0.0f;
-static int8_t        turnDirection  = 0;    // +1 CW, ?1 CCW
-
-int16_t turnDegreesCallback(void)
-{
-    // How many radians left to target? (wrapped to -pi..+pi)
-    float error = angleError(mouseAngle[YAW], turnTargetYaw);
-
-    // If turning CW (turnDirection > 0), we're done once error <= 0
-    // If turning CCW (turnDirection < 0), we're done once error >= 0
-    if ((turnDirection > 0 && error <= 0) ||
-        (turnDirection < 0 && error >= 0))
-    {
-        setMotorsState(MOTORS_BRAKE);
-        __delay_ms(100);
-        setMotorsStandbyState(true);
-        turnInProgress = false;
-        return 0; // Unregister callback
-    }
-
-    return 1; // Keep going
-}
-
-void turnDegrees(Timer_t timer, int16_t degrees, uint8_t powerInPercent)
-{
-    // Limit the input to ±359
-    degrees = degrees % 360;
-    if (degrees == 0)
-    {
-        return; // No turn needed
-    }
-
-    // Decide direction (+1 CW, -1 CCW)
-    turnDirection  = (degrees > 0) ? 1 : -1;
-    turnInProgress = true;
-
-    // Record current yaw as start
-    turnStartYaw = mouseAngle[YAW];
-
-    // Compute final yaw after turning (wrapped to [0..360))
-    float newTarget = turnStartYaw + degrees * DEG2RAD;
-    newTarget = wrapPi(newTarget);
     
-    // Update global objective
-    turnTargetYaw = newTarget;
+    return wrapPi(diff);
+}
 
-    // Register callback and start motors
-    registerTimerCallback(timer, turnDegreesCallback);
+// ============================================================================
+//  TURN (adaptive)
+// ============================================================================
+static FastPid         turnPid;                       // outer w-controller
+static volatile bool   turnInProgress   = false;
+static float           turnTargetYaw    = 0.0f;
+static int8_t          turnDirection    = 0;          // +1 = CW, -1 = CCW
+static float           turnCruiseVelDps = 0.0f;       // cruise w [deg/s]
+static float           velCmd           = 0.0f;       // commanded w       [deg/s]
+static float           velMeas          = 0.0f;       // measured  w       [deg/s]
+static float           turnDt           = 0.0f;       // callback period [s] (set in init routine)
+static uint16_t        settleCtr        = 0;
 
-    // Motor power: steer them in correct direction
-    steerMotors(100 * turnDirection, powerInPercent);
+static inline float signf(float x){ return (x>0) - (x<0); }
+
+static int16_t turnDegreesCallback(void)
+{
+    static float lastAngleDeg = 0.0f;
+
+    /* ---------------- state & error ----------------------------------- */
+    float angNowDeg = mouseAngle[YAW] * RAD2DEG;
+    float errDeg    = angleError(mouseAngle[YAW], turnTargetYaw) * RAD2DEG;  // signed error
+    float dt        = turnDt;
+    velMeas         = (angNowDeg - lastAngleDeg) / dt;
+    lastAngleDeg    = angNowDeg;
+
+    /* ---------------- trapezoidal feed?forward ------------------------ */
+    float velLim = sqrtf(2.0f * TURN_MAX_ACC_DPS2 * fabsf(errDeg));  // v = sqrt(2·a·delta_theta)
+    if (velLim > turnCruiseVelDps) velLim = turnCruiseVelDps;
+    velLim *= signf(errDeg);
+
+    /* acceleration clamp */
+    float dvMax = TURN_MAX_ACC_DPS2 * dt;
+    float dv    = velLim - velCmd;
+    if (fabsf(dv) > dvMax) dv = signf(dv) * dvMax;
+    velCmd += dv;                                       /* new w set?point */
+
+    /* ---------------- outer w-PID ------------------------------------- */
+    int16_t trimCdps = fastPidStep(&turnPid,
+                                   (int32_t)(velCmd  * 100.0f),     // set?point [cdeg/s]
+                                   (int32_t)(velMeas * 100.0f));    // actual    [cdeg/s]
+    float   omegaDps = velCmd + (float)trimCdps / 100.0f;           // corrected w
+    
+    
+    static uint16_t i = 0;
+    if (i % 10 == 0) {
+        char buf[100];
+        snprintf(buf, sizeof(buf), "velMeas: %ld, velCmd: %ld, trimCdps: %d, omegaDps: %.2f, errDeg: %.2f\r\n", (int32_t)(velMeas * 100.0f), (int32_t)(velCmd  * 100.0f), trimCdps, omegaDps, errDeg);
+        putsUART1(buf);
+    }
+    i++;
+
+    /* ---------------- w -> wheel linear speed [mm/s] ------------------- */
+    float omegaRad   = omegaDps * DEG2RAD;
+    float v_mmps     = omegaRad * (WHEEL_BASE_MM * 0.5f);           // v = w·r
+
+    setMotorSpeedLeft ( +v_mmps );   /* left wheel forward  */
+    setMotorSpeedRight( -v_mmps );   /* right wheel reverse */
+
+    /* ---------------- settle detection -------------------------------- */
+    if (fabsf(errDeg) < TURN_SETTLE_EPSILON &&
+        fabsf(velMeas) < TURN_SETTLE_OUTPUT)
+    {
+        if (++settleCtr >= 30) {                 /* 30 × 1 kHz ? 30 ms */
+            setMotorSpeedLeft (0);
+            setMotorSpeedRight(0);
+            turnInProgress = false;
+            return 0;
+        }
+    } else {
+        settleCtr = 0;
+    }
+    return 1;
+}
+
+void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float timer_hz)
+{
+    degrees = degrees % 360;
+    if (degrees == 0) return;
+
+    turnDirection     = (degrees > 0) ? 1 : -1;
+    turnCruiseVelDps  = fabsf(cruiseDegPerSec);
+    turnInProgress    = true;
+    velCmd            = 0.0f;
+    settleCtr         = 0;
+    turnDt            = 1.0f / timer_hz;
+
+    turnTargetYaw = wrapPi(mouseAngle[YAW] + degrees * DEG2RAD);
+
+    /* --------------- init outer PID (? loop) -------------------------- */
+    fastPidInit(&turnPid);
+    fastPidConfigure (&turnPid, TURN_PID_KP, TURN_PID_KI, TURN_PID_KD, TURN_PID_KF, timer_hz, 8, true);
+    fastPidSetOutputRange(&turnPid, -(int16_t)(turnCruiseVelDps * 100.0f), +(int16_t)(turnCruiseVelDps * 100.0f));
+
+    if (fastPidHasConfigError(&turnPid)) {
+        putsUART1("Failed to setup PID for turning.\r\n");
+        return;
+    }
+
+    /* --------------- wake the wheel-speed PIDs ------------------------ */
     setMotorsStandbyState(false);
 
-    while (turnInProgress) { /* busy?wait until callback stops us */ }
+    /* small kick to overcome static friction */
+    float kickOmega   = turnDirection * fminf(turnCruiseVelDps, 30.0f);      // 30 °/s cap
+    float kickV_mmps  = kickOmega * DEG2RAD * (WHEEL_BASE_MM * 0.5f);
+    setMotorSpeedLeft ( +kickV_mmps );
+    setMotorSpeedRight( -kickV_mmps );
+
+    registerTimerCallback(timer, turnDegreesCallback);
+
+    while (turnInProgress) { /* busy-wait */}
 }
 
-//=============================================================================
-//  MOVE (mm)  ?? drive straight from current XY, keeping yaw fixed
-//=============================================================================
-static FastPid        movePid;
-static volatile bool  moveInProgress     = false;
-static float          moveStartX         = 0.0f;
-static float          moveStartY         = 0.0f;
-static float          moveTargetX        = 0.0f;
-static float          moveTargetY        = 0.0f;
-static float          moveStartYaw       = 0.0f;
-static uint8_t        movePowerPct       = 0;        // 0?100 %
+// ============================================================================
+//  MOVE (3 wall modes + adaptive braking)  ???????????????????????????????????
+// ============================================================================
+typedef enum { WALL_NONE=0, WALL_SINGLE_LEFT, WALL_SINGLE_RIGHT, WALL_BOTH } WallMode;
 
-int16_t moveDistanceCallback(void)
+static FastPid        movePid;
+static volatile bool  moveInProgress      = false;
+static float          moveTargetX         = 0.0f;
+static float          moveTargetY         = 0.0f;
+static float          moveStartYaw        = 0.0f;
+static uint8_t        moveCruisePowerPct  = 0;
+static WallMode       moveLastMode        = WALL_NONE;   
+
+static inline WallMode detectWallMode(uint16_t left, uint16_t right)
+{
+    bool l = (left  < WALL_SEEN_THRESHOLD_MM);
+    bool r = (right < WALL_SEEN_THRESHOLD_MM);
+    if (l && r)            return WALL_BOTH;
+    if (l && !r)           return WALL_SINGLE_LEFT;
+    if (!l && r)           return WALL_SINGLE_RIGHT;
+    return WALL_NONE;
+}
+
+static int16_t moveDistanceCallback(void)
 {
     float dx = moveTargetX - mousePosition[X];
     float dy = moveTargetY - mousePosition[Y];
-    float remaining = sqrtf(dx*dx + dy*dy);          // distance left [mm]
+    float remaining = sqrtf(dx*dx + dy*dy);          // mm to goal
 
-    int16_t step = fastPidStep(&movePid, 0, (int16_t)angleError(mouseAngle[YAW], moveStartYaw));
+    // --------------------------------------------------------------------
+    //  1. read sensors + choose control mode
+    // --------------------------------------------------------------------
+    uint16_t left  = getSensorDistance(SENSOR_LEFT);
+    uint16_t right = getSensorDistance(SENSOR_RIGHT);
+    WallMode mode  = detectWallMode(left, right);
 
-    int8_t powerL = (int8_t)movePowerPct - (int8_t)step;
-    int8_t powerR = (int8_t)movePowerPct + (int8_t)step;
+    if (mode != moveLastMode) {
+        fastPidClear(&movePid);             // dump I?sum & lastError
+        moveLastMode = mode;
+    }
+    
+    int16_t controlError = 0;
+
+    switch (mode)
+    {
+        case WALL_BOTH:
+            // stay equal distance between two walls
+            controlError = (int16_t)(left - right);
+            break;
+
+        case WALL_SINGLE_LEFT:
+            controlError = (int16_t)(WALL_TARGET_OFFSET_MM - left);
+            break;
+
+        case WALL_SINGLE_RIGHT:
+            controlError = (int16_t)(right - WALL_TARGET_OFFSET_MM);
+            break;
+
+        case WALL_NONE:
+        default:
+            controlError = (int16_t)(angleError(mouseAngle[YAW], moveStartYaw) * 1000); // convert rad?milli?rad for PID resolution
+            break;
+    }
+
+    int16_t pidStep = fastPidStep(&movePid, 0, controlError);
+
+    // --------------------------------------------------------------------
+    //  2. adaptive forward power (brake before goal or wall)
+    // --------------------------------------------------------------------
+    uint16_t front = getSensorDistance(SENSOR_CENTER);
+    float    brakeDist = remaining;
+
+    if (front < FRONT_STOP_MM) brakeDist = 0;                // emergency
+    else if (front < BRAKE_DISTANCE_MM)                      // brake for front wall too
+        brakeDist = fminf(brakeDist, (float)(front - FRONT_STOP_MM));
+
+    uint8_t dynPower = moveCruisePowerPct;
+    if (brakeDist < BRAKE_DISTANCE_MM) {
+        dynPower = MIN_DRIVE_POWER_PCT +
+            (uint8_t)((moveCruisePowerPct - MIN_DRIVE_POWER_PCT) *
+                      brakeDist / BRAKE_DISTANCE_MM);
+        if (dynPower < MIN_DRIVE_POWER_PCT) dynPower = MIN_DRIVE_POWER_PCT;
+    }
+
+    int8_t powerL = (int8_t)dynPower - (int8_t)pidStep;
+    int8_t powerR = (int8_t)dynPower + (int8_t)pidStep;
 
     setMotorPower(MOTOR_LEFT,  powerL);
     setMotorPower(MOTOR_RIGHT, powerR);
 
-    if (remaining <= 0.0f)                           // arrived / overshot
+    // --------------------------------------------------------------------
+    //  3. stop criteria
+    // --------------------------------------------------------------------
+    bool goalReached = (remaining <= 0.0f);
+    bool frontTooClose = (front <= FRONT_STOP_MM);
+
+    if (goalReached || frontTooClose)
     {
         setMotorsState(MOTORS_BRAKE);
-        __delay_ms(100);
+        __delay_ms(80);
         setMotorsStandbyState(true);
         moveInProgress = false;
-        return 0;                                   // unregister callback
+        return 0;
     }
-    return 1;                                       // keep driving
+    return 1;
 }
 
-void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent, float timer_hz)
+void moveDistance(Timer_t timer,
+                  int16_t distance,
+                  uint8_t powerInPercent,
+                  float   timer_hz)
 {
     if (distance == 0) return;
 
-    moveInProgress = true;
-    movePowerPct   = powerInPercent;
-    moveStartYaw   = mouseAngle[YAW];
+    moveInProgress      = true;
+    moveCruisePowerPct  = powerInPercent;
+    moveStartYaw        = mouseAngle[YAW];
 
-    moveStartX = mousePosition[X];
-    moveStartY = mousePosition[Y];
-
-    // Compute absolute target in XY plane from current heading
     float distF = (float)distance;
-    moveTargetX = moveStartX + distF * cosf(moveStartYaw);
-    moveTargetY = moveStartY + distF * sinf(moveStartYaw);
+    moveTargetX = mousePosition[X] + distF * cosf(moveStartYaw);
+    moveTargetY = mousePosition[Y] + distF * sinf(moveStartYaw);
 
-    // PID keeps the robot aligned with moveStartYaw
-    bool status = true;
     fastPidInit(&movePid);
-    status &= fastPidConfigure(&movePid, 0.8f, 0.0f, 0.0f, timer_hz, 8, true);
-    status &= fastPidSetOutputRange(&movePid, -100, 100);
-    if (!status) putsUART1("PID setup failed.\r\n");
-
+    fastPidConfigure (&movePid, 1.0f, 0.0f, 0.0f, 0.0f, timer_hz, 8, true);
+    fastPidSetOutputRange(&movePid, -100, 100);
+    
+    if (fastPidHasConfigError(&turnPid)) {
+        putsUART1("Failed to setup PID for moving.\r\n");
+        return;
+    }
+    
     registerTimerCallback(timer, moveDistanceCallback);
 
     setMotorPower(MOTOR_LEFT,  powerInPercent);
     setMotorPower(MOTOR_RIGHT, powerInPercent);
     setMotorsStandbyState(false);
 
-    while (moveInProgress) { /* busy?wait until callback stops us */ }
+    while (moveInProgress) { /* busy?wait */ }
 
-    // Snap back to original heading (tiny correction if drifted)
-    turnDegrees(timer, -angleError(mouseAngle[YAW], moveStartYaw) * RAD2DEG, powerInPercent);
-}
-
-//=============================================================================
-//  MOVE (mm)  ?? drive straight from current XY, keeping yaw fixed
-//=============================================================================
-int16_t moveForward() {
-    //resetPid
-    //setgoaldistance numCells * celldistance
-    //movement state: moving
-    //registerTimerCallback(TIMERX, updatePid)
-    //update pid will set movement state to NONE and return 0 (unregistering the callback) if goal reached
-    //while(movementstae==moving) {} busy wait
-    //
-    
-    uint16_t left = getSensorDistance(SENSOR_LEFT);
-    uint16_t right = getSensorDistance(SENSOR_RIGHT);
-    uint16_t front = getSensorDistance(SENSOR_CENTER);
-    
-    int16_t step = fastPidStep(&pid, 0, (int16_t) left-right);
-    
-    uint8_t defaultPower = 60;
-    
-    int8_t powerLeft = defaultPower + (int8_t) step;
-    int8_t powerRight = defaultPower - (int8_t) step;
-    
-    setMotorPower(MOTOR_RIGHT, powerRight);
-    setMotorPower(MOTOR_LEFT, powerLeft);
-    
-    //char buffer[100];
-    //snprintf(buffer, sizeof(buffer), "Power [%] - Step: %d, Left: %d, Right: %d\r\n", (int8_t) step, powerLeft, powerRight);
-    //putsUART1(buffer);
-    //snprintf(buffer, sizeof(buffer), "Sensor readings in mm left: %u, right: %u, center: %u\r\n",left, right, front);
-    //putsUART1(buffer);
-    return 1;
+    // tiny correction back to start yaw, if we ended ?no?wall?
+    turnDegrees(timer,
+                -angleError(mouseAngle[YAW], moveStartYaw) * RAD2DEG,
+                powerInPercent, timer_hz    );
 }

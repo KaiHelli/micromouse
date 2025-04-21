@@ -14,7 +14,7 @@
 extern volatile float mouseVelocity[3];       // x, y, z velocity (e.g., mm/s)
 extern volatile float mousePosition[3];       // x, y, z position (e.g., mm)
 extern volatile float mouseAngle[3];          // pitch, roll, yaw, angles in degrees or radians
-
+extern volatile float mouseMagYaw;
 // Helper enums to safely axxes the above arrays
 
 typedef enum {

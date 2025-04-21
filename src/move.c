@@ -1,33 +1,3 @@
-// movement.c  - adaptive turning + wall-aligned straight driving
-// ----------------------------------------------------------------------------
-//  Public API (unchanged signatures)
-//
-//      void turnDegrees (Timer_t timer, int16_t degrees,
-//                        uint8_t powerInPercent);           // adaptive brake
-//
-//      void moveDistance(Timer_t timer, int16_t distance,
-//                        uint8_t cruisePowerPct,
-//                        float    timer_hz);                // 3 wall modes
-//
-// ----------------------------------------------------------------------------
-//  How it works
-//
-//  - turnDegrees()
-//        - keeps the original wrap/angleError logic
-//        - dynamically scales the motor power with the remaining angle
-//          so the mouse slows itself instead of hard?braking late.
-//
-//  - moveDistance()
-//        - at every PID callback it decides **one of three wall modes**
-//          (BOTH, SINGLE, NONE) purely from the side sensors.
-//        - the "error" fed into the same FastPID object changes according
-//          to that mode (wall offset or yaw drift) so *one* PID can
-//          handle them all.
-//        - as the remaining forward distance shrinks (or the front sensor
-//          is close to a wall) motor power is ramped down to avoid overshoot.
-//
-// ----------------------------------------------------------------------------
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
@@ -49,21 +19,38 @@
 #define WALL_SEEN_THRESHOLD_MM     75          // side wall "in range"?
 #define WALL_TARGET_OFFSET_MM      30          // keep this gap to one wall
 #define BRAKE_DISTANCE_MM          20          // start decelerating here
-#define MIN_DRIVE_POWER_PCT        25          // don?t stall below this
+#define MIN_DRIVE_POWER_PCT        25          // don't stall below this
 #define FRONT_STOP_MM              10          // hard stop before collision
 #define RAMP_ANGLE_DEG             45          // turn: begin braking here
 #define MIN_TURN_POWER_PCT         20
 #define TURN_EXIT_EPSILON          1
 
-#define TURN_PID_KP      0.0f       // tune for your bot
+#define TURN_PID_KP      0.75f       // tune for your bot
 #define TURN_PID_KD      0.0f
 #define TURN_PID_KI      0.0f      // small I to overcome static friction
-#define TURN_PID_KF      0.1f
-#define TURN_MAX_ACC_DPS2   800.0f    // deg/s²  (wheel torque / inertia)
-#define TURN_MAX_VEL_DPS    600.0f    // deg/s
+#define TURN_PID_KF      0.8f
+#define TURN_MAX_ACC_DPS2   3900.0f    // deg/s²  (wheel torque / inertia) (measured upper limit: np.array([0,88,565,1290,2095,2745,3272,3734,4067,4327,4526,4676,4801,4886,5004]) / 10)
+#define TURN_MAX_VEL_DPS    501.4f    // deg/s (measured upper limit)
 #define TURN_SETTLE_EPSILON    0.5f      // ° error small enough
-#define TURN_SETTLE_OUTPUT     5         // |PID| small enough to call it ?settled?
+#define TURN_SETTLE_OUTPUT     5         // |PID| small enough to call it "settled"
 
+
+//=============================================================================
+// Make IMU yaw continuous: [-pi,pi)  ->  ... -2pi, 0, +2pi, +4pi ... 
+//=============================================================================
+static float  yawOff   = 0.0f;      /* accumulated +/-2pi multiples   */
+static float  yawLast  = 0.0f;      /* previous wrapped reading    */
+
+static inline float unwrapYaw(float yawWrapped /* in [-pi,pi) */)
+{
+    float d = yawWrapped - yawLast;
+
+    if      (d >  M_PI) yawOff -= 2.0f * M_PI;   /* +pi to -pi crossing  */
+    else if (d < -M_PI) yawOff += 2.0f * M_PI;   /* -pi to +pi crossing  */
+
+    yawLast = yawWrapped;
+    return yawWrapped + yawOff;                  /* continuous yaw    */
+}
 
 //=============================================================================
 //  Wrap helper angle works in radians, heading in [-pi, pi)
@@ -98,6 +85,7 @@ static float           velCmd           = 0.0f;       // commanded w       [deg/
 static float           velMeas          = 0.0f;       // measured  w       [deg/s]
 static float           turnDt           = 0.0f;       // callback period [s] (set in init routine)
 static uint16_t        settleCtr        = 0;
+static bool            turnInit         = true;
 
 static inline float signf(float x){ return (x>0) - (x<0); }
 
@@ -105,14 +93,21 @@ static int16_t turnDegreesCallback(void)
 {
     static float lastAngleDeg = 0.0f;
 
+    /* ---- current state --------------------------------------------- */
+    float yawNow  = unwrapYaw(mouseAngle[YAW]);           // continuous yaw
+    
     /* ---------------- state & error ----------------------------------- */
-    float angNowDeg = mouseAngle[YAW] * RAD2DEG;
-    float errDeg    = angleError(mouseAngle[YAW], turnTargetYaw) * RAD2DEG;  // signed error
+    float angNowDeg = yawNow * RAD2DEG;
+    float errDeg  = (turnTargetYaw - yawNow) * RAD2DEG;   // signed error
     float dt        = turnDt;
     velMeas         = (angNowDeg - lastAngleDeg) / dt;
-    lastAngleDeg    = angNowDeg;
+    
+    if (turnInit) {
+        turnInit = false;
+        return;
+    }
 
-    /* ---------------- trapezoidal feed?forward ------------------------ */
+    /* ---------------- trapezoidal feed-forward ------------------------ */
     float velLim = sqrtf(2.0f * TURN_MAX_ACC_DPS2 * fabsf(errDeg));  // v = sqrt(2·a·delta_theta)
     if (velLim > turnCruiseVelDps) velLim = turnCruiseVelDps;
     velLim *= signf(errDeg);
@@ -121,22 +116,14 @@ static int16_t turnDegreesCallback(void)
     float dvMax = TURN_MAX_ACC_DPS2 * dt;
     float dv    = velLim - velCmd;
     if (fabsf(dv) > dvMax) dv = signf(dv) * dvMax;
-    velCmd += dv;                                       /* new w set?point */
-
+    velCmd += dv;                                       /* new w setpoint */
+    
     /* ---------------- outer w-PID ------------------------------------- */
     int16_t trimCdps = fastPidStep(&turnPid,
-                                   (int32_t)(velCmd  * 100.0f),     // set?point [cdeg/s]
-                                   (int32_t)(velMeas * 100.0f));    // actual    [cdeg/s]
-    float   omegaDps = velCmd + (float)trimCdps / 100.0f;           // corrected w
+                                   (int32_t)(velCmd  * 10.0f),     // setpoint  [ddeg/s]
+                                   (int32_t)(velMeas * 10.0f));    // actual    [ddeg/s]
+    float   omegaDps = velCmd + (float)trimCdps / 10.0f;           // corrected w
     
-    
-    static uint16_t i = 0;
-    if (i % 10 == 0) {
-        char buf[100];
-        snprintf(buf, sizeof(buf), "velMeas: %ld, velCmd: %ld, trimCdps: %d, omegaDps: %.2f, errDeg: %.2f\r\n", (int32_t)(velMeas * 100.0f), (int32_t)(velCmd  * 100.0f), trimCdps, omegaDps, errDeg);
-        putsUART1(buf);
-    }
-    i++;
 
     /* ---------------- w -> wheel linear speed [mm/s] ------------------- */
     float omegaRad   = omegaDps * DEG2RAD;
@@ -144,15 +131,29 @@ static int16_t turnDegreesCallback(void)
 
     setMotorSpeedLeft ( +v_mmps );   /* left wheel forward  */
     setMotorSpeedRight( -v_mmps );   /* right wheel reverse */
+    
+    static uint16_t i = 0;
+    if (i % 1 == 0) {
+        char buf[100];
+        //snprintf(buf, sizeof(buf), "velMeas: %ld, velCmd: %ld, trimCdps: %d, omegaDps: %.2f, errDeg: %.2f, vLeft: %.2f\r\n", (int32_t)(velMeas * 10.0f), (int32_t)(velCmd  * 10.0f), trimCdps, omegaDps, errDeg, v_mmps);
+        //snprintf(buf, sizeof(buf), "velMeas: %ld\r\n", (int32_t)(velMeas * 10.0f));
+        snprintf(buf, sizeof(buf), "an: %.6f la: %.6f, vm: %ld\r\n", angNowDeg, lastAngleDeg, (int32_t)(velMeas * 10.0f));
+        putsUART1Str(buf);
+    }
+    i++;
+    lastAngleDeg    = angNowDeg;
 
     /* ---------------- settle detection -------------------------------- */
     if (fabsf(errDeg) < TURN_SETTLE_EPSILON &&
         fabsf(velMeas) < TURN_SETTLE_OUTPUT)
     {
-        if (++settleCtr >= 30) {                 /* 30 × 1 kHz ? 30 ms */
+        if (++settleCtr >= 30) {                 /* 30 × 1 kHz -> 30 ms */
             setMotorSpeedLeft (0);
             setMotorSpeedRight(0);
             turnInProgress = false;
+            
+            setMotorsStandbyState(true);
+            
             return 0;
         }
     } else {
@@ -163,9 +164,13 @@ static int16_t turnDegreesCallback(void)
 
 void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float timer_hz)
 {
-    degrees = degrees % 360;
     if (degrees == 0) return;
-
+    
+    /* ----  set up the unwrapper  ------------------------------------ */
+    yawLast = mouseAngle[YAW];      /* current wrapped IMU reading      */
+    yawOff  = 0.0f;                 /* no offset yet                    */
+    
+    turnInit          = true;
     turnDirection     = (degrees > 0) ? 1 : -1;
     turnCruiseVelDps  = fabsf(cruiseDegPerSec);
     turnInProgress    = true;
@@ -173,15 +178,16 @@ void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float ti
     settleCtr         = 0;
     turnDt            = 1.0f / timer_hz;
 
-    turnTargetYaw = wrapPi(mouseAngle[YAW] + degrees * DEG2RAD);
+    turnTargetYaw = mouseAngle[YAW] + degrees * DEG2RAD;
 
-    /* --------------- init outer PID (? loop) -------------------------- */
+    /* --------------- init outer PID (w loop) -------------------------- */
+    bool status;
     fastPidInit(&turnPid);
     fastPidConfigure (&turnPid, TURN_PID_KP, TURN_PID_KI, TURN_PID_KD, TURN_PID_KF, timer_hz, 8, true);
-    fastPidSetOutputRange(&turnPid, -(int16_t)(turnCruiseVelDps * 100.0f), +(int16_t)(turnCruiseVelDps * 100.0f));
+    fastPidSetOutputRange(&turnPid, -(int16_t)(turnCruiseVelDps * 10.0f), +(int16_t)(turnCruiseVelDps * 10.0f));
 
     if (fastPidHasConfigError(&turnPid)) {
-        putsUART1("Failed to setup PID for turning.\r\n");
+        putsUART1Str("Failed to setup PID for turning.\r\n");
         return;
     }
 
@@ -200,7 +206,7 @@ void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float ti
 }
 
 // ============================================================================
-//  MOVE (3 wall modes + adaptive braking)  ???????????????????????????????????
+//  MOVE (3 wall modes + adaptive braking)
 // ============================================================================
 typedef enum { WALL_NONE=0, WALL_SINGLE_LEFT, WALL_SINGLE_RIGHT, WALL_BOTH } WallMode;
 
@@ -236,7 +242,7 @@ static int16_t moveDistanceCallback(void)
     WallMode mode  = detectWallMode(left, right);
 
     if (mode != moveLastMode) {
-        fastPidClear(&movePid);             // dump I?sum & lastError
+        fastPidClear(&movePid);             // dump I-sum & lastError
         moveLastMode = mode;
     }
     
@@ -259,7 +265,7 @@ static int16_t moveDistanceCallback(void)
 
         case WALL_NONE:
         default:
-            controlError = (int16_t)(angleError(mouseAngle[YAW], moveStartYaw) * 1000); // convert rad?milli?rad for PID resolution
+            controlError = (int16_t)(angleError(mouseAngle[YAW], moveStartYaw) * 1000); // convert rad->milli-rad for PID resolution
             break;
     }
 
@@ -326,7 +332,7 @@ void moveDistance(Timer_t timer,
     fastPidSetOutputRange(&movePid, -100, 100);
     
     if (fastPidHasConfigError(&turnPid)) {
-        putsUART1("Failed to setup PID for moving.\r\n");
+        putsUART1Str("Failed to setup PID for moving.\r\n");
         return;
     }
     
@@ -336,9 +342,9 @@ void moveDistance(Timer_t timer,
     setMotorPower(MOTOR_RIGHT, powerInPercent);
     setMotorsStandbyState(false);
 
-    while (moveInProgress) { /* busy?wait */ }
+    while (moveInProgress) { /* busy-wait */ }
 
-    // tiny correction back to start yaw, if we ended ?no?wall?
+    // tiny correction back to start yaw, if we ended "no-wall"
     turnDegrees(timer,
                 -angleError(mouseAngle[YAW], moveStartYaw) * RAD2DEG,
                 powerInPercent, timer_hz    );

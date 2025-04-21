@@ -40,9 +40,9 @@ int16_t moveForward() {
     
     //char buffer[100];
     //snprintf(buffer, sizeof(buffer), "Power [%] - Step: %d, Left: %d, Right: %d\r\n", (int8_t) step, powerLeft, powerRight);
-    //putsUART1(buffer);
+    //putsUART1Str(buffer);
     //snprintf(buffer, sizeof(buffer), "Sensor readings in mm left: %u, right: %u, center: %u\r\n",left, right, front);
-    //putsUART1(buffer);
+    //putsUART1Str(buffer);
     return 1;
 }
 
@@ -79,7 +79,7 @@ uint8_t initMouseState() {
     status &= fastPidSetOutputRange(&pid, -100, 100);
             
     if (!status) {
-        putsUART1("PID setup failed.\r\n");
+        putsUART1Str("PID setup failed.\r\n");
     }
     
     return 1;

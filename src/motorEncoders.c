@@ -1,6 +1,7 @@
 #include <xc.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "constants.h"
 #include "interrupts.h"
@@ -8,6 +9,7 @@
 #include "motorEncoders.h"
 #include "uart.h"
 #include "globalTimers.h"
+#include "fastPID.h"
 
 // Global variables for the rotation counts.
 // QEI1 is used for the right encoder and QEI2 for the left encoder.
@@ -19,6 +21,10 @@ int32_t rotationCount2; // QEI2 (ENCODER_RIGHT)
 // We assume the enumeration for MotorEncoder_t maps ENCODER_LEFT -> 0
 // and ENCODER_RIGHT -> 1.
 //--------------------------------------------------------------------------
+volatile float encoderPosEstRad[2]      = { 0.0f, 0.0f };
+volatile float encoderVelEstRad[2]      = { 0.0f, 0.0f };
+volatile float encoderVelIntegrator[2]  = { 0.0f, 0.0f };
+
 //volatile float currentVelocityDegPerSec[2] = {0.0f, 0.0f};
 volatile float currentVelocityRadPerSec[2] = {0.0f, 0.0f};
 volatile float currentVelocityMmPerSec[2] = {0.0f, 0.0f};
@@ -29,6 +35,11 @@ volatile int32_t currentVelocityCounts[2]  = {0, 0};
 volatile int32_t lastEncoderPosition[2] = {0, 0};
 volatile uint64_t lastVelocityUpdateTime = 0;
 
+// PI gains
+#define ENC_PID_KP  100.5f
+#define ENC_PID_KI  3950.0f
+
+#define ENC_MIN_VEL 0.001f
 /*-------------------------------------------------------------------------
   Utility Function: readEncoderCount
   Atomically reads the encoder count by combining the hardware position counter 
@@ -52,6 +63,11 @@ static inline int32_t readEncoderCount(MotorEncoder_t encoder)
     }
     _NSTDIS = 0;
     return count;
+}
+
+void initMotorEncoders(float pid_hz) {
+    initQEI(ENCODER_LEFT, 0);
+    initQEI(ENCODER_RIGHT, 0);
 }
 
 /*-------------------------------------------------------------------------
@@ -157,12 +173,9 @@ float getEncoderPositionDeg(MotorEncoder_t encoder)
 }
 
 //*****************************************************************************
-// Timer-based Update Function: updateEncoderVelocities
-//
 // Called periodically (e.g., via a timer interrupt) to:
 //   - Determine the change in encoder counts since its last call
 //   - Compute the angular velocity (in both rad/s and deg/s)
-//   - Store the delta counts for legacy getVelocityInCountsPerSample()
 //   - Update the global timestamps and positions.
 // Time is measured in microseconds using getTimeInUs().
 //*****************************************************************************
@@ -173,50 +186,50 @@ void updateEncoderVelocities(void)
     int32_t leftPos = readEncoderCount(ENCODER_LEFT);
     int32_t rightPos = readEncoderCount(ENCODER_RIGHT);
     
-    // Precompute conversion constants.
-    const float microsecToSecFactor = 1e6f;  // Converts microseconds to seconds when used as (1e6 / deltaTime)
-
     uint64_t deltaTime = currentTimeUs - lastVelocityUpdateTime;
-    float invTime = (microsecToSecFactor / deltaTime);
-    
+    float dtSec = deltaTime * 1e-6f;
     lastVelocityUpdateTime = currentTimeUs;
     
-    // Use an exponential moving average of past measurements for smoothing
-    const float alpha = 0.5f;
-    
-    // --- Update for ENCODER_LEFT ---
+    // --- Left encoder PI tracking loop ---
     {
-        int32_t deltaCounts = leftPos - lastEncoderPosition[ENCODER_LEFT];
-        
-        // Compute the combined multiplication once.
-        float deltaCountInvTime = deltaCounts * invTime;
-        
-        float newVelocityRad = deltaCountInvTime * TICKS_TO_RAD;
-        //float newVelocityDeg = deltaCountInvTime * TICKS_TO_DEG;
-        
-        currentVelocityCounts[ENCODER_LEFT] = deltaCounts;
-        currentVelocityRadPerSec[ENCODER_LEFT] = alpha * newVelocityRad + (1 - alpha) * currentVelocityRadPerSec[ENCODER_LEFT];
-        currentVelocityMmPerSec[ENCODER_LEFT] = currentVelocityRadPerSec[ENCODER_LEFT] * WHEEL_RADIUS_MM;
-        //currentVelocityDegPerSec[ENCODER_LEFT] = alpha * newVelocityDeg + (1 - alpha) * currentVelocityDegPerSec[ENCODER_LEFT];
-        
-        lastEncoderPosition[ENCODER_LEFT] = leftPos;
+        // measured position in radians
+        float measPos = leftPos * TICKS_TO_RAD;
+        // predict next pos: x_est += v_est * dt
+        encoderPosEstRad[ENCODER_LEFT] += encoderVelEstRad[ENCODER_LEFT] * dtSec;
+        // position error
+        float err = measPos - encoderPosEstRad[ENCODER_LEFT];
+        // integrator update
+        encoderVelIntegrator[ENCODER_LEFT] += err * ENC_PID_KI * dtSec;
+        // velocity estimate: v = Kp*err + Ki_integral
+        encoderVelEstRad[ENCODER_LEFT] = err * ENC_PID_KP + encoderVelIntegrator[ENCODER_LEFT];
+        // clamp
+        currentVelocityRadPerSec[ENCODER_LEFT] = encoderVelEstRad[ENCODER_LEFT] < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_LEFT];
+        // publish
+        currentVelocityMmPerSec[ENCODER_LEFT]  = encoderVelEstRad[ENCODER_LEFT] * WHEEL_RADIUS_MM;
+        // still update lastEncoderPosition for rollover logic
+        lastEncoderPosition[ENCODER_LEFT]      = leftPos;
+            
+        /*
+        static uint16_t i = 0; 
+        if (i % 5 == 0) { 
+            char buf[100]; 
+            snprintf(buf, sizeof(buf), "Left: meas %.4f, est_pos %.4f, err %.4f, ctl %.4f\r\n", measPos, encoderPosEstRad[ENCODER_LEFT], (err), encoderVelEstRad[ENCODER_LEFT]); 
+            putsUART1Str(buf); 
+        } 
+        i++;
+        */
     }
 
-    // --- Update for ENCODER_RIGHT ---
+    // --- Right encoder PI tracking loop ---
     {
-        int32_t deltaCounts = rightPos - lastEncoderPosition[ENCODER_RIGHT];
-        
-        float deltaCountInvTime = deltaCounts * invTime;
-        
-        float newVelocityRad = deltaCountInvTime * TICKS_TO_RAD;
-        //float newVelocityDeg = deltaCountInvTime * TICKS_TO_DEG;
-        
-        currentVelocityCounts[ENCODER_RIGHT] = deltaCounts;
-        currentVelocityRadPerSec[ENCODER_RIGHT] = alpha * newVelocityRad + (1 - alpha) * currentVelocityRadPerSec[ENCODER_RIGHT];
-        currentVelocityMmPerSec[ENCODER_RIGHT] = currentVelocityRadPerSec[ENCODER_RIGHT] * WHEEL_RADIUS_MM;
-        //currentVelocityDegPerSec[ENCODER_RIGHT] = alpha * newVelocityDeg + (1 - alpha) * currentVelocityDegPerSec[ENCODER_RIGHT];
-
-        lastEncoderPosition[ENCODER_RIGHT] = rightPos;
+        float measPos = rightPos * TICKS_TO_RAD;
+        encoderPosEstRad[ENCODER_RIGHT] += encoderVelEstRad[ENCODER_RIGHT] * dtSec;
+        float err = measPos - encoderPosEstRad[ENCODER_RIGHT];
+        encoderVelIntegrator[ENCODER_RIGHT] += err * ENC_PID_KI * dtSec;
+        encoderVelEstRad[ENCODER_RIGHT] = err * ENC_PID_KP + encoderVelIntegrator[ENCODER_RIGHT];
+        currentVelocityRadPerSec[ENCODER_RIGHT] = encoderVelEstRad[ENCODER_RIGHT] < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_RIGHT];
+        currentVelocityMmPerSec[ENCODER_RIGHT]  = encoderVelEstRad[ENCODER_RIGHT] * WHEEL_RADIUS_MM;
+        lastEncoderPosition[ENCODER_RIGHT]      = rightPos;
     }
 }
 

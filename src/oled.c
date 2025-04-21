@@ -26,7 +26,7 @@ void oledSetup(void) {
 static void oledCommCb(bool success) {
     if (!success)
     {
-        putsUART1("Asynchronous OLED error!\r\n");
+        putsUART1Str("Asynchronous OLED error!\r\n");
     }
 }
 

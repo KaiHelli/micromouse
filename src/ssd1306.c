@@ -49,16 +49,16 @@ void ssd1306Setup(void) {
     __delay_ms(500);
     
     if (status) {
-        putsUART1("Display configured.\r\n");
+        putsUART1Str("Display configured.\r\n");
     } else {
-        putsUART1("Error setting up the display!\r\n");
+        putsUART1Str("Error setting up the display!\r\n");
     }
 }
 
 static void ssd1306CommCb(bool success) {
     if (!success)
     {
-        putsUART1("Asynchronous SSD1306 error!\r\n");
+        putsUART1Str("Asynchronous SSD1306 error!\r\n");
     }
 }
 

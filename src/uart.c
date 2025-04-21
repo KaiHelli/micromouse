@@ -175,10 +175,16 @@ void __attribute__((interrupt, no_auto_psv)) _U1TXInterrupt(void)
     }
 }
 
-
-int8_t putsUART1(char* buffer)
+int8_t putsUART1Str(char* buffer) 
 {
     size_t length = strlen(buffer);
+    
+    return putsUART1(buffer, length);
+}
+
+
+int8_t putsUART1(char* buffer, size_t length)
+{
     if (length == 0) {
         return 0; // Nothing to send
     }
@@ -222,9 +228,16 @@ int8_t getUART1Status(void)
     return (txCount > 0) ? UART_BUSY : UART_IDLE;
 }
 
-int8_t putsUART1Sync(char* buffer)
+int8_t putsUART1StrSync(char* buffer)
 {
-    int8_t result = putsUART1(buffer); // Start the asynchronous transmission
+    size_t length = strlen(buffer);
+    
+    return putsUART1Sync(buffer, length);
+}
+
+int8_t putsUART1Sync(char* buffer, size_t length)
+{
+    int8_t result = putsUART1(buffer, length); // Start the asynchronous transmission
 
     if (result != 0) {
         // Return immediately if the UART is busy or there's an error

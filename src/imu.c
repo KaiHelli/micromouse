@@ -133,7 +133,7 @@ static inline void remapMagAxes(int16_t src[3], int16_t dst[3]) {
  */
 void imuReadGyroCb(bool success) {
     if (!success) {
-        putsUART1("Asynchronous IMU gyroscope error!\r\n");
+        putsUART1Str("Asynchronous IMU gyroscope error!\r\n");
         return;
     }
     
@@ -153,7 +153,7 @@ void imuReadGyroCb(bool success) {
     
     // char measurementStr[70];
     // snprintf(measurementStr, 70, "Gyroscope [dps]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", gyroMeasurements[0], gyroMeasurements[1], gyroMeasurements[2]);
-    // putsUART1(measurementStr);
+    // putsUART1Str(measurementStr);
 }
 
 
@@ -168,7 +168,7 @@ void imuReadGyroCb(bool success) {
  */
 void imuReadAccelCb(bool success) {
     if (!success) {
-        putsUART1("Asynchronous IMU accelerometer error!\r\n");
+        putsUART1Str("Asynchronous IMU accelerometer error!\r\n");
         return;
     }
     
@@ -188,7 +188,7 @@ void imuReadAccelCb(bool success) {
     
     //char measurementStr[70];
     //snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accelMeasurements[0], accelMeasurements[1], accelMeasurements[2]);
-    //putsUART1(measurementStr);
+    //putsUART1Str(measurementStr);
 }
 
 /**
@@ -201,7 +201,7 @@ void imuReadAccelCb(bool success) {
  */
 void imuReadMagCb(bool success) {
     if (!success) {
-        putsUART1("Asynchronous IMU magnetometer error!\r\n");
+        putsUART1Str("Asynchronous IMU magnetometer error!\r\n");
         return;
     }
     
@@ -220,12 +220,12 @@ void imuReadMagCb(bool success) {
     
     // char measurementStr[80];
     // snprintf(measurementStr, 80, "Magnetometer [uT]: X = %1.2f\tY = %1.2f\tZ = %1.2f\tHeading = %1.2f deg\r\n", magMeasurements[0], magMeasurements[1], magMeasurements[2], heading);
-    // putsUART1(measurementStr);
+    // putsUART1Str(measurementStr);
 }
 
 void imuReadTempCb(bool success) {
     if (!success) {
-        putsUART1("Asynchronous IMU temperature error!\r\n");
+        putsUART1Str("Asynchronous IMU temperature error!\r\n");
         return;
     }
     
@@ -237,7 +237,7 @@ void imuReadTempCb(bool success) {
     
     //char measurementStr[70];
     //snprintf(measurementStr, 70, "Temperature [C]: %1.2f\r\n", tempMeasurement);
-    //putsUART1(measurementStr);
+    //putsUART1Str(measurementStr);
 }
 
 void imuReadGyro(void) {
@@ -382,7 +382,7 @@ static void imuReadWhoAmICb(bool success)
 
     snprintf(whoAmIStr, 50, "ICM-20948 WHO_AM_I = 0x%02X\r\n", imuWhoAmI);
 
-    putsUART1(whoAmIStr);
+    putsUART1Str(whoAmIStr);
 }
 
 // -----------------------------------------------------------------------------
@@ -410,7 +410,7 @@ static void imuReadWhoAmIMagCb(bool success)
 
     snprintf(whoAmIStr, 50, "AK09916 WHO_AM_I = 0x%02X\r\n", magWhoAmI);
 
-    putsUART1(whoAmIStr);
+    putsUART1Str(whoAmIStr);
 }
 
 // -----------------------------------------------------------------------------
@@ -551,14 +551,14 @@ void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode,
     __delay_ms(100);
     
     if (status) {
-        putsUART1("IMU configured.\r\n");
+        putsUART1Str("IMU configured.\r\n");
     } else {
-        putsUART1("Error setting up the IMU!\r\n");
+        putsUART1Str("Error setting up the IMU!\r\n");
     }
 }
 
 bool imuCalibrateGyro() {
-    putsUART1("Calibrating IMU Gyroscope. Hold still.\r\n");
+    putsUART1Str("Calibrating IMU Gyroscope. Hold still.\r\n");
     
     const uint16_t numSamples = 500;
     uint16_t numMeasurements = 0;
@@ -600,7 +600,7 @@ bool imuCalibrateGyro() {
     
     char calibrationStr[40];
     snprintf(calibrationStr, sizeof(calibrationStr), "Averages: %.2f, %.2f, %.2f\r\n", runningAverage[0], runningAverage[1], runningAverage[2]);
-    putsUART1(calibrationStr);
+    putsUART1Str(calibrationStr);
     
     for (uint8_t axis = 0; axis < 3; axis++) {
         gyroOffsets[axis] = (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
@@ -618,16 +618,16 @@ bool imuCalibrateGyro() {
     status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, offsetValues, 7, NULL, 0);
     
     if (status) {
-        putsUART1("Gyroscope calibrated.\r\n");
+        putsUART1Str("Gyroscope calibrated.\r\n");
     } else {
-        putsUART1("Error calibrating the IMU!\r\n");
+        putsUART1Str("Error calibrating the IMU!\r\n");
     }
     
     return status;
 }
 
 bool imuCalibrateAccel() {
-    putsUART1("Calibrating IMU Accelerometer. Hold still.\r\n");
+    putsUART1Str("Calibrating IMU Accelerometer. Hold still.\r\n");
 
     // Read factory calibration
     // Seems to be: X = 1190 Y = -1365 Z = -269
@@ -710,7 +710,7 @@ bool imuCalibrateAccel() {
     
     char calibrationStr[40];
     snprintf(calibrationStr, sizeof(calibrationStr), "Averages: %.2f, %.2f, %.2f\r\n", runningAverage[0], runningAverage[1], runningAverage[2]);
-    putsUART1(calibrationStr);
+    putsUART1Str(calibrationStr);
     
     for (uint8_t axis = 0; axis < 3; axis++) {
         accelOffsets[axis] += (int16_t)roundf(-runningAverage[axis] / sensitivityScaling);
@@ -735,9 +735,9 @@ bool imuCalibrateAccel() {
     status &= putsI2C1Sync(I2C_IMU_GYRO_ADDR, zOffsetValues, 3, NULL, 0);
     
     if (status) {
-        putsUART1("Accelerometer calibrated.\r\n");
+        putsUART1Str("Accelerometer calibrated.\r\n");
     } else {
-        putsUART1("Error calibrating the IMU!\r\n");
+        putsUART1Str("Error calibrating the IMU!\r\n");
     }
     
     return status;
@@ -882,11 +882,11 @@ float magnetometerToTiltCompensatedHeading(float scaledMag[3], float pitchRad, f
 
 
 void imuGetAccelCalibrationData(void) {
-    putsUART1Sync("--- Accelerometer Calibration ---\r\n");
-    putsUART1Sync("Collecting a sample every 250ms.\r\n");
-    putsUART1Sync("Rotate the device to different positions and hold still.\r\n");
-    putsUART1Sync("Copy values for calibration for which you know only gravity acted on the accelerometer.\r\n");
-    putsUART1Sync("Endless loop, shutdown when finished.\r\n");
+    putsUART1StrSync("--- Accelerometer Calibration ---\r\n");
+    putsUART1StrSync("Collecting a sample every 250ms.\r\n");
+    putsUART1StrSync("Rotate the device to different positions and hold still.\r\n");
+    putsUART1StrSync("Copy values for calibration for which you know only gravity acted on the accelerometer.\r\n");
+    putsUART1StrSync("Endless loop, shutdown when finished.\r\n");
     
     __delay_ms(1000);
     
@@ -908,15 +908,15 @@ void imuGetAccelCalibrationData(void) {
         //float scaledAccelMeasurements[3];
         //imuCalibrateAccelMeasurements(rawAccelMeasurements, scaledAccelMeasurements);
         //snprintf(measurementStr, sizeof(measurementStr), "%lu, %.2f, %.2f, %.2f\r\n", i, scaledAccelMeasurements[0], scaledAccelMeasurements[1], scaledAccelMeasurements[2]);
-        putsUART1Sync(measurementStr);
+        putsUART1StrSync(measurementStr);
         
         __delay_ms(250);
     }
 }
 
 void imuGetMagCalibrationData(void) {
-    putsUART1Sync("--- Magnetometer Calibration ---\r\n");
-    putsUART1Sync("Collecting samples -> rotate the device\r\n");
+    putsUART1StrSync("--- Magnetometer Calibration ---\r\n");
+    putsUART1StrSync("Collecting samples -> rotate the device\r\n");
     
     __delay_ms(1000);
     
@@ -934,10 +934,10 @@ void imuGetMagCalibrationData(void) {
         i++;
         
         snprintf(measurementStr, sizeof(measurementStr), "%d, %d, %d, %d\r\n", i, rawMagMeasurements[0], rawMagMeasurements[1], rawMagMeasurements[2]);
-        putsUART1Sync(measurementStr);
+        putsUART1StrSync(measurementStr);
         
         __delay_ms(15);
     }
     
-    putsUART1Sync("Samples collected. Use provided values for calibration.\r\n");
+    putsUART1StrSync("Samples collected. Use provided values for calibration.\r\n");
 }

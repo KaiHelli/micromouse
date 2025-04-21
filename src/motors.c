@@ -14,11 +14,14 @@
 #include "uart.h"
 #include "motorEncoders.h"
 
-#define WHEEL_PID_KP  0.45f
+#define WHEEL_MAX_ACC 3000.0f // dps^2 -- exact 3054.976
+#define WHEEL_MAX_VEL 1000.0f // dps - exact 1022.728
+
+#define WHEEL_PID_KP  0.12f
 #define WHEEL_PID_KI  1.0f
 #define WHEEL_PID_KD  0.0f
 #define WHEEL_PID_KF  0.183f
-#define WHEEL_PID_BC  0.0003f
+//#define WHEEL_PID_BC  0.000f
 
 static FastPid pidL, pidR;
 static float motorSpeedLeft = 0;
@@ -40,13 +43,36 @@ static int16_t wheelPidStep(void)
 
     /*
     static uint16_t i = 0;
-    if (i % 10 == 0) {
+    if (i % 5 == 0) {
         char buf[100];
         snprintf(buf, sizeof(buf), "Left: sp %d, is %d, ctl %d | Right: sp %d, is %d, ctl %d\r\n", (int16_t) (motorSpeedLeft * 10), (int16_t) (vLeft * 10), pLeft, (int16_t) (motorSpeedRight * 10), (int16_t) (vRight * 10), pRight);
-        putsUART1(buf);
+        putsUART1Str(buf);
     }
     i++;
     */
+    
+    /*
+    uint8_t buffer[20];
+    size_t idx = 0;
+    buffer[idx++] = FRAME_START_BYTE;
+    
+    float errLeft = motorSpeedLeft - vLeft;
+    float errRight = motorSpeedRight - vRight;
+    
+    memcpy(&buffer[idx], &errLeft, sizeof(errLeft));
+    idx += sizeof(errLeft);
+    memcpy(&buffer[idx], &errRight, sizeof(errRight));
+    idx += sizeof(errRight);
+    
+    memcpy(&buffer[idx], &pLeft, sizeof(pLeft));
+    idx += sizeof(pLeft);
+    memcpy(&buffer[idx], &pRight, sizeof(pRight));
+    idx += sizeof(pRight);
+    
+    buffer[idx++] = FRAME_END_BYTE;
+    putsUART1(buffer, idx);
+    */
+    
     
     setMotorPower(MOTOR_LEFT,  pLeft);
     setMotorPower(MOTOR_RIGHT, pRight);
@@ -64,11 +90,13 @@ void initMotorsState(Timer_t timer, float pid_hz) {
     fastPidConfigure(&pidR, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, pid_hz, 8, true);
     fastPidSetOutputRange(&pidL, -100, 100);
     fastPidSetOutputRange(&pidR, -100, 100);
-    fastPidSetAntiWindup(&pidL, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
-    fastPidSetAntiWindup(&pidR, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
+    //fastPidSetAntiWindup(&pidL, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
+    //fastPidSetAntiWindup(&pidR, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
+    fastPidSetAntiWindup(&pidL, FASTPID_AW_CLAMP, 0.0f);
+    fastPidSetAntiWindup(&pidL, FASTPID_AW_CLAMP, 0.0f);
     
     if (fastPidHasConfigError(&pidL) || fastPidHasConfigError(&pidR)) {
-        putsUART1("Failed to setup PIDs for motor control.\r\n");
+        putsUART1Str("Failed to setup PIDs for motor control.\r\n");
         return;
     }
     

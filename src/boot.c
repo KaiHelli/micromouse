@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 
 int16_t toggleMotors(void) {
     static bool standby = 0;
@@ -38,20 +39,86 @@ int16_t readIMU(void) {
     return 1;
 }
 
+int16_t estimateEncoderAcceleration(void) {
+    static float lastPosDegLeft = 0.0f;
+    float posDegLeft = getEncoderPositionDeg(ENCODER_LEFT);
+    
+    float velEstimateDps = (posDegLeft - lastPosDegLeft) / 1e-3f;
+    lastPosDegLeft = posDegLeft;
+    
+    uint8_t buffer[100];
+    size_t idx = 0;
+    
+    buffer[idx++] = FRAME_START_BYTE;
+    
+    memcpy(&buffer[idx], &velEstimateDps, sizeof(velEstimateDps));
+    idx += sizeof(velEstimateDps);
+    
+    buffer[idx++] = FRAME_END_BYTE;
+    
+    putsUART1(buffer, idx);
+    
+    return 1;
+}
+
+int16_t printEncoderVelocities(void) {
+    float velLeft = getEncoderVelocityDegPerSec(ENCODER_LEFT);
+    float velRight = getEncoderVelocityDegPerSec(ENCODER_RIGHT);
+    
+    uint8_t buffer[100];
+    size_t idx = 0;
+    
+    buffer[idx++] = FRAME_START_BYTE;
+    
+    memcpy(&buffer[idx], &velLeft, sizeof(velLeft));
+    idx += sizeof(velLeft);
+    
+    memcpy(&buffer[idx], &velRight, sizeof(velRight));
+    idx += sizeof(velRight);
+    
+    buffer[idx++] = FRAME_END_BYTE;
+    
+    putsUART1(buffer, idx);
+    
+    return 1;
+}
+
 int16_t printOdometry(void) {
-    char buffer[200];
     
     // TODO: print
     //extern volatile float velocity[3];       // x, y, z velocity (e.g., mm/s)
     //extern volatile float position[3];       // x, y, z position (e.g., mm)
-    //extern volatile float angle[3];               // Yaw angle in degrees or radians
+    //extern volatile float angle[3];          // Yaw angle in degrees or radians
     
+    uint8_t buffer[200];
+    size_t idx = 0;
+    
+    buffer[idx++] = FRAME_START_BYTE;
+    
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        float angleDeg = mouseAngle[axis] * RAD2DEG;
+        memcpy(&buffer[idx], &angleDeg, sizeof(mouseAngle[axis]));
+        idx += sizeof(mouseAngle[axis]);
+    }
+    
+    float magYawDeg = mouseMagYaw * RAD2DEG;
+    memcpy(&buffer[idx], &magYawDeg, sizeof(mouseMagYaw));
+    idx += sizeof(magYawDeg);
+    
+    buffer[idx++] = FRAME_END_BYTE;
+    
+    putsUART1(buffer, idx);
+    
+    //snprintf(buffer, sizeof(buffer), "%hi%f%hi",
+    //     (int8_t) 0x03, mouseAngle[YAW]*RAD2DEG, (int8_t) ~0x03);
+    /*
     snprintf(buffer, sizeof(buffer),
          "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Pitch: %.2f deg, Roll: %.2f deg, Yaw: %.2f deg\r\n",
          mouseVelocity[X], mouseVelocity[Y], mouseVelocity[Z],
          mousePosition[X], mousePosition[Y], mousePosition[Z],
          mouseAngle[PITCH]*RAD2DEG, mouseAngle[ROLL]*RAD2DEG, mouseAngle[YAW]*RAD2DEG);
-    /*
+    */
+    /* 
     snprintf(buffer, sizeof(buffer),
          "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Yaw: %.2f dps, Lin Vel: %.2f mmps\r\n", 
             getEncoderPositionCounts(ENCODER_LEFT), 
@@ -66,7 +133,7 @@ int16_t printOdometry(void) {
             getEncoderLinearVelocityMmPerSec()
             );
     */
-    putsUART1(buffer);
+    //putsUART1Str(buffer);
     
     //imuCalibrateAccelMeasurements(rawAccelMeasurements, accelMeasurements);
     //imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
@@ -79,7 +146,7 @@ int16_t printOdometry(void) {
     
     char measurementStr[70];
     snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", localAccelMeasurements[0], localAccelMeasurements[1], localAccelMeasurements[2]);
-    putsUART1(measurementStr);
+    putsUART1Str(measurementStr);
     */
 
     return 1;
@@ -97,8 +164,7 @@ void bootSetup() {
     setupPWM2(); // configure PWM2
     setupI2C1(); // configure I2C
     
-    initQEI(ENCODER_LEFT, 0);  // configure Quadrature Encoder 1
-    initQEI(ENCODER_RIGHT, 0); // configure Quadrature Encoder 2
+    initMotorEncoders(100.0f);
     
     initDmaChannel4(); // Initialize DMA to copy sensor readings in the background
     setupADC1();       // Initialize ADC to sample sensor reading
@@ -112,9 +178,9 @@ void bootSetup() {
     
     __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
     
-    imuCalibrateAccel(); // Calibrate accelerometer.
+    //imuCalibrateAccel(); // Calibrate accelerometer.
     imuCalibrateGyro(); // Calibrate gyroscope.
-
+    
     //imuGetAccelCalibrationData();   // Output calibration data of accelerometer
     //imuGetMagCalibrationData();   // Output calibration data of magnetometer
     // For calibration -> remember to set current calibration to identity matrix and 0 bias beforehand)
@@ -124,7 +190,7 @@ void bootSetup() {
     
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
     initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
-    initTimerInMs(TIMER_3, 300); // 100ms timer interrupt for testing
+    initTimerInMs(TIMER_3, 5); // 100ms timer interrupt for testing
 
     initMotorsState(TIMER_1, 100.0f);
     initMouseState();
@@ -136,7 +202,7 @@ void bootSetup() {
     //registerTimerCallback(TIMER_3, moveForward);
 
     setupOdometry(TIMER_2, TIMER_1); // track odometry
-    registerTimerCallback(TIMER_3, printOdometry);
+    //registerTimerCallback(TIMER_3, printOdometry);
     
     //steerMotors(30, 30);
     //setMotorPower(MOTOR_LEFT, 52);    
@@ -146,9 +212,60 @@ void bootSetup() {
     // initTimerInMs(TIMER_32_COMBINED, 250); //creates a 10ms timer interrupt
     // setTimerState(TIMER_32_COMBINED, 1);
     
-    __delay_ms(2000);
+    //registerTimerCallback(TIMER_3, printEncoderVelocities);
+    //registerTimerCallback(TIMER_3, printOdometry);
+
+    /*
+    // how many samples per one full sine?wave
+    static const uint32_t SIN_WAVE_LENGTH = 2000;
+    // how many full cycles you want
+    static const uint32_t NUM_CYCLES = 10;
+    // total loop count = samples per cycle × number of cycles
+    static const uint32_t TOTAL_STEPS = SIN_WAVE_LENGTH * NUM_CYCLES;
+
+    for (uint32_t step = 0;  step < TOTAL_STEPS;  ++step) {
+        // compute phase in radians [0 ? 2?) for this sample
+        float phase = (float)step * 2.0f * M_PI / (float)SIN_WAVE_LENGTH;
+
+        // sinf(phase) gives ?1?+1; map to 0?1
+        float speed = 100.0f * (sinf(phase) + 1.0f) * 0.5f;
+
+        setMotorPower(MOTOR_LEFT, (int8_t) speed);
+        
+        __delay_ms(5);
+    }
     
-    //turnDegrees(TIMER_1, 90, 5, 100.0f);
+    setMotorPower(MOTOR_LEFT, 0);
+    */
+
+    /*
+    __delay_ms(1000);
+    
+    setMotorPower(MOTOR_LEFT, 100);
+    setMotorPower(MOTOR_RIGHT, 100);
+    setMotorsStandbyState(false);
+    
+    __delay_ms(1000);
+    */
+    
+    //setMotorsStandbyState(true);
+    
+    __delay_ms(1000);
+
+    turnDegrees(TIMER_1, 720, 400, 100.0f);
+    
+    /*
+    setMotorsStandbyState(false);
+
+    setMotorSpeedLeft(250);
+    setMotorSpeedRight(250);
+    __delay_ms(1000);
+    setMotorSpeedLeft(-250);
+    setMotorSpeedRight(-250);
+    __delay_ms(1000);
+    setMotorSpeedLeft(0);
+    setMotorSpeedRight(0);
+    */
     
     //for (uint8_t i = 0; i < 6; i++) {
     //    int8_t degrees = i % 2 == 0 ? 90 : -90;

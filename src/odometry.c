@@ -6,11 +6,22 @@
 #include "IOconfig.h"
 #include "constants.h"
 #include "uart.h"
+#include "IOconfig.h"
+
+#include "clock.h" // Has to be imported before libpic30, as it defines FCY
+#include <libpic30.h>
 
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#define MAG_INIT_SAMPLES 500
+
+#define CF_TAU_PITCHROLL   0.25f      // 250 ms - accel vs. gyro
+#define CF_TAU_YAW_MAG     15.0f      // 15 s - mag vs. gyro
+#define CF_TAU_YAW_ENC     1.0f       // 200 ms - encoder vs. gyro
+#define FAST_TURN_RAD_S    (60.0f * DEG2RAD)   // ~60 °/s  (skip mag during fast turns)
 
 #define G_TO_MM_S2             9.80665f * 1000.0f
 
@@ -22,12 +33,21 @@ volatile float localVelocity[3]       = {0.0f, 0.0f, 0.0f};
 volatile float localPosition[3]       = {0.0f, 0.0f, 0.0f};
 volatile float localAngle[3]          = {0.0f, 0.0f, 0.0f}; // pitch, roll, yaw
 
+volatile float mouseMagYaw = 0.0f;
+
 volatile uint64_t lastGyroUpdateTimeUs  = 0;
 volatile uint64_t lastAccelUpdateTimeUs = 0;
+volatile uint64_t lastMagUpdateTimeUs = 0;       // mag ?t
+static   float    lastYawRate         = 0.0f;    // rad / s from gyro Z
 volatile uint64_t lastEncoderUpdateTimeUs = 0;
 
-bool initAccelEstimates = true;
-bool initMagEstimates = true;
+volatile bool gyroInit = false;
+volatile bool accelInit = false;
+volatile bool magInit = false;
+volatile bool encInit = false;
+
+volatile bool initAccelEstimates = true;
+volatile bool initMagEstimates = true;
 
 /**
  * @brief Setup odometry to trigger every 1ms, resets data.
@@ -35,6 +55,7 @@ bool initMagEstimates = true;
 void setupOdometry(Timer_t fastTimer, Timer_t slowTimer)
 {
     resetOdometry();
+    
     // Register fast IMU updates for gyroscope and accelerometer (200Hz)
     registerTimerCallback(fastTimer, triggerGyroAccelUpdate);
     
@@ -46,8 +67,7 @@ void setupOdometry(Timer_t fastTimer, Timer_t slowTimer)
 /**
  * @brief Reset all integrated states.
  */
-void resetOdometry(void)
-{
+void resetOdometry(void) {
     for (uint8_t i = 0; i < 3; i++) {
         mouseVelocity[i]  = 0.0f;
         mousePosition[i]  = 0.0f;
@@ -57,8 +77,27 @@ void resetOdometry(void)
         localPosition[i]  = 0.0f;
         localAngle[i]     = 0.0f;
     }
+    
     lastGyroUpdateTimeUs  = getTimeInUs(); // Reset reference time
     lastAccelUpdateTimeUs = lastGyroUpdateTimeUs;
+    lastMagUpdateTimeUs = lastGyroUpdateTimeUs;
+    lastEncoderUpdateTimeUs = lastGyroUpdateTimeUs;
+    
+    gyroInit = accelInit = magInit = encInit = false;
+    initAccelEstimates = initMagEstimates = true;
+    
+    // Initialize PITCH / ROLL estimates
+    while (initAccelEstimates) { 
+        imuReadAccel();
+        __delay_ms(10);
+        /* spin until PITCH / ROLL estimates are initialized */ 
+    }
+    
+    while (initMagEstimates) { 
+        imuReadMag();
+        __delay_ms(10);
+        /* spin until YAW estimates are initialized */ 
+    }
 }
 
 /**
@@ -109,30 +148,34 @@ static inline float wrapPi(float angle)
  * Fuse two angles (prev and measured) with a complementary filter,
  * wrapping the error over the ±pi boundary and keeping the result in [-pi, pi).
  */
-static float fuseAngle(float prev, float measured, float alpha) {
-    // 1) short way signed error in (pi, +pi]
+static float fuseAngle(float prev, float measured, float dt, float tau)
+{
     float err = measured - prev;
-    if      (err >  M_PI) err -= 2.0f * M_PI;
-    else if (err < -M_PI) err += 2.0f * M_PI;
+    if      (err >  M_PI) err -= 2.0f*M_PI;
+    else if (err < -M_PI) err += 2.0f*M_PI;
 
-    // 2) complementary update
+    const float alpha = tau / (tau + dt);        // dt-adaptive coefficient
     prev += (1.0f - alpha) * err;
-
-    prev = wrapPi(prev);
-
-    return prev;
+    
+    return wrapPi(prev);
 }
 
 // -------------------------------------------------------------------------
 // GYRO UPDATE ~250us
 // -------------------------------------------------------------------------
 void odometryIMUGyroUpdate(void)
-{
+{ 
     // Called when new gyro data are available in:
     //   extern volatile int16_t rawGyroMeasurements[3]; -> raw readings from sensor
     // We want to integrate the Z-axis gyro to maintain a yaw estimate.
-
     uint64_t currentTimeUs = getTimeInUs();
+    
+    if (!gyroInit) {
+        lastGyroUpdateTimeUs = currentTimeUs;
+        gyroInit = true;
+        return;
+    }
+    
     uint64_t deltaUs       = currentTimeUs - lastGyroUpdateTimeUs;
     lastGyroUpdateTimeUs   = currentTimeUs;
 
@@ -148,6 +191,7 @@ void odometryIMUGyroUpdate(void)
     // Scale the raw Z gyro reading to deg/s.
     float angles_dps[3];
     imuScaleGyroMeasurements(rawGyroMeasurements, angles_dps);
+    lastYawRate = angles_dps[YAW] * DEG2RAD;
 
     // Integrate angles:
     for (uint8_t axis = 0; axis < 3; axis++) {
@@ -166,8 +210,13 @@ void odometryIMUAccelUpdate(void)
     // Called when new accel data are available in:
     //   extern volatile int16_t rawAccelMeasurements[3]; -> raw readings from sensor
     // We'll integrate acceleration to update velocity & position in the x-y plane.
-
     uint64_t currentTimeUs = getTimeInUs();
+    if (!accelInit) {
+        lastAccelUpdateTimeUs = currentTimeUs;
+        accelInit = true;
+        return;
+    }
+    
     uint64_t deltaUs       = currentTimeUs - lastAccelUpdateTimeUs;
     lastAccelUpdateTimeUs  = currentTimeUs;
 
@@ -184,7 +233,7 @@ void odometryIMUAccelUpdate(void)
     if (i % 20 == 0) {
         char measurementStr[70];
         snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", accel_g[0], accel_g[1], accel_g[2]);
-        putsUART1(measurementStr);
+        putsUART1Str(measurementStr);
     }
     i++;
     */
@@ -201,12 +250,13 @@ void odometryIMUAccelUpdate(void)
         mouseAngle[ROLL] = roll;
         
         initAccelEstimates = false;
+        return;
     }
     
     // Fuse with gyroscope readings (complementary filter)
     const float alpha = 0.98f;
-    mouseAngle[PITCH] = fuseAngle(localAngle[PITCH], pitch, alpha);
-    mouseAngle[ROLL]  = fuseAngle(localAngle[ROLL],  roll,  alpha);
+    mouseAngle[PITCH] = fuseAngle(localAngle[PITCH], pitch, dt, CF_TAU_PITCHROLL);
+    mouseAngle[ROLL]  = fuseAngle(localAngle[ROLL],  roll,  dt, CF_TAU_PITCHROLL);
     
     // Yaw rate will be improved by magnetometer and wheel encoders at a slower rate
     mouseAngle[YAW] = localAngle[YAW];
@@ -240,7 +290,7 @@ void odometryIMUAccelUpdate(void)
     
     char buf[40];
     snprintf(buf, sizeof(buf), "f_gx=%f  f_gy=%f\r\n", f_gx, f_gy);
-    putsUART1(buf);
+    putsUART1Str(buf);
 
     // Z is not used for 2?D odometry, but you could keep it:
     // float f_gz = a_g[Z] - g_bz;
@@ -276,6 +326,17 @@ void odometryIMUAccelUpdate(void)
 // MAG UPDATE ~440us
 // -------------------------------------------------------------------------
 void odometryIMUMagUpdate(void) {
+    uint64_t now = getTimeInUs();
+    
+    if (!magInit) {
+        lastMagUpdateTimeUs = now;
+        magInit = true;
+        return;
+    }
+    
+    float dt = (float)(now - lastMagUpdateTimeUs) * 1.0e-6f;
+    lastMagUpdateTimeUs = now;
+
     float scaledMagMeasurements[3];
     
     // Get calibrated magnetometer readings
@@ -284,19 +345,44 @@ void odometryIMUMagUpdate(void) {
     // Get magnetometer heading using pitch and roll estimates
     //float yaw = magnetometerToHeading(scaledMagMeasurements);
     float magYaw = magnetometerToTiltCompensatedHeading(scaledMagMeasurements, mouseAngle[PITCH], mouseAngle[ROLL]);
+    
+    static int   magInitCount = 0;
+    static float magInitSum   = 0.0f;
 
-    // Initialize estimates
+    // Initialize estimates with an N?sample average
     if (initMagEstimates)
     {
-        localAngle[YAW] = magYaw;
-        mouseAngle[YAW] = magYaw;
-        initMagEstimates = false;
+        // accumulate
+        magInitSum  += magYaw;
+        magInitCount++;
+
+        if (magInitCount >= MAG_INIT_SAMPLES)
+        {
+            // compute average
+            float avgYaw = magInitSum / (float)MAG_INIT_SAMPLES;
+
+            // set initial state
+            localAngle[YAW] = avgYaw;
+            mouseAngle[YAW] = avgYaw;
+
+            // done initializing
+            initMagEstimates = false;
+
+            // (optional) reset counters in case you ever re-init
+            magInitCount = 0;
+            magInitSum   = 0.0f;
+        }
+
+        // on startup we do not run the rest of the algorithm until we have our average
+        return;
     }
     
+    mouseMagYaw = magYaw;
     // Fuse heading with estimated yaw of gyroscope
-    const float alpha = 0.99f;
-    localAngle[YAW] = fuseAngle(localAngle[YAW], magYaw, alpha);
-    mouseAngle[YAW] = localAngle[YAW];
+    if (fabsf(lastYawRate) < FAST_TURN_RAD_S) {      // ignore while fast turning
+        localAngle[YAW] = fuseAngle(localAngle[YAW], magYaw, dt, CF_TAU_YAW_MAG);
+        mouseAngle[YAW] = localAngle[YAW];
+    }
     
     // Update motor encoders
     updateEncoderVelocities();
@@ -309,17 +395,18 @@ void odometryIMUMagUpdate(void) {
 void odometryEncoderUpdate(void)
 {
     static float yawAtLastEncUpdate = 0.0f;
-    static bool  encInit = false;
-    
     uint64_t currentTimeUs = getTimeInUs();
-    uint64_t deltaUs = currentTimeUs - lastEncoderUpdateTimeUs;
-    lastEncoderUpdateTimeUs = currentTimeUs;
 
     if (!encInit) {
+        lastEncoderUpdateTimeUs = currentTimeUs;
         yawAtLastEncUpdate = mouseAngle[YAW];
         encInit = true;
         return;
     }
+    
+    uint64_t deltaUs = currentTimeUs - lastEncoderUpdateTimeUs;
+    lastEncoderUpdateTimeUs = currentTimeUs;
+
     
     float dt = (float)deltaUs * 1.0e-6f;
     float yawRateBody;
@@ -339,8 +426,8 @@ void odometryEncoderUpdate(void)
     encoderYaw = wrapPi(encoderYaw);
     
     const float alphaEnc = 0.2f;                      // trust IMU more
-    localAngle[YAW] = fuseAngle(localAngle[YAW], encoderYaw, alphaEnc);
-    mouseAngle[YAW] = localAngle[YAW];                // keep gyro seed aligned
+    localAngle[YAW] = fuseAngle(localAngle[YAW], encoderYaw, dt, CF_TAU_YAW_ENC);
+    mouseAngle[YAW] = localAngle[YAW];
     
     /* save for the *next* cycle */
     yawAtLastEncUpdate = mouseAngle[YAW];
@@ -368,7 +455,7 @@ void odometryEncoderUpdate(void)
     //uint64_t elapsedTimeInUs = getTimeInUs() - currentTimeUs;
     //char elapsedStr[30];
     //snprintf(elapsedStr, sizeof(elapsedStr), "%llu\r\n" , elapsedTimeInUs);
-    //putsUART1(elapsedStr);
+    //putsUART1Str(elapsedStr);
 }
 
 

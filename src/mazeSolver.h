@@ -4,7 +4,14 @@
 #include <xc.h>
 
 #define N 6
-#define MAX_STEPS 50
+#define MAX_STEPS N*N
+
+enum Turn {
+    NO_TURN = -1,
+    TURN_LEFT = 0,
+    TURN_RIGHT = 1,
+    TURN_BACK = 2
+};
 
 enum Direction {
     UP = 0,
@@ -22,13 +29,13 @@ enum Status {
 
 typedef struct Target_ {
     int count;
-    int rows[N * N];
-    int cols[N * N];
+    int rows[2];
+    int cols[2];
 } Target;
 
-//if turn is 0: move forward
-//else turn is +-90: turn left/right
+
 typedef struct Command_ {
+    int cells;
     int turn;
 } Command;
 
@@ -69,9 +76,14 @@ typedef struct Queue_ {
     int head, tail;
 } Queue;
 
-uint8_t dicoverMaze();
-
-uint8_t executeMaze();
+/**
+ * Top level maze solver:
+ * 1. Discovers maze
+ * 2. Returns to start position
+ * 3. Calculates optimal path 
+ * 4. Execute optimal goal reaching path
+ */
+uint8_t solveMaze();
 
 #endif	/* MAZESOLVER_H */
 

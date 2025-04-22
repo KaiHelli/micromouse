@@ -6,6 +6,8 @@
 
 #ifdef MAZESOLVER
 
+static Mouse mouse;
+
 //TODO verify value
 //in mm, distance of a wall if mouse in the centre of the cell 
 #define WALL_MAX_DISTANCE 100
@@ -455,38 +457,34 @@ void go_back(Mouse* mouse) {
 uint8_t solveMaze() {
     // Setup mouse
     uint8_t rc = 0;
-    Mouse* mouse = calloc(1, sizeof(Mouse));
-    if (mouse == NULL) {
-        return 0;
-    }
-    mouse_init(mouse, 5, 0, UP);
-    mouse_add_target(mouse, 2, 2);
-    mouse_add_target(mouse, 3, 2);
-    mouse_add_target(mouse, 2, 3);
-    mouse_add_target(mouse, 3, 3);
+    
+    mouse_init(&mouse, 5, 0, UP);
+    mouse_add_target(&mouse, 2, 2);
+    mouse_add_target(&mouse, 3, 2);
+    mouse_add_target(&mouse, 2, 3);
+    mouse_add_target(&mouse, 3, 3);
 
-    mouse_fill_distances(mouse);
+    mouse_fill_distances(&mouse);
     //mouse_print_maze(&mouse);
     //mouse_print_distances(&mouse);
     
-    int status = discover_maze(mouse);
+    int status = discover_maze(&mouse);
     if ( status == TARGET ) {
-        go_back(mouse);
+        go_back(&mouse);
         
         // we are at the start position again
         // we can discover the maze with more walls known
-        mouse->command_count = 0;
-        mouse->row = 5;
-        mouse->col = 0;
-        mouse->dir = UP;
-        status = plan_run(mouse);
+        mouse.command_count = 0;
+        mouse.row = 5;
+        mouse.col = 0;
+        mouse.dir = UP;
+        status = plan_run(&mouse);
         if (status == TARGET) {
-            maze_runner(mouse);
+            maze_runner(&mouse);
             rc = 1;
         }
     } 
     
-    free(mouse);
     return rc;
 }
 

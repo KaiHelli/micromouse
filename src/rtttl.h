@@ -1,5 +1,5 @@
-#ifndef RTTTL_H
-#define	RTTTL_H
+#ifdef RTTTL_H
+//#define	RTTTL_H
 
 #include <stdint.h>
 

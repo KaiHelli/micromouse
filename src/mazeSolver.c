@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 
+#define MAZESOLVER
 #ifdef MAZESOLVER
 
 static Mouse mouse;

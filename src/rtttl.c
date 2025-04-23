@@ -1,4 +1,4 @@
-
+#ifdef RTTTL_H
 #include <xc.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -514,3 +514,4 @@ static int16_t songISR(void) {
     
     return 1;
 }
+#endif

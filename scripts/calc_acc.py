@@ -12,5 +12,5 @@ def compute_slope(csv_path):
     return m
 
 if __name__ == "__main__":
-    slope = compute_slope("/Users/kai.helli/MPLABXProjects/micromouseLC.X/full_acceleration.csv")
+    slope = compute_slope("../data/full_acceleration.csv")
     print(f"Slope of fitted line: {slope}")

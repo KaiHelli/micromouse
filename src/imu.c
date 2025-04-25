@@ -1419,7 +1419,7 @@ static void imuReadFifoCb(bool success) {
     
     float dtTotal = numSamples * dtPerSample;
     
-    // Integer averaging
+    // Float averaging
     if (numSamples > 0) {
         if (fifoConfig.gyro) {
             for (int j = 0; j < 3; j++) {
@@ -1482,7 +1482,7 @@ static void imuReadFifoCountCb(bool success) {
     }
     // ---- END ALIGN ----
     
-    // enforce 100-byte limit
+    // enforce byte limit
     uint16_t bytesToRead  = bytesToRead = fifoCount - (fifoCount % fifoBytesPerDataset);
 
     if (bytesToRead > MAX_READ_BYTES)

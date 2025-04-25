@@ -1327,7 +1327,7 @@ volatile float localFifoAccelMeasurements[3];
 volatile float localFifoMagMeasurements[3];
 volatile float localFifoTempMeasurement;
 
-#define MAX_DATASET_BYTES   (6+6+8+2)  // accel+gyro+mag+temp
+#define MAX_DATASET_BYTES   (6+6+9+2)  // accel+gyro+mag+temp
 #define MAX_READ_BYTES      105
 
 static volatile bool fifoAligned = false;

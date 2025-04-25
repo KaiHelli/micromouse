@@ -166,9 +166,9 @@ static bool parseDefault(RtttlReader *input, RtttlDefaults *defaults, char c, bo
   // Check for c= in the string for a given char c.
   if (expectChar(input, c) && expectChar(input, '='))
   {
-    uint16_t *defaultAddr;
-    const uint16_t *validNums;
-    uint8_t len;
+    uint16_t *defaultAddr = 0;
+    const uint16_t *validNums = 0;
+    uint8_t len = 0;
 
     // Set the variables to the correct values for each
     // case.

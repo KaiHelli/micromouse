@@ -65,7 +65,7 @@ static inline int32_t readEncoderCount(MotorEncoder_t encoder)
     return count;
 }
 
-void initMotorEncoders(float pid_hz) {
+void initMotorEncoders() {
     initQEI(ENCODER_LEFT, 0);
     initQEI(ENCODER_RIGHT, 0);
 }

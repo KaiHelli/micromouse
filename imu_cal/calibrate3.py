@@ -165,7 +165,7 @@ class Magnetometer(object):
 if __name__=='__main__':
         print("Magnetometer calibration:")
         print("=====================================")
-        Magnetometer(318.2586, "mag3_raw.csv").run()
+        Magnetometer(318.2586, "mag3_raw2.csv").run()
 
         print("Accelerometer calibration:")
         print("=====================================")

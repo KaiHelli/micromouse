@@ -179,11 +179,11 @@ int8_t putsUART1Str(char* buffer)
 {
     size_t length = strlen(buffer);
     
-    return putsUART1(buffer, length);
+    return putsUART1((uint8_t*) buffer, length);
 }
 
 
-int8_t putsUART1(char* buffer, size_t length)
+int8_t putsUART1(uint8_t* buffer, size_t length)
 {
     if (length == 0) {
         return 0; // Nothing to send
@@ -232,10 +232,10 @@ int8_t putsUART1StrSync(char* buffer)
 {
     size_t length = strlen(buffer);
     
-    return putsUART1Sync(buffer, length);
+    return putsUART1Sync((uint8_t*) buffer, length);
 }
 
-int8_t putsUART1Sync(char* buffer, size_t length)
+int8_t putsUART1Sync(uint8_t* buffer, size_t length)
 {
     int8_t result = putsUART1(buffer, length); // Start the asynchronous transmission
 

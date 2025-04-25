@@ -1,23 +1,34 @@
-#ifndef IMU_H
-#define	IMU_H
+#ifndef IMUFIFO_H
+#define	IMUFIFO_H
 
 #include <stdint.h>
 #include <stdbool.h>
-
-// Byte-swap macro to swap big-endian to little-endian format
-#define SWAP_BYTES(x)  ((uint16_t)((((x) & 0xFF00) >> 8) | (((x) & 0x00FF) << 8)))
-#define HIGH_BYTE(x) ((uint8_t)((x) >> 8))
-#define LOW_BYTE(x)  ((uint8_t)((x) & 0xFF))
+#include "i2c.h"
 
 extern volatile int16_t rawGyroMeasurements[3];
 extern volatile int16_t rawAccelMeasurements[3];
 extern volatile int16_t rawMagMeasurements[3];
 extern volatile int16_t rawTempMeasurement;
 
-extern volatile float gyroMeasurements[3];
-extern volatile float accelMeasurements[3];
-extern volatile float magMeasurements[3];
-extern volatile float tempMeasurement;
+extern volatile float rawFifoGyroMeasurements[3];
+extern volatile float rawFifoAccelMeasurements[3];
+extern volatile float rawFifoMagMeasurements[3];
+extern volatile float rawFifoTempMeasurement;
+
+// Byte-swap macro to swap big-endian to little-endian format
+#define SWAP_BYTES(x)  ((uint16_t)((((x) & 0xFF00) >> 8) | (((x) & 0x00FF) << 8)))
+#define HIGH_BYTE(x) ((uint8_t)((x) >> 8))
+#define LOW_BYTE(x)  ((uint8_t)((x) & 0xFF))
+
+// Unified IMU sensor enumeration
+// Select which sensor to read: gyro, accel, mag, or temp
+typedef enum {
+    IMU_SENSOR_GYRO = 0,   // Gyroscope output
+    IMU_SENSOR_ACCEL,      // Accelerometer output
+    IMU_SENSOR_MAG,        // Magnetometer output
+    IMU_SENSOR_TEMP        // Temperature output
+} ImuSensor_t;
+
 
 typedef enum {
     GYRO_RANGE_250DPS = 0,
@@ -48,6 +59,12 @@ typedef enum {
     TEMP_OFF
 } TempMode_t;
 
+typedef struct {
+    bool gyro;    /**< true to collect gyroscope data */
+    bool accel;   /**< true to collect accelerometer data */
+    bool mag;     /**< true to collect magnetometer data */
+    bool temp;    /**< true to collect temperature data */
+} FifoConfig_t;
 
 #define I2C_IMU_GYRO_ADDR   0x69
 #define I2C_IMU_MAG_ADDR 0x0C 
@@ -209,128 +226,289 @@ typedef enum {
 #define ICM20948_I2C_SLV4_DI        		0x17
 
 /**
- * @brief Sets up the IMU with the specified gyro range, accelerometer range,
- * magnetometer mode, and temperature mode.
+ * @brief General async callback to alert something went wrong.
  */
-void imuSetup(GyroRange_t gyroRange, AccelRange_t accelRange, MagMode_t magMode, TempMode_t tempMode);
+void imuCommCb(bool success);
 
 /**
- * @brief Selects the specified user bank for subsequent register operations.
- * Returns true if successful, false otherwise.
+ * @brief Switches the user bank to the specified bank.
  */
 void imuSetUsrBank(uint8_t bank);
 
 /**
- * @brief Reads the IMU's WHO_AM_I register to verify device identity.
+ * @brief Switches the user bank synchronously to the specified bank.
  */
-void imuReadWhoAmI(void);
+bool imuSetUsrBankSync(uint8_t bank);
 
 /**
- * @brief Reads the raw gyroscope data from the IMU and updates the
- * global rawGyroMeasurements array.
+ * @brief Writes data asynchronously to the IMU over I2C.
  */
-void imuReadGyro(void);
+void imuWrite(uint8_t *wBuf, uint16_t wLen, I2CCallback_t cb);
 
 /**
- * @brief Reads and scales the gyroscope data from the IMU. Populates rawGyroMeasurements
- * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
+ * @brief Writes a single byte synchronously to the IMU.
  */
-bool imuReadGyroSync(int16_t rawGyroMeasurements[3], float scaledGyroMeasurements[3], bool remap);
+bool imuWrite8Sync(uint8_t reg, uint8_t val);
 
 /**
- * @brief Performs a gyroscope calibration routine. Returns true on success,
- * false otherwise.
+ * @brief Writes two bytes synchronously to the IMU.
+ */
+bool imuWrite16Sync(uint8_t reg, uint16_t val, bool littleEndian);
+
+/**
+ * @brief Writes a buffer synchronously to the IMU.
+ */
+bool imuWriteBufSync(uint8_t *wBuf, uint16_t len);
+
+/**
+ * @brief Reads data asynchronously from the IMU over I2C.
+ */
+void imuRead(uint8_t *wBuf, uint16_t wLen, uint8_t *rBuf, uint16_t rLen, I2CCallback_t cb);
+
+/**
+ * @brief Reads data synchronously from the IMU.
+ */
+bool imuReadSync(uint8_t reg, uint8_t *val, uint16_t len);
+
+/**
+ * @brief Sets or clears a bit in an IMU register synchronously.
+ */
+bool imuSetBitSync(uint8_t reg, uint8_t bit, bool state);
+
+/**
+ * @brief Writes a byte synchronously to the magnetometer.
+ */
+bool imuMagWriteSync(uint8_t reg, uint8_t val, bool directCom);
+
+/**
+ * @brief Reads data synchronously from the magnetometer.
+ */
+bool imuMagReadSync(uint8_t reg, uint8_t *val, uint16_t len, bool directCom);
+
+/**
+ * @brief Sets or clears a bit in a magnetometer register synchronously.
+ */
+bool imuMagSetBitSync(uint8_t reg, uint8_t bit, bool state, bool directCom);
+
+/**
+ * @brief Resets the IMU synchronously.
+ */
+bool imuResetSync(void);
+
+/**
+ * @brief Resets the IMU's I2C master synchronously.
+ */
+bool imuI2CMasterResetSync(void);
+
+/**
+ * @brief Resets the magnetometer synchronously.
+ */
+bool imuMagResetSync(bool directCom);
+
+/**
+ * @brief Resets the IMU FIFO asynchronously.
+ */
+void imuFifoReset(void);
+
+/**
+ * @brief Resets the IMU FIFO synchronously.
+ */
+bool imuFifoResetSync(void);
+
+/**
+ * @brief Configures magnetometer data transfer via FIFO.
+ */
+bool imuSetupMagDataTransfer(uint8_t reg, uint8_t len, bool swap, bool oddAddrFirst);
+
+/**
+ * @brief Sets up the IMU with the specified ranges, modes, and FIFO config.
+ */
+bool imuSetup(GyroRange_t gyroRange,
+              AccelRange_t accelRange,
+              MagMode_t magMode,
+              TempMode_t tempMode,
+              FifoConfig_t fifoCfg);
+
+/**
+ * @brief Calibrates the gyroscope offsets.
  */
 bool imuCalibrateGyro(void);
 
 /**
- * @brief Performs a accelerometer calibration routine. Returns true on success,
- * false otherwise.
+ * @brief Calibrates the accelerometer offsets.
  */
 bool imuCalibrateAccel(void);
 
 /**
- * @brief Reads the raw accelerometer data from the IMU and updates the
- * global rawAccelMeasurements array asynchronous.
+ * @brief Scales raw float gyro measurements into degrees per second.
+ */
+void imuScaleGyroMeasurementsFloat(float rawGyro[3], float scaledGyro[3]);
+
+/**
+ * @brief Scales a single raw float gyro measurement into degrees per second.
+ */
+void imuScaleGyroMeasurementFloat(float *rawGyro, float *scaledGyro);
+
+/**
+ * @brief Scales raw gyro measurements into degrees per second.
+ */
+void imuScaleGyroMeasurements(int16_t rawGyro[3], float scaledGyro[3]);
+
+/**
+ * @brief Scales a single raw gyro measurement into degrees per second.
+ */
+void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro);
+
+/**
+ * @brief Scales raw float accelerometer measurements into g.
+ */
+void imuScaleAccelMeasurementsFloat(float rawAccel[3], float scaledAccel[3]);
+
+/**
+ * @brief Scales a single raw float accelerometer measurement into g.
+ */
+void imuScaleAccelMeasurementFloat(float *rawAccel, float *scaledAccel);
+
+/**
+ * @brief Scales raw accelerometer measurements into g.
+ */
+void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]);
+
+/**
+ * @brief Scales a single raw accelerometer measurement into g.
+ */
+void imuScaleAccelMeasurement(int16_t *rawAccel, float *scaledAccel);
+
+/**
+ * @brief Scales raw float magnetometer measurements into microtesla.
+ */
+void imuScaleMagMeasurementsFloat(float rawMag[3], float scaledMag[3]);
+
+/**
+ * @brief Scales a single raw float magnetometer measurement into microtesla.
+ */
+void imuScaleMagMeasurementFloat(float *rawMag, float *scaledMag);
+
+/**
+ * @brief Scales raw magnetometer measurements into microtesla.
+ */
+void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3]);
+
+/**
+ * @brief Scales a single raw magnetometer measurement into microtesla.
+ */
+void imuScaleMagMeasurement(int16_t *rawMag, float *scaledMag);
+
+/**
+ * @brief Scales raw float temperature measurement into degrees Celsius.
+ */
+void imuScaleTempMeasurementsFloat(float *rawTemp, float *scaledTemp);
+
+/**
+ * @brief Scales raw temperature measurement into degrees Celsius.
+ */
+void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp);
+
+/**
+ * @brief Calibrates raw accelerometer measurements using bias and scale.
+ */
+void imuCalibrateAccelMeasurementsFloat(float *rawAccel, float *scaledAccel);
+
+/**
+ * @brief Calibrates raw accelerometer measurements using bias and scale.
+ */
+void imuCalibrateAccelMeasurements(int16_t *rawAccel, float *scaledAccel);
+
+
+/**
+ * @brief Calibrates raw float magnetometer measurements using bias and scale.
+ */
+void imuCalibrateMagMeasurementsFloat(float *rawMag, float *scaledMag);
+
+/**
+ * @brief Calibrates raw magnetometer measurements using bias and scale.
+ */
+void imuCalibrateMagMeasurements(int16_t *rawMag, float *scaledMag);
+
+/**
+ * @brief Reads sensor data asynchronously.
+ */
+void imuGenericRead(ImuSensor_t sensor, uint8_t *buffer, I2CCallback_t cb);
+
+/**
+ * @brief Common callback for async IMU reads.
+ */
+void imuReadCb(bool success, ImuSensor_t sensor, int16_t *rawBuffer, void (*updateFn)(void));
+
+/**
+ * @brief Initiates asynchronous gyroscope read.
+ */
+void imuReadGyro(void);
+
+/**
+ * @brief Initiates asynchronous accelerometer read.
  */
 void imuReadAccel(void);
 
-
 /**
- * @brief Reads and scales the accelerometer data from the IMU. Populates rawAccelMeasurements
- * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
- */
-bool imuReadAccelSync(int16_t rawAccelMeasurements[3], float scaledAccelMeasurements[3], bool remap);
-
-
-/**
- * @brief Reads the raw magnetometer data from the IMU and updates the
- * global rawMagMeasurements array asynchronous.
+ * @brief Initiates asynchronous magnetometer read.
  */
 void imuReadMag(void);
 
 /**
- * @brief Reads and scales the magnetometer data from the IMU. Populates rawMagMeasurements
- * and writes scaled values into the provided arrays. Returns true on success, false otherwise.
- */
-bool imuReadMagSync(int16_t rawMagMeasurements[3], float scaledMagMeasurements[3], bool remap);
-
-
-/**
- * @brief Reads the raw temperature data from the IMU and updates the
- * global rawTempMeasurement variable asynchronous.
+ * @brief Initiates asynchronous temperature read.
  */
 void imuReadTemp(void);
 
 /**
- * @brief Scales the raw gyroscope data (in rawGyro) into degrees per second,
- * placing the result in scaledGyro.
+ * @brief Performs a synchronous read for the given sensor.
  */
-void imuScaleGyroMeasurements(int16_t rawGyro[3], float scaledGyro[3]);
-
-void imuScaleGyroMeasurement(int16_t *rawGyro, float *scaledGyro);
+bool imuGenericReadSync(ImuSensor_t sensor, int16_t *rawBuffer, float *scaled, bool remap);
 
 /**
- * @brief Scales the raw accelerometer data (in rawAccel) into units of g,
- * placing the result in scaledAccel.
+ * @brief Performs a synchronous gyroscope read.
  */
-void imuScaleAccelMeasurementsFloat(float rawAccel[3], float scaledAccel[3]);
-
-void imuScaleAccelMeasurementFloat(float *rawAccel, float *scaledAccel);
-
-void imuScaleAccelMeasurements(int16_t rawAccel[3], float scaledAccel[3]);
-
-void imuScaleAccelMeasurement(int16_t *rawAccel, float *scaledAccel);
+bool imuReadGyroSync(int16_t raw[3], float scaled[3], bool remap);
 
 /**
- * @brief Scales the raw magnetometer data (in rawMag) into microteslas,
- * placing the result in scaledMag.
+ * @brief Performs a synchronous accelerometer read.
  */
-void imuScaleMagMeasurements(int16_t rawMag[3], float scaledMag[3]);
-
-void imuScaleMagMeasurement(int16_t *rawMag, float *scaledMag);
+bool imuReadAccelSync(int16_t raw[3], float scaled[3], bool remap);
 
 /**
- * @brief Scales the raw temperature data (pointed to by rawTemp) into degrees
- * Celsius, placing the result in scaledTemp.
+ * @brief Performs a synchronous magnetometer read.
  */
-void imuScaleTempMeasurements(int16_t *rawTemp, float *scaledTemp);
-
-void imuCalibrateAccelMeasurements(int16_t *rawAccel, float *scaledAccel);
-
-void imuCalibrateMagMeasurements(int16_t *rawMag, float *scaledMag);
+bool imuReadMagSync(int16_t raw[3], float scaled[3], bool remap);
 
 /**
- * @brief Converts the scaled magnetometer data (in scaledMag) into a heading
- * (in degrees).
+ * @brief Performs a synchronous temperature read.
+ */
+bool imuReadTempSync(int16_t *raw, float *scaled, bool remap);
+
+
+void imuReadFifo(void);
+
+/**
+ * @brief Converts scaled magnetometer data to heading in radians.
  */
 float magnetometerToHeading(float scaledMag[3]);
 
-float magnetometerToTiltCompensatedHeading(float scaledMag[3], float pitchRad, float rollRad);
+/**
+ * @brief Converts scaled magnetometer data to tilt?compensated heading in radians.
+ */
+float magnetometerToTiltCompensatedHeading(float scaledMag[3],
+                                           float pitchRad,
+                                           float rollRad);
 
+/**
+ * @brief Streams raw accelerometer data for calibration purposes.
+ */
 void imuGetAccelCalibrationData(void);
 
+/**
+ * @brief Streams raw magnetometer data for calibration purposes.
+ */
 void imuGetMagCalibrationData(void);
 
-#endif	/* IMU_H */
+#endif	/* IMUFIFO_H */
 

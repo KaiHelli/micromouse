@@ -20,7 +20,7 @@ int8_t putsUART1Str(char* buffer);
  * This function blocks if the internal buffer is full until the message can be
  * queued.
  */
-int8_t putsUART1(char* buffer, size_t length);
+int8_t putsUART1(uint8_t* buffer, size_t length);
 
 /**
  * @brief Retrieves the current status of UART1. Returns UART_IDLE if idle,
@@ -35,7 +35,7 @@ int8_t putsUART1StrSync(char* buffer);
  * to the string buffer. This function blocks until transmission is complete.
  * Returns 0 on success, or a negative error code.
  */
-int8_t putsUART1Sync(char* buffer, size_t length);
+int8_t putsUART1Sync(uint8_t* buffer, size_t length);
 
 /**
  * @brief Reference implementation of sending a null-terminated string via UART1

@@ -220,7 +220,7 @@ bool putsI2C1Sync(uint8_t devAddr, const uint8_t *wData, uint16_t wLen, uint8_t 
     // Wait for the operation to complete
     while (getI2C1Status() == I2C_BUSY) {
     }
-    
+
     return i2cSyncSuccess;
 }
 

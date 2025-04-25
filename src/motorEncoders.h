@@ -29,6 +29,9 @@ typedef enum {
     ENCODER_RIGHT       // Uses QEI2
 } MotorEncoder_t;
 
+
+void initMotorEncoders(void);
+
 /**
  * @brief Initializes the specified QEI encoder.
  * @param encoder ENCODER_LEFT or ENCODER_RIGHT.

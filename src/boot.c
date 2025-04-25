@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 int16_t toggleMotors(void) {
     static bool standby = 0;
@@ -46,7 +47,7 @@ int16_t estimateEncoderAcceleration(void) {
     float velEstimateDps = (posDegLeft - lastPosDegLeft) / 1e-3f;
     lastPosDegLeft = posDegLeft;
     
-    uint8_t buffer[100];
+    uint8_t buffer[10];
     size_t idx = 0;
     
     buffer[idx++] = FRAME_START_BYTE;
@@ -62,10 +63,26 @@ int16_t estimateEncoderAcceleration(void) {
 }
 
 int16_t printEncoderVelocities(void) {
+    /* 
+    snprintf(buffer, sizeof(buffer),
+         "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Yaw: %.2f dps, Lin Vel: %.2f mmps\r\n", 
+            getEncoderPositionCounts(ENCODER_LEFT), 
+            getEncoderPositionCounts(ENCODER_RIGHT), 
+            getEncoderPositionDeg(ENCODER_LEFT), 
+            getEncoderPositionDeg(ENCODER_RIGHT), 
+            getEncoderVelocityDegPerSec(ENCODER_LEFT), 
+            getEncoderVelocityDegPerSec(ENCODER_RIGHT),
+            getEncoderVelocityCountsPerSample(ENCODER_LEFT),
+            getEncoderVelocityCountsPerSample(ENCODER_RIGHT),
+            getEncoderYawRateDegPerSec(),
+            getEncoderLinearVelocityMmPerSec()
+            );
+    */
+    
     float velLeft = getEncoderVelocityDegPerSec(ENCODER_LEFT);
     float velRight = getEncoderVelocityDegPerSec(ENCODER_RIGHT);
     
-    uint8_t buffer[100];
+    uint8_t buffer[15];
     size_t idx = 0;
     
     buffer[idx++] = FRAME_START_BYTE;
@@ -83,14 +100,94 @@ int16_t printEncoderVelocities(void) {
     return 1;
 }
 
+// visualize_imu_raw.dvws / imu_scaled.dvws
+int16_t printIMU(bool fifo, bool scaled) {
+    // Buffer must fit either:
+    //   raw: 1 + 3*2 + 3*2 + 3*2 + 2 + 1 = 24 bytes
+    //   scaled: 1 + 3*4 + 3*4 + 3*4 + 4 + 1 = 42 bytes
+    uint8_t buffer[45];
+    size_t idx = 0;
+
+    // Temp storage for scaled values
+    float scaledGyro[3], scaledAccel[3], scaledMag[3], scaledTemp;
+
+    // If scaling requested, do all the calibration + scaling steps
+    if (fifo && scaled) {
+        imuScaleGyroMeasurementsFloat(rawFifoGyroMeasurements, scaledGyro);
+
+        imuCalibrateAccelMeasurementsFloat(rawFifoAccelMeasurements, scaledAccel);
+        imuScaleAccelMeasurementsFloat(scaledAccel, scaledAccel);
+
+        imuCalibrateMagMeasurementsFloat(rawFifoMagMeasurements, scaledMag);
+        imuScaleMagMeasurementsFloat(scaledMag, scaledMag);
+
+        imuScaleTempMeasurementsFloat(&rawFifoTempMeasurement, &scaledTemp);
+    }
+    
+    if (!fifo && scaled) {
+        imuScaleGyroMeasurements(rawGyroMeasurements, scaledGyro);
+
+        imuCalibrateAccelMeasurements(rawAccelMeasurements, scaledAccel);
+        imuScaleAccelMeasurementsFloat(scaledAccel, scaledAccel);
+
+        imuCalibrateMagMeasurements(rawMagMeasurements, scaledMag);
+        imuScaleMagMeasurementsFloat(scaledMag, scaledMag);
+
+        imuScaleTempMeasurements(&rawTempMeasurement, &scaledTemp);
+    }
+
+    // Start marker
+    buffer[idx++] = FRAME_START_BYTE;
+
+    // Select element size and byte?pointer to the right data
+    const size_t elemSize = (scaled || fifo) ? sizeof(float) : sizeof(int16_t);
+    const uint8_t *gyroBytes  = (const uint8_t *)(scaled ? (void*)scaledGyro  : (fifo ? (void*)rawFifoGyroMeasurements : (void*)rawGyroMeasurements));
+    const uint8_t *accelBytes = (const uint8_t *)(scaled ? (void*)scaledAccel : (fifo ? (void*)rawFifoAccelMeasurements : (void*)rawAccelMeasurements));
+    const uint8_t *magBytes   = (const uint8_t *)(scaled ? (void*)scaledMag   : (fifo ? (void*)rawFifoMagMeasurements : (void*)rawMagMeasurements));
+    const uint8_t *tempBytes  = (const uint8_t *)(scaled ? (void*)&scaledTemp  : (fifo ? (void*)&rawFifoTempMeasurement : (void*)&rawTempMeasurement));
+
+    // Copy 3 axes of gyro, accel, mag
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        memcpy(&buffer[idx], gyroBytes  + axis * elemSize, elemSize);
+        idx += elemSize;
+    }
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        memcpy(&buffer[idx], accelBytes + axis * elemSize, elemSize);
+        idx += elemSize;
+    }
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        memcpy(&buffer[idx], magBytes   + axis * elemSize, elemSize);
+        idx += elemSize;
+    }
+
+    // Copy single temperature value
+    memcpy(&buffer[idx], tempBytes, elemSize);
+    idx += elemSize;
+
+    // End marker
+    buffer[idx++] = FRAME_END_BYTE;
+
+    // Send it all out
+    putsUART1(buffer, idx);
+
+    return 1;
+}
+
+int16_t printIMU_trampoline() {
+    return printIMU(true, true);
+}
+
+// visualize_odometry.dvws
 int16_t printOdometry(void) {
+    /*
+    snprintf(buffer, sizeof(buffer),
+         "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Pitch: %.2f deg, Roll: %.2f deg, Yaw: %.2f deg\r\n",
+         mouseVelocity[X], mouseVelocity[Y], mouseVelocity[Z],
+         mousePosition[X], mousePosition[Y], mousePosition[Z],
+         mouseAngle[PITCH]*RAD2DEG, mouseAngle[ROLL]*RAD2DEG, mouseAngle[YAW]*RAD2DEG);
+    */
     
-    // TODO: print
-    //extern volatile float velocity[3];       // x, y, z velocity (e.g., mm/s)
-    //extern volatile float position[3];       // x, y, z position (e.g., mm)
-    //extern volatile float angle[3];          // Yaw angle in degrees or radians
-    
-    uint8_t buffer[200];
+    uint8_t buffer[55];
     size_t idx = 0;
     
     buffer[idx++] = FRAME_START_BYTE;
@@ -101,53 +198,31 @@ int16_t printOdometry(void) {
         idx += sizeof(mouseAngle[axis]);
     }
     
+    float accellPitchDeg = mouseAccelPitch * RAD2DEG;
+    memcpy(&buffer[idx], &accellPitchDeg, sizeof(accellPitchDeg));
+    idx += sizeof(accellPitchDeg);
+    
+    float accellRollDeg = mouseAccelRoll * RAD2DEG;
+    memcpy(&buffer[idx], &accellRollDeg, sizeof(accellRollDeg));
+    idx += sizeof(accellRollDeg);
+    
     float magYawDeg = mouseMagYaw * RAD2DEG;
     memcpy(&buffer[idx], &magYawDeg, sizeof(mouseMagYaw));
     idx += sizeof(magYawDeg);
     
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        memcpy(&buffer[idx], &mouseVelocity[axis], sizeof(mouseVelocity[axis]));
+        idx += sizeof(mouseVelocity[axis]);
+    }
+    
+    for (uint8_t axis = 0; axis < 3; axis++) {
+        memcpy(&buffer[idx], &mousePosition[axis], sizeof(mousePosition[axis]));
+        idx += sizeof(mousePosition[axis]);
+    }
+    
     buffer[idx++] = FRAME_END_BYTE;
     
     putsUART1(buffer, idx);
-    
-    //snprintf(buffer, sizeof(buffer), "%hi%f%hi",
-    //     (int8_t) 0x03, mouseAngle[YAW]*RAD2DEG, (int8_t) ~0x03);
-    /*
-    snprintf(buffer, sizeof(buffer),
-         "Velocity: X=%.2f mm/s, Y=%.2f mm/s, Z=%.2f mm/s | Position: X=%.2f mm, Y=%.2f mm, Z=%.2f mm | Pitch: %.2f deg, Roll: %.2f deg, Yaw: %.2f deg\r\n",
-         mouseVelocity[X], mouseVelocity[Y], mouseVelocity[Z],
-         mousePosition[X], mousePosition[Y], mousePosition[Z],
-         mouseAngle[PITCH]*RAD2DEG, mouseAngle[ROLL]*RAD2DEG, mouseAngle[YAW]*RAD2DEG);
-    */
-    /* 
-    snprintf(buffer, sizeof(buffer),
-         "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Yaw: %.2f dps, Lin Vel: %.2f mmps\r\n", 
-            getEncoderPositionCounts(ENCODER_LEFT), 
-            getEncoderPositionCounts(ENCODER_RIGHT), 
-            getEncoderPositionDeg(ENCODER_LEFT), 
-            getEncoderPositionDeg(ENCODER_RIGHT), 
-            getEncoderVelocityDegPerSec(ENCODER_LEFT), 
-            getEncoderVelocityDegPerSec(ENCODER_RIGHT),
-            getEncoderVelocityCountsPerSample(ENCODER_LEFT),
-            getEncoderVelocityCountsPerSample(ENCODER_RIGHT),
-            getEncoderYawRateDegPerSec(),
-            getEncoderLinearVelocityMmPerSec()
-            );
-    */
-    //putsUART1Str(buffer);
-    
-    //imuCalibrateAccelMeasurements(rawAccelMeasurements, accelMeasurements);
-    //imuScaleAccelMeasurements(rawAccelMeasurements, accelMeasurements);
-    
-    
-    /*
-    float localAccelMeasurements[3];
-    imuCalibrateAccelMeasurements(rawAccelMeasurements, localAccelMeasurements);
-    imuScaleAccelMeasurementsFloat(localAccelMeasurements, localAccelMeasurements);
-    
-    char measurementStr[70];
-    snprintf(measurementStr, 70, "Accelerometer [g]: X = %1.2f\tY = %1.2f\tZ = %1.2f\r\n", localAccelMeasurements[0], localAccelMeasurements[1], localAccelMeasurements[2]);
-    putsUART1Str(measurementStr);
-    */
 
     return 1;
 }
@@ -164,7 +239,7 @@ void bootSetup() {
     setupPWM2(); // configure PWM2
     setupI2C1(); // configure I2C
     
-    initMotorEncoders(100.0f);
+    initMotorEncoders();
     
     initDmaChannel4(); // Initialize DMA to copy sensor readings in the background
     setupADC1();       // Initialize ADC to sample sensor reading
@@ -174,7 +249,13 @@ void bootSetup() {
     
     oledSetup();    // Setup oled display
     
-    imuSetup(GYRO_RANGE_500DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_ON); // configure IMU over I2C
+    FifoConfig_t fifoCfg = {
+        .gyro   = true,
+        .accel  = true,
+        .mag    = true,
+        .temp   = false
+    };
+    imuSetup(GYRO_RANGE_1000DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_OFF, fifoCfg); // configure IMU over I2C
     
     __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
     
@@ -189,7 +270,8 @@ void bootSetup() {
     registerSwitchCallback(SWITCH_1, toggleMotors);
     
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
-    initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
+    initTimerInUs(TIMER_2, 5333); // higher frequency 5ms timer interrupt for sensor readings and rtttl
+    //initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
     initTimerInMs(TIMER_3, 5); // 100ms timer interrupt for testing
 
     initMotorsState(TIMER_1, 100.0f);
@@ -202,7 +284,6 @@ void bootSetup() {
     //registerTimerCallback(TIMER_3, moveForward);
 
     setupOdometry(TIMER_2, TIMER_1); // track odometry
-    //registerTimerCallback(TIMER_3, printOdometry);
     
     //steerMotors(30, 30);
     //setMotorPower(MOTOR_LEFT, 52);    
@@ -214,7 +295,10 @@ void bootSetup() {
     
     //registerTimerCallback(TIMER_3, printEncoderVelocities);
     //registerTimerCallback(TIMER_3, printOdometry);
-
+    //registerTimerCallback(TIMER_3, printIMU_trampoline);
+    
+    __delay_ms(10);
+    
     /*
     // how many samples per one full sine?wave
     static const uint32_t SIN_WAVE_LENGTH = 2000;
@@ -250,9 +334,9 @@ void bootSetup() {
     
     //setMotorsStandbyState(true);
     
-    __delay_ms(1000);
+    //__delay_ms(1000);
 
-    turnDegrees(TIMER_1, 720, 400, 100.0f);
+    turnDegrees(TIMER_1, 720, 100, 100.0f);
     
     /*
     setMotorsStandbyState(false);

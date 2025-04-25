@@ -21,11 +21,8 @@
 #define BRAKE_DISTANCE_MM          20          // start decelerating here
 #define MIN_DRIVE_POWER_PCT        25          // don't stall below this
 #define FRONT_STOP_MM              10          // hard stop before collision
-#define RAMP_ANGLE_DEG             45          // turn: begin braking here
-#define MIN_TURN_POWER_PCT         20
-#define TURN_EXIT_EPSILON          1
 
-#define TURN_PID_KP      0.75f       // tune for your bot
+#define TURN_PID_KP      0.2f       // tune for your bot
 #define TURN_PID_KD      0.0f
 #define TURN_PID_KI      0.0f      // small I to overcome static friction
 #define TURN_PID_KF      0.8f
@@ -102,9 +99,21 @@ static int16_t turnDegreesCallback(void)
     float dt        = turnDt;
     velMeas         = (angNowDeg - lastAngleDeg) / dt;
     
+    ///*
+    static uint16_t i = 0;
+    if (i % 1 == 0) {
+        char buf[100];
+        snprintf(buf, sizeof(buf), "an: %.6f la: %.6f, vm: %ld\r\n", angNowDeg, lastAngleDeg, (int32_t)(velMeas * 10.0f));
+        putsUART1Str(buf);
+    }
+    i++;
+    //*/
+    
+    lastAngleDeg    = angNowDeg;
+
     if (turnInit) {
         turnInit = false;
-        return;
+        return 1;
     }
 
     /* ---------------- trapezoidal feed-forward ------------------------ */
@@ -132,16 +141,15 @@ static int16_t turnDegreesCallback(void)
     setMotorSpeedLeft ( +v_mmps );   /* left wheel forward  */
     setMotorSpeedRight( -v_mmps );   /* right wheel reverse */
     
+    /*
     static uint16_t i = 0;
     if (i % 1 == 0) {
         char buf[100];
-        //snprintf(buf, sizeof(buf), "velMeas: %ld, velCmd: %ld, trimCdps: %d, omegaDps: %.2f, errDeg: %.2f, vLeft: %.2f\r\n", (int32_t)(velMeas * 10.0f), (int32_t)(velCmd  * 10.0f), trimCdps, omegaDps, errDeg, v_mmps);
-        //snprintf(buf, sizeof(buf), "velMeas: %ld\r\n", (int32_t)(velMeas * 10.0f));
-        snprintf(buf, sizeof(buf), "an: %.6f la: %.6f, vm: %ld\r\n", angNowDeg, lastAngleDeg, (int32_t)(velMeas * 10.0f));
+        snprintf(buf, sizeof(buf), "velMeas: %ld, velCmd: %ld, trimCdps: %d, omegaDps: %.2f, errDeg: %.2f, vLeft: %.2f\r\n", (int32_t)(velMeas * 10.0f), (int32_t)(velCmd  * 10.0f), trimCdps, omegaDps, errDeg, v_mmps);
         putsUART1Str(buf);
     }
     i++;
-    lastAngleDeg    = angNowDeg;
+    */
 
     /* ---------------- settle detection -------------------------------- */
     if (fabsf(errDeg) < TURN_SETTLE_EPSILON &&
@@ -181,7 +189,6 @@ void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float ti
     turnTargetYaw = mouseAngle[YAW] + degrees * DEG2RAD;
 
     /* --------------- init outer PID (w loop) -------------------------- */
-    bool status;
     fastPidInit(&turnPid);
     fastPidConfigure (&turnPid, TURN_PID_KP, TURN_PID_KI, TURN_PID_KD, TURN_PID_KF, timer_hz, 8, true);
     fastPidSetOutputRange(&turnPid, -(int16_t)(turnCruiseVelDps * 10.0f), +(int16_t)(turnCruiseVelDps * 10.0f));

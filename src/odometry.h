@@ -14,9 +14,12 @@
 extern volatile float mouseVelocity[3];       // x, y, z velocity (e.g., mm/s)
 extern volatile float mousePosition[3];       // x, y, z position (e.g., mm)
 extern volatile float mouseAngle[3];          // pitch, roll, yaw, angles in degrees or radians
-extern volatile float mouseMagYaw;
-// Helper enums to safely axxes the above arrays
 
+extern volatile float mouseAccelPitch;
+extern volatile float mouseAccelRoll;
+extern volatile float mouseMagYaw;
+
+// Helper enums to safely access the above arrays
 typedef enum {
     X = 0,
     Y,
@@ -65,21 +68,21 @@ int16_t triggerEncoderMagUpdate();
  *
  * Called when new gyro data are available.
  */
-void odometryIMUGyroUpdate(void);
+void odometryIMUGyroUpdate(uint8_t numSamples, float dtPerSample, float dtTotal);
 
 /**
  * @brief Integrates accelerometer data to maintain velocity & position.
  *
  * Called when new accel data are available.
  */
-void odometryIMUAccelUpdate(void);
+void odometryIMUAccelUpdate(uint8_t numSamples, float dtPerSample, float dtTotal);
 
 /**
  * @brief Integrates accelerometer data to maintain yaw headings.
  *
  * Called when new mag data are available.
  */
-void odometryIMUMagUpdate(void);
+void odometryIMUMagUpdate(float dtTotal);
 
 /**
  * @brief Integrates wheel encoder data to maintain yaw headings and position.

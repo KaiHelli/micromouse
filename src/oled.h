@@ -1,6 +1,7 @@
 #ifndef OLED_H
 #define	OLED_H
 #include "mazeSolver.h"
+#include <stdbool.h>
 
 // Source:
 // https://github.com/datgeezus/oled/blob/master/oled.h
@@ -81,7 +82,7 @@ void oledUpdateMouse(Mouse* mouse);
  *
  * Draws the walls of a cell in the maze at the specified row and column.
  */
-void oledDrawCell(Cell* cell,uint8_t row, uint8_t col);
+void oledDrawCell(Maze* maze,uint8_t row, uint8_t col);
 
 #endif	/* OLED_H */
 

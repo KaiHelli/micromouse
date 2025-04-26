@@ -34,15 +34,16 @@ static int16_t wheelPidStep(void)
     
     float vLeft = getEncoderVelocityMmPerSec(ENCODER_LEFT);
     float vRight = getEncoderVelocityMmPerSec(ENCODER_RIGHT);
-        
+    
     int16_t pLeft = fastPidStep(&pidL, (int16_t) (motorSpeedLeft),  (int16_t) (vLeft));
     int16_t pRight = fastPidStep(&pidR, (int16_t) (motorSpeedRight), (int16_t) (vRight));
 
     /*
     static uint16_t i = 0;
-    if (i % 5 == 0) {
+    if (i % 1 == 0) {
         char buf[100];
-        snprintf(buf, sizeof(buf), "Left: sp %d, is %d, ctl %d | Right: sp %d, is %d, ctl %d\r\n", (int16_t) (motorSpeedLeft * 10), (int16_t) (vLeft * 10), pLeft, (int16_t) (motorSpeedRight * 10), (int16_t) (vRight * 10), pRight);
+        //snprintf(buf, sizeof(buf), "Left: sp %d, is %d, ctl %d | Right: sp %d, is %d, ctl %d\r\n", (int16_t) (motorSpeedLeft * 10), (int16_t) (vLeft * 10), pLeft, (int16_t) (motorSpeedRight * 10), (int16_t) (vRight * 10), pRight);
+        snprintf(buf, sizeof(buf), "%.2f, %.2f\r\n", motorSpeedLeft, motorSpeedRight);
         putsUART1Str(buf);
     }
     i++;

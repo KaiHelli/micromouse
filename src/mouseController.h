@@ -3,32 +3,18 @@
 
 #include <xc.h>
 
-typedef enum {
-    MOUSE_STATE_INITIALIZING,
-    MOUSE_STATE_STANDBY, //LED1 ON, push button: Start discovery
-    MOUSE_STATE_RUNNING, //LED1,2,3,4 ON
-    MOUSE_STATE_TARGET_REACHED, //LED1-5 ON
-    MOUSE_STATE_ERROR //Discovery or run failed, LED1-5 OFF, push button: Start discovery
-} MouseState_t;
-
-typedef enum {
-    MOVEMENT_STATE_NONE, 
-    MOVEMENT_STATE_MOVING,
-    MOVEMENT_STATE_TURNING
-} MovementState_t;
+#define CELL_SIZE 180
+#define RIGHT 90
+#define LEFT -90
 
 //Movement API
-int16_t moveForward(uint16_t cells);
+void moveForward(uint16_t cells);
 
-uint8_t turnLeft();
+void turnLeft();
 
-uint8_t turnRight();
+void turnRight();
 
-//Mouse high level API
-
-uint8_t start();
-
-uint8_t initMouseState();
+void turnAround();
 
 #endif	/* MOUSECONTROLLER_H */
 

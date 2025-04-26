@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <xc.h>
 
@@ -270,5 +271,47 @@ void putsUART1Reference(char* buffer)
                 ; /* wait if the buffer is full */
             U1TXREG = *temp_ptr++; /* transfer data byte to TX reg */
         }
+    }
+}
+
+void uprintf(const char *fmt, ...)
+{
+    char buffer[256];
+    
+    va_list args;
+    va_start(args, fmt);
+    int16_t len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    // send the (possibly truncated) message
+    putsUART1Str(buffer);
+
+    // if len is negative, formatting error; if >= sizeof(buffer), truncation occurred
+    if (len < 0) {
+        putsUART1Str("[WARNING] uprintf formatting error\n");
+    }
+    else if (len >= (int16_t) sizeof(buffer)) {
+        putsUART1Str("[WARNING] uprintf message truncated\n");
+    }
+}
+
+void uprintfSync(const char *fmt, ...)
+{
+    char buffer[256];
+    
+    va_list args;
+    va_start(args, fmt);
+    int16_t len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    // send the (possibly truncated) message
+    putsUART1StrSync(buffer);
+
+    // if len is negative, formatting error; if >= sizeof(buffer), truncation occurred
+    if (len < 0) {
+        putsUART1StrSync("[WARNING] uprintf formatting error\n");
+    }
+    else if (len >= (int16_t) sizeof(buffer)) {
+        putsUART1StrSync("[WARNING] uprintf message truncated\n");
     }
 }

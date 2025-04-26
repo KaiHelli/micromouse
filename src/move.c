@@ -315,7 +315,7 @@ static int16_t moveDistanceCallback(void)
     WallMode mode  = detectWallMode(left, right);
 
     if (mode != moveLastMode) {
-        //fastPidClear(&movePid);             // dump I-sum & lastError
+        fastPidClear(&movePid);             // dump I-sum & lastError
         moveLastMode = mode;
     }
     
@@ -380,10 +380,10 @@ static int16_t moveDistanceCallback(void)
 
     if (goalReached || frontTooClose)
     {
-        setMotorsState(MOTORS_BRAKE);
-        __delay_ms(80);
-        setMotorsStandbyState(true);
+        setMotorSpeedLeft (0);
+        setMotorSpeedRight(0);
         moveInProgress = false;
+        setMotorsStandbyState(true);
         return 0;
     }
     return 1;

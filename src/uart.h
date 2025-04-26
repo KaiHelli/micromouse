@@ -43,6 +43,10 @@ int8_t putsUART1Sync(uint8_t* buffer, size_t length);
  */
 void putsUART1Reference(char* buffer);
 
+void uprintf(const char *fmt, ...);
+
+void uprintfSync(const char *fmt, ...);
+
 #define UART_BUFFER_SIZE 2048 // Define the size of the internal buffer
 #define UART_BUFFER_BUSY -1   // Error code for buffer busy
 #define UART_BUFFER_OVERFLOW -2 // Error code for buffer overflow

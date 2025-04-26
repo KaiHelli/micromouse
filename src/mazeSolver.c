@@ -1,6 +1,8 @@
 #include "mazeSolver.h"
 #include "mouseController.h"
 #include "sensors.h"
+#include "oled.h"
+#include "uart.h"
 
 #include <stdlib.h>
 
@@ -11,7 +13,7 @@ static Mouse mouse;
 
 //TODO verify value
 //in mm, distance of a wall if mouse in the centre of the cell 
-#define WALL_MAX_DISTANCE 100
+#define WALL_MAX_DISTANCE 75
 
 void queue_init(Queue *q) {
     q->head = 0;
@@ -250,9 +252,9 @@ int mouse_plan_next(Mouse* mouse) {
 
     mouse->row = neighbors_points[min_index].row;
     mouse->col = neighbors_points[min_index].col;
+    oledUpdateMouse(mouse);
     
     if ( mouse->command_count >= N * N ) {
-        printf("max steps reached\n");
         return FAIL;
     }
     mouse->commands[mouse->command_count].cells = 1;
@@ -273,8 +275,7 @@ int mouse_move_next(Mouse* mouse) {
             turnRight();
         } else if (turn == TURN_BACK) {
             // turn back
-            turnLeft();
-            turnLeft();
+            turnAround();
         }
         moveForward(1);
     }
@@ -360,10 +361,13 @@ int discover_maze_step(Mouse* mouse) {
                 break;
         }
     }
+    
+    oledDrawCell(&mouse->maze,mouse->row, mouse->col);
     // next cell:
     // list all possible directions, reachable cells
     status = mouse_move_next(mouse);
-    //printf("status: %d\n", status);
+    uprintf("status: %d\r\n", status);
+    
     if (status == REPLAN) {
         mouse_fill_distances(mouse);
     }
@@ -378,7 +382,7 @@ int discover_maze(Mouse* mouse) {
         //mouse_print_maze(mouse);
         //mouse_print_distances(mouse);
     } while (status != TARGET && status != FAIL && steps++ < MAX_STEPS);
-    //printf("discovery status: %d, steps: %d\n", status, steps);
+    uprintf("discovery status: %d, steps: %d\n", status, steps);
     return status;
 }
 

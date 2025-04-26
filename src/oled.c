@@ -66,7 +66,6 @@ void oledSetPixel(uint8_t x, uint8_t y, bool state) {
     if (x >= OLED_WIDTH || y >= OLED_HEIGHT) {
         return;
     }
-    uint8_t prev_state = displayBuffer[x + ((y >> 3) * OLED_WIDTH) + 1];
     // NOTE: +1 due to the first byte in the buffer being reserved for the
     // control byte
     //displayBuffer[x + ((y / 8) * OLED_WIDTH)] = (1 << (y % 8));
@@ -153,21 +152,21 @@ void oledUpdateMouse(Mouse* mouse){
     oledPushMouse(prev_row, prev_col);
 }
 
-void oledDrawCell(Cell* cell,uint8_t row, uint8_t col) {
+void oledDrawCell(Maze* maze,uint8_t row, uint8_t col) {
     for (uint8_t i = 1; i < N; i++){
-        if(cell->wallBottom){
+        if(maze->cells[row][col].wallBottom){
             oledSetPixel(CELL_WIDTH * col + X_OFFSET + i, CELL_WIDTH * (row + 1) + 1, 1);
         }
         
-        if(cell->wallTop){
+        if(maze->cells[row][col].wallTop){
             oledSetPixel(CELL_WIDTH * col + X_OFFSET + i, CELL_WIDTH * row + 1, 1);
         }
         
-        if(cell->wallLeft){
+        if(maze->cells[row][col].wallLeft){
             oledSetPixel(CELL_WIDTH * col + X_OFFSET + 1, CELL_WIDTH * row + i, 1);
         }
         
-        if(cell->wallRight){
+        if(maze->cells[row][col].wallRight){
             oledSetPixel(CELL_WIDTH * (col+1) + X_OFFSET + 1, CELL_WIDTH * row + i, 1);
         }   
     }

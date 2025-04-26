@@ -18,6 +18,7 @@
 #include "constants.h"
 #include "move.h"
 #include "sensors.h"
+#include "mazeSolver.h"
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
@@ -304,7 +305,6 @@ void bootSetup() {
 
     //initMotorsState(TIMER_1, 100.0f);
     initMotorsState(TIMER_2, 187.51172f);
-    initMouseState();
     
     //parseAllSongs();
     //playSong(SONG_MUPPETS, true, TIMER_2);
@@ -327,8 +327,6 @@ void bootSetup() {
     //registerTimerCallback(TIMER_3, printIMU_trampoline);
     //registerTimerCallback(TIMER_3, printSensorReadings);
    
-    __delay_ms(10);
-    
     /*
     // how many samples per one full sine?wave
     static const uint32_t SIN_WAVE_LENGTH = 2000;
@@ -366,10 +364,8 @@ void bootSetup() {
     
     __delay_ms(1000);
     
-#define CELL_SIZE 180
-    #define RIGHT 90
-    #define LEFT -90
-    
+    solveMaze();
+    /*
     moveDistance(TIMER_1, CELL_SIZE * 3, 300, 100.0f);
     turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
@@ -400,7 +396,7 @@ void bootSetup() {
     turnDegrees(TIMER_1, LEFT, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
     turnDegrees(TIMER_1, 720, 90, 100.0f);
-    
+    */
     /*
     for (uint8_t i = 0; i < 5; i++) {
         moveDistance(TIMER_1, 720, 300, 100.0f);

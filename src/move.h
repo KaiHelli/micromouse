@@ -18,7 +18,7 @@ void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float ti
 /**
  * @brief TODO
  */
-void moveDistance(Timer_t timer, int16_t distance, uint8_t powerInPercent, float timer_hz);
+void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, float timer_hz);
 
 #endif	/* MOVE_H */
 

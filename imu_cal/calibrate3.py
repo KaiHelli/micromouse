@@ -50,10 +50,11 @@ class Magnetometer(object):
         print("Hard iron bias:\n", self.b)
 
         plt.rcParams["figure.autolayout"] = True
-        #fig = plt.figure()
-        #ax = fig.add_subplot(111, projection='3d')
-        #ax.scatter(data[:,0], data[:,1], data[:,2], marker='o', color='r')
-		#plt.show()
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(data[:,0], data[:,1], data[:,2], marker='o', color='r')
+        plt.show()
 
         result = [] 
         for row in data: 
@@ -165,7 +166,7 @@ class Magnetometer(object):
 if __name__=='__main__':
         print("Magnetometer calibration:")
         print("=====================================")
-        Magnetometer(318.2586, "mag3_raw2.csv").run()
+        Magnetometer(318.2586, "mag3_raw_garching.csv").run()
 
         print("Accelerometer calibration:")
         print("=====================================")

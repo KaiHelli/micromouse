@@ -36,8 +36,8 @@ volatile int32_t lastEncoderPosition[2] = {0, 0};
 volatile uint64_t lastVelocityUpdateTime = 0;
 
 // PI gains
-#define ENC_PID_KP  100.5f
-#define ENC_PID_KI  3950.0f
+#define ENC_PID_KP  101.0f
+#define ENC_PID_KI  3948.0f
 
 #define ENC_MIN_VEL 0.001f
 /*-------------------------------------------------------------------------
@@ -203,7 +203,7 @@ void updateEncoderVelocities(void)
         // velocity estimate: v = Kp*err + Ki_integral
         encoderVelEstRad[ENCODER_LEFT] = err * ENC_PID_KP + encoderVelIntegrator[ENCODER_LEFT];
         // clamp
-        currentVelocityRadPerSec[ENCODER_LEFT] = encoderVelEstRad[ENCODER_LEFT] < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_LEFT];
+        currentVelocityRadPerSec[ENCODER_LEFT] = fabs(encoderVelEstRad[ENCODER_LEFT]) < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_LEFT];
         // publish
         currentVelocityMmPerSec[ENCODER_LEFT]  = encoderVelEstRad[ENCODER_LEFT] * WHEEL_RADIUS_MM;
         // still update lastEncoderPosition for rollover logic
@@ -227,7 +227,7 @@ void updateEncoderVelocities(void)
         float err = measPos - encoderPosEstRad[ENCODER_RIGHT];
         encoderVelIntegrator[ENCODER_RIGHT] += err * ENC_PID_KI * dtSec;
         encoderVelEstRad[ENCODER_RIGHT] = err * ENC_PID_KP + encoderVelIntegrator[ENCODER_RIGHT];
-        currentVelocityRadPerSec[ENCODER_RIGHT] = encoderVelEstRad[ENCODER_RIGHT] < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_RIGHT];
+        currentVelocityRadPerSec[ENCODER_RIGHT] = fabs(encoderVelEstRad[ENCODER_RIGHT]) < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_RIGHT];
         currentVelocityMmPerSec[ENCODER_RIGHT]  = encoderVelEstRad[ENCODER_RIGHT] * WHEEL_RADIUS_MM;
         lastEncoderPosition[ENCODER_RIGHT]      = rightPos;
     }

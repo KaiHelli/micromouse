@@ -5,6 +5,10 @@
 #include "IOconfig.h"
 #include "timers.h"
 
+
+#define WHEEL_MAX_ACC 3000.0f // dps^2 -- exact 3054.976
+#define WHEEL_MAX_VEL 1000.0f // dps - exact 1022.728
+
 static const uint16_t PWM_MOTOR_MAX_DC = (60U * 100U) / 84U;  // voltage ranges from 2*3.7V = 7.4V to 2*4.2V = 8.4V
 
 #define SET_MOTOR_RIGHT(powerInPercent) setPWMDutyCycle(MB_PWM_MODULE, MB_PWM_CHANNEL, (uint8_t)(((uint16_t)(powerInPercent) * PWM_MOTOR_MAX_DC) / 100))

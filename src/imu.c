@@ -1002,10 +1002,10 @@ const float imuAccelScale[3][3] = {{ 0.9992 , 1e-05 , 0.00196 },
                                  { 1e-05 , 0.99849 , -0.00139 },
                                  { 0.00196 , -0.00139 , 0.9951 }};
 
-const float imuMagBias[3] = { 543.45 , -264.73 , 64.92 };
-const float imuMagScale[3][3] = {{ 1.06051 , 0.03656 , 0.00351 },
-                                 { 0.03656 , 1.01702 , 0.01082 },
-                                 { 0.00351 , 0.01082 , 0.98561 }};
+const float imuMagBias[3] = { 539.51, -264.86, 58.96 };
+const float imuMagScale[3][3] = {{ 1.24742 , 0.03863 , 0.00156 },
+                                 { 0.03863 , 1.19304 , -0.00251 },
+                                 { 0.00156 , -0.00251 , 1.14957 }};
 
 void imuCalibrateAccelMeasurementsFloat(float *rawAccel, float *scaledAccel)
 {

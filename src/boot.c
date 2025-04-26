@@ -17,6 +17,7 @@
 #include "odometry.h"
 #include "constants.h"
 #include "move.h"
+#include "sensors.h"
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
@@ -36,6 +37,32 @@ int16_t toggleMotors(void) {
 
 int16_t readIMU(void) {
     imuReadAccel();
+    
+    return 1;
+}
+
+int16_t printSensorReadings(void) {
+    uint16_t left  = getSensorDistance(SENSOR_LEFT);
+    uint16_t front = getSensorDistance(SENSOR_CENTER);
+    uint16_t right = getSensorDistance(SENSOR_RIGHT);
+    
+    uint8_t buffer[8];
+    size_t idx = 0;
+    
+    buffer[idx++] = FRAME_START_BYTE;
+    
+    memcpy(&buffer[idx], &left, sizeof(left));
+    idx += sizeof(left);
+    
+    memcpy(&buffer[idx], &front, sizeof(front));
+    idx += sizeof(front);
+    
+    memcpy(&buffer[idx], &right, sizeof(right));
+    idx += sizeof(right);
+    
+    buffer[idx++] = FRAME_END_BYTE;
+    
+    putsUART1(buffer, idx);
     
     return 1;
 }
@@ -63,9 +90,10 @@ int16_t estimateEncoderAcceleration(void) {
 }
 
 int16_t printEncoderVelocities(void) {
-    /* 
+    /*
+    char buffer[100];
     snprintf(buffer, sizeof(buffer),
-         "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Yaw: %.2f dps, Lin Vel: %.2f mmps\r\n", 
+         "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Lin Vel: %.2f mmps\r\n", 
             getEncoderPositionCounts(ENCODER_LEFT), 
             getEncoderPositionCounts(ENCODER_RIGHT), 
             getEncoderPositionDeg(ENCODER_LEFT), 
@@ -74,11 +102,11 @@ int16_t printEncoderVelocities(void) {
             getEncoderVelocityDegPerSec(ENCODER_RIGHT),
             getEncoderVelocityCountsPerSample(ENCODER_LEFT),
             getEncoderVelocityCountsPerSample(ENCODER_RIGHT),
-            getEncoderYawRateDegPerSec(),
+            getEncoderYawRateRadPerSec(),
             getEncoderLinearVelocityMmPerSec()
             );
+    putsUART1Str(buffer);
     */
-    
     float velLeft = getEncoderVelocityDegPerSec(ENCODER_LEFT);
     float velRight = getEncoderVelocityDegPerSec(ENCODER_RIGHT);
     
@@ -96,7 +124,7 @@ int16_t printEncoderVelocities(void) {
     buffer[idx++] = FRAME_END_BYTE;
     
     putsUART1(buffer, idx);
-    
+
     return 1;
 }
 
@@ -272,9 +300,10 @@ void bootSetup() {
     initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
     initTimerInUs(TIMER_2, 5333); // higher frequency 5ms timer interrupt for sensor readings and rtttl
     //initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
-    initTimerInMs(TIMER_3, 5); // 100ms timer interrupt for testing
+    initTimerInMs(TIMER_3, 25); // 100ms timer interrupt for testing
 
-    initMotorsState(TIMER_1, 100.0f);
+    //initMotorsState(TIMER_1, 100.0f);
+    initMotorsState(TIMER_2, 187.51172f);
     initMouseState();
     
     //parseAllSongs();
@@ -296,7 +325,8 @@ void bootSetup() {
     //registerTimerCallback(TIMER_3, printEncoderVelocities);
     //registerTimerCallback(TIMER_3, printOdometry);
     //registerTimerCallback(TIMER_3, printIMU_trampoline);
-    
+    //registerTimerCallback(TIMER_3, printSensorReadings);
+   
     __delay_ms(10);
     
     /*
@@ -334,9 +364,52 @@ void bootSetup() {
     
     //setMotorsStandbyState(true);
     
-    //__delay_ms(1000);
-
-    turnDegrees(TIMER_1, 720, 100, 100.0f);
+    __delay_ms(1000);
+    
+#define CELL_SIZE 180
+    #define RIGHT 90
+    #define LEFT -90
+    
+    moveDistance(TIMER_1, CELL_SIZE * 3, 300, 100.0f);
+    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnDegrees(TIMER_1, 720, 90, 100.0f);
+    
+    /*
+    for (uint8_t i = 0; i < 5; i++) {
+        moveDistance(TIMER_1, 720, 300, 100.0f);
+        turnDegrees(TIMER_1, 180, 90, 100.0f);
+        moveDistance(TIMER_1, 720, 300, 100.0f);
+        turnDegrees(TIMER_1, -180, 90, 100.0f);
+    }
+    */
+    
     
     /*
     setMotorsStandbyState(false);

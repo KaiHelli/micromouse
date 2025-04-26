@@ -14,9 +14,6 @@
 #include "uart.h"
 #include "motorEncoders.h"
 
-#define WHEEL_MAX_ACC 3000.0f // dps^2 -- exact 3054.976
-#define WHEEL_MAX_VEL 1000.0f // dps - exact 1022.728
-
 #define WHEEL_PID_KP  0.12f
 #define WHEEL_PID_KI  1.0f
 #define WHEEL_PID_KD  0.0f

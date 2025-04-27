@@ -29,8 +29,8 @@ enum Status {
 
 typedef struct Target_ {
     int count;
-    int rows[2];
-    int cols[2];
+    int rows[4];
+    int cols[4];
 } Target;
 
 

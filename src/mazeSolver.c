@@ -196,8 +196,8 @@ int mouse_plan_next(Mouse* mouse) {
             if (next_row == row - 1) {
                 mouse->dir = UP;
             } else if (next_col == col + 1) {
-                mouse->dir = TURN_RIGHT;
-                turn = RIGHT;
+                mouse->dir = RIGHT;
+                turn = TURN_RIGHT;
             } else if (next_col == col - 1) {
                 mouse->dir = LEFT;
                 turn = TURN_LEFT;
@@ -260,6 +260,8 @@ int mouse_plan_next(Mouse* mouse) {
     mouse->commands[mouse->command_count].cells = 1;
     mouse->commands[mouse->command_count].turn = turn;
     mouse->command_count++;
+    
+    //uprintf("%d. Turn: %d (%d,%d:%d) -> (%d,%d:%d)\r\n", mouse->command_count, turn, row, col, current_dist, mouse->row, mouse->col, min_dist);
 
     return min_dist == 0 ? TARGET : OK;
 }
@@ -267,7 +269,7 @@ int mouse_plan_next(Mouse* mouse) {
 
 int mouse_move_next(Mouse* mouse) {
     int status = mouse_plan_next(mouse);
-    if (status == OK) {
+    if (status == OK || status == TARGET) {
         int turn = mouse->commands[mouse->command_count - 1].turn;
         if (turn == TURN_LEFT) {
             turnLeft();
@@ -275,7 +277,9 @@ int mouse_move_next(Mouse* mouse) {
             turnRight();
         } else if (turn == TURN_BACK) {
             // turn back
-            turnAround();
+            turnLeft();
+            turnLeft();
+            //turnAround();
         }
         moveForward(1);
     }
@@ -312,6 +316,9 @@ int discover_maze_step(Mouse* mouse) {
     int sensorWallFront = sensor_has_wall_front();
     int sensorWallRight = sensor_has_wall_right();
     int sensorWallLeft = sensor_has_wall_left();
+    
+    //uprintf("Sensor front: %d, left: %d, right: %d \r\n", sensorWallFront, sensorWallLeft, sensorWallRight);
+    
     // register walls
     if ( sensorWallFront ) {
         switch (mouse->dir) {
@@ -366,7 +373,7 @@ int discover_maze_step(Mouse* mouse) {
     // next cell:
     // list all possible directions, reachable cells
     status = mouse_move_next(mouse);
-    uprintf("status: %d\r\n", status);
+    //uprintf("status: %d\r\n", status);
     
     if (status == REPLAN) {
         mouse_fill_distances(mouse);
@@ -382,7 +389,7 @@ int discover_maze(Mouse* mouse) {
         //mouse_print_maze(mouse);
         //mouse_print_distances(mouse);
     } while (status != TARGET && status != FAIL && steps++ < MAX_STEPS);
-    uprintf("discovery status: %d, steps: %d\n", status, steps);
+    //uprintf("discovery status: %d, steps: %d\n", status, steps);
     return status;
 }
 

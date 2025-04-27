@@ -21,6 +21,21 @@ void oledSetup(void) {
     oledDrawEmptyMaze();
     oledRefresh();
     ssd1306SetDisplayState(1);
+//    __delay_ms(1000); 
+//    Maze maze = {0};
+//    
+//    for(int i = 0; i < N; i++)
+//        for(int j = 0; j < N; j++){
+//            maze.cells[i][j].wallTop = 1;
+//            maze.cells[i][j].wallBottom = 1;
+//            maze.cells[i][j].wallLeft = 1;
+//            maze.cells[i][j].wallRight = 1;
+//        }
+//    
+//    for(int i = 0; i < N; i++)
+//        for(int j = 0; j < N; j++){
+//            oledDrawCell(&maze, i, j);
+//        }
 }
 
 static void oledCommCb(bool success) {
@@ -144,12 +159,13 @@ void oledUpdateMouse(Mouse* mouse){
     oledDrawMouse(prev_row, prev_col, 0);
     oledPushMouse(prev_row, prev_col);
     //short delay to allow the deletion to complete
-    __delay_ms(1);        
+    __delay_ms(10);        
     prev_row = mouse->row;
     prev_col =  mouse->col;
     
     oledDrawMouse(mouse->row, mouse->col, 1);
     oledPushMouse(prev_row, prev_col);
+    __delay_ms(10); 
 }
 
 void oledDrawCell(Maze* maze,uint8_t row, uint8_t col) {
@@ -171,4 +187,5 @@ void oledDrawCell(Maze* maze,uint8_t row, uint8_t col) {
         }   
     }
     oledPushArea(CELL_WIDTH*col + X_OFFSET + 1, CELL_WIDTH*row + 1,CELL_WIDTH*(col+1) +X_OFFSET +1,CELL_WIDTH*(row+1) + 1);
+    __delay_ms(10);
 }

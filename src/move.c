@@ -431,3 +431,44 @@ void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, float time
     // TODO: Tune speed
     //turnDegrees(timer, -angleError(mouseAngle[YAW], moveStartYaw) * RAD2DEG, 90.0f, timer_hz);
 }
+
+#define SMALL_ROTATION_ANGLE 10.0 
+#define DEG_TO_RAD (M_PI / 180.0f)
+#define RAD_TO_DEG (180.0f / M_PI)
+void calibrateGlobalOrientation(){
+    float startYaw = mouseAngle[YAW];
+    
+    uint16_t leftCenter = getSensorDistance(SENSOR_LEFT);
+    uint16_t rightCenter = getSensorDistance(SENSOR_RIGHT);
+
+    turnDegrees(TIMER_1, SMALL_ROTATION_ANGLE, 45.0f, 100.0f);
+    __delay_ms(20);
+    float yawLeft = mouseAngle[YAW];
+    uint16_t leftAtLeft = getSensorDistance(SENSOR_LEFT);
+    uint16_t rightAtLeft = getSensorDistance(SENSOR_RIGHT);
+
+    turnDegrees(TIMER_1, -2 * SMALL_ROTATION_ANGLE, 45.0f, 100.0f);
+    __delay_ms(20);
+    float yawRight = mouseAngle[YAW];
+    uint16_t leftAtRight = getSensorDistance(SENSOR_LEFT);
+    uint16_t rightAtRight = getSensorDistance(SENSOR_RIGHT);
+
+    turnDegrees(TIMER_1, SMALL_ROTATION_ANGLE, 45.0f, 100.0f);
+    __delay_ms(20);
+
+    float deltaYaw = yawRight - yawLeft;
+    if (fabsf(deltaYaw) < 1e-6f) deltaYaw = 1e-6f; 
+
+    float deltaLeft = (float)(leftAtRight - leftAtLeft);
+    float deltaRight = (float)(rightAtRight - rightAtLeft);
+
+    float averageSlope = (deltaLeft + deltaRight) / (2.0f * deltaYaw);
+
+    float correctionAngle = atanf(averageSlope * DEG_TO_RAD) * RAD_TO_DEG;
+
+    turnDegrees(TIMER_1, -correctionAngle, 100.0f, 45.0f); 
+    __delay_ms(20);
+
+    float mazeHeading = wrapPi(mouseAngle[YAW]);
+    uprintf("Maze heading orientation: %.2f %.2f \n", mazeHeading, correctionAngle);
+}

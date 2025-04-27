@@ -20,5 +20,7 @@ void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float ti
  */
 void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, float timer_hz);
 
+void calibrateGlobalOrientation();
+
 #endif	/* MOVE_H */
 

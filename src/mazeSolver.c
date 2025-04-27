@@ -277,9 +277,9 @@ int mouse_move_next(Mouse* mouse) {
             turnRight();
         } else if (turn == TURN_BACK) {
             // turn back
-            turnLeft();
-            turnLeft();
-            //turnAround();
+            //turnLeft();
+            //turnLeft();
+            turnAround();
         }
         moveForward(1);
     }
@@ -385,6 +385,7 @@ int discover_maze(Mouse* mouse) {
     int status = OK;
     int steps = 0;
     do {
+        mouse->visited[mouse->row][mouse->col] = 1;
         status = discover_maze_step(mouse);
         //mouse_print_maze(mouse);
         //mouse_print_distances(mouse);
@@ -428,8 +429,9 @@ void maze_runner(Mouse* mouse) {
         } else if ( cmd->turn == TURN_RIGHT ) {
             turnRight();
         } else if ( cmd->turn == TURN_BACK ) {
-            turnLeft();
-            turnLeft();
+            //turnLeft();
+            //turnLeft();
+            turnAround();
         }
         moveForward(cmd->cells);
     }
@@ -438,8 +440,9 @@ void maze_runner(Mouse* mouse) {
 
 void go_back(Mouse* mouse) {
     
-    turnLeft();
-    turnLeft();
+    //turnLeft();
+    //turnLeft();
+    turnAround();
     for (int i = mouse->command_count - 1; i >= 0; i--) {
         Command* cmd = &mouse->commands[i];
         int turn = cmd->turn;
@@ -456,15 +459,56 @@ void go_back(Mouse* mouse) {
         } else if ( turn == TURN_RIGHT ) {
             turnRight();
         } else if ( turn == TURN_BACK ) {
-            turnLeft();
-            turnLeft();
+            //turnLeft();
+            //turnLeft();
+            turnAround();
         }
     }
     
-    turnLeft();
-    turnLeft();
+    //turnLeft();
+    //turnLeft();
+    turnAround();
 }
 
+void mouse_final_distances(Mouse* mouse) {
+    Queue q;
+
+    for(int i = 0; i < N; i++) {
+        for(int j = 0; j < N; j++) {
+            mouse->cell_distances[i][j] = 100;
+        }
+    }
+       
+    queue_init(&q);
+    for(int i = 0; i < mouse->target.count; i++) {
+        mouse->cell_distances[mouse->target.rows[i]][mouse->target.cols[i]] = 0;
+        enqueue(&q, mouse->target.rows[i], mouse->target.cols[i]);
+    }
+    
+    while(!isEmpty(&q)) {
+        Point p = dequeue(&q);
+        int row = p.row;
+        int col = p.col;
+        int dist = mouse->cell_distances[row][col];
+        if(row > 0 && mouse->maze.cells[row][col].wallTop == 0 && mouse->cell_distances[row - 1][col] == 100 && mouse->visited[row - 1][col] == 1) {
+            mouse->cell_distances[row - 1][col] = dist + 1;
+            enqueue(&q, row - 1, col);
+        }
+        if(col < N - 1 && mouse->maze.cells[row][col].wallRight == 0 && mouse->cell_distances[row][col + 1] == 100 && mouse->visited[row][col + 1] == 1) {
+            mouse->cell_distances[row][col + 1] = dist + 1;
+            enqueue(&q, row, col + 1);
+        }
+        if(row < N - 1 && mouse->maze.cells[row][col].wallBottom == 0 && mouse->cell_distances[row + 1][col] == 100 && mouse->visited[row + 1][col] == 1) {
+            mouse->cell_distances[row + 1][col] = dist + 1;
+            enqueue(&q, row + 1, col);
+        }
+        if(col > 0 && mouse->maze.cells[row][col].wallLeft == 0 && mouse->cell_distances[row][col - 1] == 100 && mouse->visited[row][col - 1] == 1) {
+            mouse->cell_distances[row][col - 1] = dist + 1;
+            enqueue(&q, row, col - 1);
+        }
+    }
+    
+}
 
 uint8_t solveMaze() {
     // Setup mouse
@@ -490,6 +534,7 @@ uint8_t solveMaze() {
         mouse.row = 5;
         mouse.col = 0;
         mouse.dir = UP;
+        mouse_final_distances(&mouse);
         status = plan_run(&mouse);
         if (status == TARGET) {
             maze_runner(&mouse);

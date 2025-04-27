@@ -63,6 +63,7 @@ typedef struct Mouse_ {
     // commands
     int command_count;
     Command commands[N * N];
+    unsigned char visited[N][N];
 } Mouse;
 
 

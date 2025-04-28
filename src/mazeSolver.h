@@ -5,6 +5,7 @@
 
 #define N 6
 #define MAX_STEPS N*N
+#undef RELATIVE_TURN
 
 enum Turn {
     NO_TURN = -1,
@@ -28,6 +29,7 @@ typedef struct Target_ {
 
 
 typedef struct Command_ {
+    int dir;
     int cells;
     int turn;
 } Command;

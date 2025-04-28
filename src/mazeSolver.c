@@ -260,6 +260,7 @@ int mouse_plan_next(Mouse* mouse) {
     }
     mouse->commands[mouse->command_count].cells = 1;
     mouse->commands[mouse->command_count].turn = turn;
+    mouse->commands[mouse->command_count].dir = mouse->dir;
     mouse->command_count++;
     
     //uprintf("%d. Turn: %d (%d,%d:%d) -> (%d,%d:%d)\r\n", mouse->command_count, turn, row, col, current_dist, mouse->row, mouse->col, min_dist);
@@ -272,6 +273,7 @@ int mouse_move_next(Mouse* mouse) {
     int status = mouse_plan_next(mouse);
     if (status == OK || status == TARGET) {
         int turn = mouse->commands[mouse->command_count - 1].turn;
+#ifdef RELATIVE_TURN
         if (turn == TURN_LEFT) {
             turnLeft();
         } else if (turn == TURN_RIGHT) {
@@ -283,6 +285,13 @@ int mouse_move_next(Mouse* mouse) {
             turnAround();
         }
         moveForward(1);
+#else
+        int turn_direction = mouse->commands[mouse->command_count - 1].dir;
+        if (turn != NO_TURN) {
+            turnDirection(turn_direction);
+        }
+        moveForward(1);
+#endif        
     }
     return status;
 }
@@ -388,8 +397,6 @@ int discover_maze(Mouse* mouse) {
     do {
         mouse->visited[mouse->row][mouse->col] = 1;
         status = discover_maze_step(mouse);
-        //mouse_print_maze(mouse);
-        //mouse_print_distances(mouse);
     } while (status != TARGET && status != FAIL && steps++ < MAX_STEPS);
     //uprintf("discovery status: %d, steps: %d\n", status, steps);
     return status;
@@ -403,8 +410,6 @@ int plan_run(Mouse* mouse) {
         status = mouse_plan_next(mouse);
     } while (status != TARGET && status != FAIL && steps++ < MAX_STEPS);
     if (status == TARGET) {
-        // optimize the path
-        // collapsing NO_TURN commands
         int last_turn = TURN_BACK;
         for(int i=0; i<mouse->command_count; i++) {
             Command* cmd = &mouse->commands[i];
@@ -422,6 +427,7 @@ int plan_run(Mouse* mouse) {
     return status;
 }
 
+#ifdef RELATIVE_TURN
 void maze_runner(Mouse* mouse) {
     for(int i=0; i<mouse->command_count; i++) {
         Command* cmd = &mouse->commands[i];        
@@ -470,6 +476,65 @@ void go_back(Mouse* mouse) {
 //    turnLeft();
     turnAround();
 }
+#else
+int oppositeDirection(int dir) {
+    switch (dir) {
+        case UP: return DOWN;
+        case RIGHT: return LEFT;
+        case DOWN: return UP;
+        case LEFT: return RIGHT;
+    }
+    return -1;
+}
+
+int oppositeTurn(int turn, int dir) {
+    switch (turn) {
+        case TURN_LEFT: 
+            switch (dir) {
+                case UP: return LEFT;
+                case RIGHT: return UP;
+                case DOWN: return RIGHT;
+                case LEFT: return DOWN;
+            }
+            break;
+        case TURN_RIGHT:
+            switch (dir) {
+                case UP: return RIGHT;
+                case RIGHT: return DOWN;
+                case DOWN: return LEFT;
+                case LEFT: return UP;
+            }
+            break;
+        case TURN_BACK: return dir;
+    }
+    return NO_TURN;
+}
+
+void go_back(Mouse* mouse) {
+    turnDirection(oppositeDirection(mouse->dir));
+    for (int i = mouse->command_count - 1; i >= 0; i--) {
+        Command* cmd = &mouse->commands[i];
+        int turn = cmd->turn;
+        int dir = cmd->dir;
+        moveForward(cmd->cells);
+        if ( turn != NO_TURN ) {
+            turnDirection(oppositeTurn(turn, dir));
+        }
+    }
+    turnDirection(mouse->commands[0].dir);
+}
+
+void maze_runner(Mouse* mouse) {
+    for(int i=0; i<mouse->command_count; i++) {
+        Command* cmd = &mouse->commands[i];        
+        if ( cmd->turn != NO_TURN ) {
+            turnDirection(cmd->dir);
+        }
+        moveForward(cmd->cells);
+    }
+}
+
+#endif
 
 void mouse_final_distances(Mouse* mouse) {
     Queue q;

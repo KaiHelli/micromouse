@@ -5,7 +5,7 @@
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
-
+#include "move.h"
 #include "IOConfig.h"
 #include "odometry.h"
 #include "timers.h"
@@ -380,6 +380,12 @@ static int16_t moveDistanceCallback(void)
 
     if (goalReached || frontTooClose)
     {
+        if(front < 150 && front > 50){
+            moveDist         = (float) (front - 30);
+            moveStartX       = mousePosition[X];
+            moveStartY       = mousePosition[Y];
+            return 1;
+        }
         setMotorSpeedLeft (0);
         setMotorSpeedRight(0);
         moveInProgress = false;
@@ -432,43 +438,106 @@ void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, float time
     //turnDegrees(timer, -angleError(mouseAngle[YAW], moveStartYaw) * RAD2DEG, 90.0f, timer_hz);
 }
 
-#define SMALL_ROTATION_ANGLE 10.0 
+ float averageSensorDistance(int sensor, int num_samples) {
+    uint16_t totalDistance = 0;
+    __delay_ms(100);
+    for (int i = 0; i < num_samples; i++) {
+        __delay_ms(10);
+        totalDistance +=  getSensorDistance(sensor);
+          // Small delay between samples (to allow for sensor settling)
+    }
+    return ((float) totalDistance) / num_samples;
+}
 #define DEG_TO_RAD (M_PI / 180.0f)
 #define RAD_TO_DEG (180.0f / M_PI)
+#define SMALL_ROTATION_ANGLE 3  // degrees (to rotate more slowly)
+#define ALIGNMENT_THRESHOLD 0.5 
+ #define NUM_SAMPLES 20 
+ static float north = 0.0f;
 void calibrateGlobalOrientation(){
-    float startYaw = mouseAngle[YAW];
     
-    uint16_t leftCenter = getSensorDistance(SENSOR_LEFT);
-    uint16_t rightCenter = getSensorDistance(SENSOR_RIGHT);
+    north += mouseAngle[YAW];
+//    for(int i = 0; i< 10; i++){
+//    moveDistance(TIMER_1, 25, 150, 100);
+//    north += mouseAngle[YAW];
+//    turnDegrees(TIMER_1, 180, 90, 100);
+//    moveDistance(TIMER_1, 25, 150, 100);
+//    north -= mouseAngle[YAW];
+//    turnDegrees(TIMER_1, 180, 90, 100);}
+    
+//    moveDistance(TIMER_1, -25, 150, 100);
+//    
+//    turnOrientation(TIMER_1, UP, 90, 100);
+////    turnOrientation(TIMER_1, LEFT, 90, 100);
+////    turnOrientation(TIMER_1, DOWN, 90, 100);
+////    turnOrientation(TIMER_1, LEFT, 90, 100);
+////    turnOrientation(TIMER_1, RIGHT, 90, 100);
+////    turnOrientation(TIMER_1, UP, 90, 100);
+////    turnOrientation(TIMER_1, DOWN, 90, 100);
+//    turnOrientation(TIMER_1, RIGHT, 90, 100);
+//    turnOrientation(TIMER_1, UP, 90, 100);
+    
+}
 
-    turnDegrees(TIMER_1, SMALL_ROTATION_ANGLE, 45.0f, 100.0f);
-    __delay_ms(20);
-    float yawLeft = mouseAngle[YAW];
-    uint16_t leftAtLeft = getSensorDistance(SENSOR_LEFT);
-    uint16_t rightAtLeft = getSensorDistance(SENSOR_RIGHT);
+float getTargetYaw(Direction direction){
+    float targetYaw;
+    switch(direction){
+        case UP:
+            targetYaw = north;
+            break;
+        case DOWN:
+            targetYaw = north + 180.0f * DEG2RAD;
+            break;
+        case LEFT:
+            targetYaw = north - 90.0f * DEG2RAD;
+            break;
+        case RIGHT:
+            targetYaw = north + 90.0f * DEG2RAD;
+            break;
+    }
+    return targetYaw;
+    return wrapPi(targetYaw);
+}
 
-    turnDegrees(TIMER_1, -2 * SMALL_ROTATION_ANGLE, 45.0f, 100.0f);
-    __delay_ms(20);
-    float yawRight = mouseAngle[YAW];
-    uint16_t leftAtRight = getSensorDistance(SENSOR_LEFT);
-    uint16_t rightAtRight = getSensorDistance(SENSOR_RIGHT);
+void turnOrientation(Timer_t timer, Direction direction, float cruiseDegPerSec, float timer_hz){
+/* ----  set up the unwrapper  ------------------------------------ */
+    yawLast = mouseAngle[YAW];      /* current wrapped IMU reading      */
+    yawOff  = 0.0f;                 /* no offset yet                    */
+    
+    if (cruiseDegPerSec > TURN_MAX_VEL_DPS) {
+        cruiseDegPerSec = TURN_MAX_VEL_DPS;
+    }
+    turnTargetYaw = getTargetYaw(direction);
+    turnInit          = true;
+    turnDirection     = (angleError(yawLast, turnTargetYaw)>0) ? 1 : -1;
+    turnCruiseVelDps  = fabsf(cruiseDegPerSec);
+    turnInProgress    = true;
+    velCmd            = 0.0f;
+    settleCtr         = 0;
+    turnDt            = 1.0f / timer_hz;
+    uprintf("Current Angle: %.2f Target Angle %.2f Error %.2f\r\n", yawLast, turnTargetYaw, angleError(yawLast, turnTargetYaw));
+    
 
-    turnDegrees(TIMER_1, SMALL_ROTATION_ANGLE, 45.0f, 100.0f);
-    __delay_ms(20);
+    /* --------------- init outer PID (w loop) -------------------------- */
+    fastPidInit(&turnPid);
+    fastPidConfigure (&turnPid, TURN_PID_KP, TURN_PID_KI, TURN_PID_KD, TURN_PID_KF, timer_hz, 8, true);
+    fastPidSetOutputRange(&turnPid, -(int16_t)(turnCruiseVelDps * 10.0f), +(int16_t)(turnCruiseVelDps * 10.0f));
 
-    float deltaYaw = yawRight - yawLeft;
-    if (fabsf(deltaYaw) < 1e-6f) deltaYaw = 1e-6f; 
+    if (fastPidHasConfigError(&turnPid)) {
+        putsUART1Str("Failed to setup PID for turning.\r\n");
+        return;
+    }
 
-    float deltaLeft = (float)(leftAtRight - leftAtLeft);
-    float deltaRight = (float)(rightAtRight - rightAtLeft);
+    /* --------------- wake the wheel-speed PIDs ------------------------ */
+    setMotorsStandbyState(false);
 
-    float averageSlope = (deltaLeft + deltaRight) / (2.0f * deltaYaw);
+    /* small kick to overcome static friction */
+    float kickOmega   = turnDirection * fminf(turnCruiseVelDps, 30.0f);      // 30 °/s cap
+    float kickV_mmps  = kickOmega * DEG2RAD * (WHEEL_BASE_MM * 0.5f);
+    setMotorSpeedLeft ( +kickV_mmps );
+    setMotorSpeedRight( -kickV_mmps );
 
-    float correctionAngle = atanf(averageSlope * DEG_TO_RAD) * RAD_TO_DEG;
+    registerTimerCallback(timer, turnDegreesCallback);
 
-    turnDegrees(TIMER_1, -correctionAngle, 100.0f, 45.0f); 
-    __delay_ms(20);
-
-    float mazeHeading = wrapPi(mouseAngle[YAW]);
-    uprintf("Maze heading orientation: %.2f %.2f \n", mazeHeading, correctionAngle);
+    while (turnInProgress) { /* busy-wait */}
 }

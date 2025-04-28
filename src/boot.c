@@ -363,40 +363,80 @@ void bootSetup() {
     //setMotorsStandbyState(true);
     
     __delay_ms(1000);
+    calibrateGlobalOrientation();
+//    solveMaze();
     
-    solveMaze();
-    /*
-    moveDistance(TIMER_1, CELL_SIZE * 3, 300, 100.0f);
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
-    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
-    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
-    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
-    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
-    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
-    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
     moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-    turnDegrees(TIMER_1, 720, 90, 100.0f);
-    */
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, UP, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
+    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
+    
+    
+    
     /*
     for (uint8_t i = 0; i < 5; i++) {
         moveDistance(TIMER_1, 720, 300, 100.0f);

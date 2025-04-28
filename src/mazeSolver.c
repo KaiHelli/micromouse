@@ -1,5 +1,6 @@
 #include "mazeSolver.h"
 #include "mouseController.h"
+#include "move.h"
 #include "sensors.h"
 #include "oled.h"
 #include "uart.h"
@@ -277,8 +278,8 @@ int mouse_move_next(Mouse* mouse) {
             turnRight();
         } else if (turn == TURN_BACK) {
             // turn back
-            //turnLeft();
-            //turnLeft();
+//            turnLeft();
+//            turnLeft();
             turnAround();
         }
         moveForward(1);
@@ -429,8 +430,8 @@ void maze_runner(Mouse* mouse) {
         } else if ( cmd->turn == TURN_RIGHT ) {
             turnRight();
         } else if ( cmd->turn == TURN_BACK ) {
-            //turnLeft();
-            //turnLeft();
+//            turnLeft();
+//            turnLeft();
             turnAround();
         }
         moveForward(cmd->cells);
@@ -440,8 +441,8 @@ void maze_runner(Mouse* mouse) {
 
 void go_back(Mouse* mouse) {
     
-    //turnLeft();
-    //turnLeft();
+//    turnLeft();
+//    turnLeft();
     turnAround();
     for (int i = mouse->command_count - 1; i >= 0; i--) {
         Command* cmd = &mouse->commands[i];
@@ -459,14 +460,14 @@ void go_back(Mouse* mouse) {
         } else if ( turn == TURN_RIGHT ) {
             turnRight();
         } else if ( turn == TURN_BACK ) {
-            //turnLeft();
-            //turnLeft();
+//            turnLeft();
+//            turnLeft();
             turnAround();
         }
     }
     
-    //turnLeft();
-    //turnLeft();
+//    turnLeft();
+//    turnLeft();
     turnAround();
 }
 

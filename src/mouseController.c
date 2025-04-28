@@ -14,18 +14,19 @@ void moveForward(uint16_t cells) {
     moveDistance(TIMER_1, CELL_SIZE * cells, 300, 100.0f);
 }
 
-void turnLeft() {
+void turnDirection(Direction direction) {
     //uprintf("Turning left\r\n");
-    turnDegrees(TIMER_1, LEFT, 90, 100.0f);
+    turnOrientation(TIMER_1, direction, 90, 100.0f);
+}
+
+void turnLeft() {
+    turnOrientation(TIMER_1, -90, 90, 100.0f);
 }
 
 void turnRight() {
-    //uprintf("Turning right \r\n");
-    turnDegrees(TIMER_1, RIGHT, 90, 100.0f);
+    turnOrientation(TIMER_1, 90, 90, 100.0f);
 }
 
 void turnAround() {
-    //uprintf("Turning around \r\n");
-    //turnDegrees(TIMER_1, RIGHT, 180, 100.0f);
-    turnDegrees(TIMER_1, 180, 90, 100.0f);
+    turnOrientation(TIMER_1, 180, 90, 100.0f);
 }

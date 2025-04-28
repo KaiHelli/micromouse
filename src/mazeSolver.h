@@ -13,13 +13,6 @@ enum Turn {
     TURN_BACK = 2
 };
 
-enum Direction {
-    UP = 0,
-    RIGHT = 1,
-    DOWN = 2,
-    LEFT = 3
-};
-
 enum Status {
     OK = 0,
     REPLAN = 1,

@@ -5,6 +5,13 @@
 
 #include "timers.h"
 
+typedef enum {
+    UP = 0,
+    RIGHT,
+    DOWN,
+    LEFT
+} Direction;
+
 /**
  * @brief Rotates the robot by the specified angle in degrees on the spot.
  * Takes an int16_t degrees value; positive rotates CW, negative CCW.
@@ -14,6 +21,8 @@
  * periodically.
  */
 void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float timer_hz);
+
+void turnOrientation(Timer_t timer, Direction direction, float cruiseDegPerSec, float timer_hz);
 
 /**
  * @brief TODO

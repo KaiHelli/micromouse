@@ -99,27 +99,30 @@ static int16_t turnDegreesCallback(void)
     float dt        = turnDt;
     velMeas         = (angNowDeg - lastAngleDeg) / dt;
     
-    /*
-    static uint16_t i = 0;
-    if (i % 1 == 0) {
-        uint8_t buffer[10];
-        size_t idx = 0;
-
-        buffer[idx++] = FRAME_START_BYTE;
-
-        memcpy(&buffer[idx], &velMeas, sizeof(velMeas));
-        idx += sizeof(velMeas);
-
-        buffer[idx++] = FRAME_END_BYTE;
-
-        putsUART1(buffer, idx);
-        
-        //char buf[100];
-        //snprintf(buf, sizeof(buf), "an: %.6f la: %.6f, vm: %ld\r\n", angNowDeg, lastAngleDeg, (int32_t)(velMeas * 10.0f));
-        //putsUART1Str(buf);
-    }
-    i++;
-    */
+    
+//    static uint16_t i = 0;
+//    if (i % 1 == 0) {
+//        uint8_t buffer[10];
+//        size_t idx = 0;
+//
+//        buffer[idx++] = FRAME_START_BYTE;
+////        buffer[idx++] = 0xAB;
+////        buffer[idx++] = 0xCD;
+////        buffer[idx++] = 0xDC;
+////        buffer[idx++] = 0xBA;
+//        memcpy(&buffer[idx], &velMeas, sizeof(velMeas));
+//        idx += sizeof(velMeas);
+//
+//        buffer[idx++] = FRAME_END_BYTE;
+//
+//        putsUART1(buffer, idx);
+//        
+////        char buf[100];
+////        snprintf(buf, sizeof(buf), "an: %.6f la: %.6f, vm: %ld\r\n", angNowDeg, lastAngleDeg, (int32_t)(velMeas * 10.0f));
+////        putsUART1Str(buf);
+//    }
+//    i++;
+    
     
     lastAngleDeg    = angNowDeg;
 
@@ -456,7 +459,8 @@ void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, float time
  static float north = 0.0f;
 void calibrateGlobalOrientation(){
     
-    north += mouseAngle[YAW];
+    north = mouseAngle[YAW];
+//    north = wrapPi(mouseAngle[YAW]);
 //    for(int i = 0; i< 10; i++){
 //    moveDistance(TIMER_1, 25, 150, 100);
 //    north += mouseAngle[YAW];
@@ -479,7 +483,7 @@ void calibrateGlobalOrientation(){
     
 }
 
-float getTargetYaw(Direction direction){
+float getTargetYaw(float curYaw, Direction direction){
     float targetYaw;
     switch(direction){
         case UP:
@@ -495,19 +499,27 @@ float getTargetYaw(Direction direction){
             targetYaw = north + 90.0f * DEG2RAD;
             break;
     }
-    return targetYaw;
-    return wrapPi(targetYaw);
+    targetYaw = wrapPi(targetYaw);
+    if(targetYaw - angleError(curYaw, targetYaw) > 180.0f * DEG2RAD){
+        return targetYaw - 2*M_PI;
+    }
+    else if (targetYaw - angleError(curYaw, targetYaw) < -180.0f * DEG2RAD){
+        return targetYaw + 2*M_PI;
+    }
+    else{
+        return targetYaw;
+    }
 }
-
 void turnOrientation(Timer_t timer, Direction direction, float cruiseDegPerSec, float timer_hz){
 /* ----  set up the unwrapper  ------------------------------------ */
     yawLast = mouseAngle[YAW];      /* current wrapped IMU reading      */
+    
     yawOff  = 0.0f;                 /* no offset yet                    */
     
     if (cruiseDegPerSec > TURN_MAX_VEL_DPS) {
         cruiseDegPerSec = TURN_MAX_VEL_DPS;
     }
-    turnTargetYaw = getTargetYaw(direction);
+    turnTargetYaw = getTargetYaw(yawLast,direction);
     turnInit          = true;
     turnDirection     = (angleError(yawLast, turnTargetYaw)>0) ? 1 : -1;
     turnCruiseVelDps  = fabsf(cruiseDegPerSec);
@@ -515,9 +527,6 @@ void turnOrientation(Timer_t timer, Direction direction, float cruiseDegPerSec, 
     velCmd            = 0.0f;
     settleCtr         = 0;
     turnDt            = 1.0f / timer_hz;
-    uprintf("Current Angle: %.2f Target Angle %.2f Error %.2f\r\n", yawLast, turnTargetYaw, angleError(yawLast, turnTargetYaw));
-    
-
     /* --------------- init outer PID (w loop) -------------------------- */
     fastPidInit(&turnPid);
     fastPidConfigure (&turnPid, TURN_PID_KP, TURN_PID_KI, TURN_PID_KD, TURN_PID_KF, timer_hz, 8, true);

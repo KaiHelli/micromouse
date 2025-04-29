@@ -29,7 +29,7 @@ typedef enum {
     MOTOR_RIGHT     // Motor B
 } Motor_t;
 
-void initMotorsState(Timer_t timer, float pid_hz);
+void initMotorsState(Timer_t timer, uint16_t numTicks, float timer_hz);
 
 
 void setMotorSpeedLeft(int16_t mmPerSec);

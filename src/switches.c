@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+static bool skipStartupCallback = true;
+
 void initSwitch1(void) {
     INTCON2bits.INT1EP = 0;     // interrupt on positive edge for External Interrupt 1
     IEC1bits.INT1IE = 0;        // leave external interrupt 1 disabled for now
@@ -83,6 +85,11 @@ void clearSwitchCallbacks(Switch_t sw) {
 }
 
 static void generalSwitchISR(Switch_t sw) {
+    if (skipStartupCallback) {
+        skipStartupCallback = false;
+        return;
+    }
+    
     // Guard from registerSwitchCallback being called from an interrupt with
     // higher priority while reading/writing from/to the callback buffers below.
             

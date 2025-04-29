@@ -78,14 +78,17 @@ static int16_t wheelPidStep(void)
     return 1;
 }
 
-void initMotorsState(Timer_t timer, float pid_hz) {
+void initMotorsState(Timer_t timer, uint16_t numTicks, float timer_hz) {
     // Set motors to standby on startup
     setMotorsStandbyState(true);
     
+    setMotorSpeedLeft(0);
+    setMotorSpeedRight(0);
+    
     fastPidInit(&pidL);  
     fastPidInit(&pidR);
-    fastPidConfigure(&pidL, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, pid_hz, 8, true);
-    fastPidConfigure(&pidR, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, pid_hz, 8, true);
+    fastPidConfigure(&pidL, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, timer_hz / numTicks, 8, true);
+    fastPidConfigure(&pidR, WHEEL_PID_KP, WHEEL_PID_KI, WHEEL_PID_KD, WHEEL_PID_KF, timer_hz / numTicks, 8, true);
     fastPidSetOutputRange(&pidL, -100, 100);
     fastPidSetOutputRange(&pidR, -100, 100);
     //fastPidSetAntiWindup(&pidL, FASTPID_AW_BACKCALC, WHEEL_PID_BC);
@@ -98,7 +101,7 @@ void initMotorsState(Timer_t timer, float pid_hz) {
         return;
     }
     
-    registerTimerCallback(timer, wheelPidStep);
+    registerTimerCallback(timer, wheelPidStep, numTicks);
 }
 
 void setMotorSpeedLeft(int16_t mmPerSec)

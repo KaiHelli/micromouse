@@ -29,6 +29,7 @@
 #include <math.h>
 #include <string.h>
 
+
 int16_t toggleMotors(void) {
     static bool standby = 0;
     standby = !standby;
@@ -256,6 +257,65 @@ int16_t printOdometry(void) {
     return 1;
 }
 
+
+int16_t startMaze(void) {
+    initMotorsState(TIMER_1, 1, getTimerFrequency(TIMER_1)); // initialize motor PIDs
+    
+    setMotorsStandbyState(false);
+    
+    LED3 = LEDON;
+    
+    /*
+    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, LEFT, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, DOWN, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, RIGHT, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, RIGHT, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, DOWN, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, LEFT, 90, 2, getTimerFrequency(TIMER_1));
+    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
+    */
+    
+    solveMaze();
+    
+    LED4 = LEDON;
+    
+    return 0;
+}
+
+int16_t initMouse(void) {
+    uprintf("Initializing mouse state.\r\n");
+    
+    //centerMouseInCell();
+    
+    LED1 = LEDON;
+    
+    __delay_ms(2000); // User delay to press the reset and calibrate only when hands are off
+    
+    // imuCalibrateAccel(); // Calibrate accelerometer.
+    imuCalibrateGyro();  // Calibrate gyroscope.
+    
+    __delay_ms(250);
+    
+    setupOdometry(TIMER_1, 1); // track odometry
+    
+    setGlobalOrientation();
+    
+    // Data Visualizer Callbacks
+    //registerTimerCallback(TIMER_3, printEncoderVelocities, 1);
+    registerTimerCallback(TIMER_3, printOdometry, 1);
+    //registerTimerCallback(TIMER_3, printIMU_trampoline, 1);
+    //registerTimerCallback(TIMER_3, printSensorReadings, 1);
+    
+    registerSwitchCallback(SWITCH_1, startMaze);
+    
+    LED2 = LEDON;
+    
+    return 0;
+}
+
 void bootSetup() {
     setupClock(); // configures oscillator circuit
     
@@ -286,259 +346,33 @@ void bootSetup() {
     };
     imuSetup(GYRO_RANGE_1000DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_OFF, fifoCfg); // configure IMU over I2C
     
-    __delay_ms(1000); // User delay to press the reset and calibrate only when hands are off
-    
-    //imuCalibrateAccel(); // Calibrate accelerometer.
-    imuCalibrateGyro(); // Calibrate gyroscope.
-    
     //imuGetAccelCalibrationData();   // Output calibration data of accelerometer
-    //imuGetMagCalibrationData();   // Output calibration data of magnetometer
+    //imuGetMagCalibrationData();     // Output calibration data of magnetometer
     // For calibration -> remember to set current calibration to identity matrix and 0 bias beforehand)
     
-    initSwitch1();     // Initialize switch 1 for interrupts
-    registerSwitchCallback(SWITCH_1, toggleMotors);
-    
-    initTimerInMs(TIMER_1, 10); // main 10ms interrupt for high-level logic
-    initTimerInUs(TIMER_2, 5333); // higher frequency 5ms timer interrupt for sensor readings and rtttl
-    //initTimerInMs(TIMER_2, 5);  // higher frequency 5ms timer interrupt for sensor readings and rtttl
+    initTimerInUs(TIMER_1, 5333); // high frequency timer
+    //initTimerInMs(TIMER_2, 5); 
     initTimerInMs(TIMER_3, 25); // 100ms timer interrupt for testing
 
-    //initMotorsState(TIMER_1, 100.0f);
-    initMotorsState(TIMER_2, 187.51172f);
+    initSwitch1();     // Initialize switch 1 for interrupts
     
     //parseAllSongs();
     //playSong(SONG_MUPPETS, true, TIMER_2);
-    
-    //registerTimerCallback(TIMER_1, moveForward);
-    //registerTimerCallback(TIMER_3, moveForward);
-
-    setupOdometry(TIMER_2, TIMER_1); // track odometry
-    
-    //steerMotors(30, 30);
-    //setMotorPower(MOTOR_LEFT, 52);    
-    //setMotorPower(MOTOR_RIGHT, 50);
-    //setMotorsStandbyState(false);
-    //setTimerState(TIMER_3, 1);
-    // initTimerInMs(TIMER_32_COMBINED, 250); //creates a 10ms timer interrupt
-    // setTimerState(TIMER_32_COMBINED, 1);
-    
-    //registerTimerCallback(TIMER_3, printEncoderVelocities);
-//    registerTimerCallback(TIMER_3, printOdometry);
-    //registerTimerCallback(TIMER_3, printIMU_trampoline);
-    //registerTimerCallback(TIMER_3, printSensorReadings);
    
-    /*
-    // how many samples per one full sine?wave
-    static const uint32_t SIN_WAVE_LENGTH = 2000;
-    // how many full cycles you want
-    static const uint32_t NUM_CYCLES = 10;
-    // total loop count = samples per cycle × number of cycles
-    static const uint32_t TOTAL_STEPS = SIN_WAVE_LENGTH * NUM_CYCLES;
-
-    for (uint32_t step = 0;  step < TOTAL_STEPS;  ++step) {
-        // compute phase in radians [0 ? 2?) for this sample
-        float phase = (float)step * 2.0f * M_PI / (float)SIN_WAVE_LENGTH;
-
-        // sinf(phase) gives ?1?+1; map to 0?1
-        float speed = 100.0f * (sinf(phase) + 1.0f) * 0.5f;
-
-        setMotorPower(MOTOR_LEFT, (int8_t) speed);
+    __delay_ms(1000);
         
-        __delay_ms(5);
-    }
-    
-    setMotorPower(MOTOR_LEFT, 0);
-    */
+    //registerSwitchCallback(SWITCH_1, initMouse);
+    initMouse();
+    __delay_ms(1000);
+    startMaze();
 
-    /*
-    __delay_ms(1000);
-    
-    setMotorPower(MOTOR_LEFT, 100);
-    setMotorPower(MOTOR_RIGHT, 100);
-    setMotorsStandbyState(false);
-    
-    __delay_ms(1000);
-    */
-    
-    //setMotorsStandbyState(true);
-    calibrateGlobalOrientation();
-    __delay_ms(1000);
-    
-//    __delay_ms(1000);
-    
-//    solveMaze();
-    
-//    turnDegrees(TIMER_1, 90, 90, 100.0f); //errDeg, velMeas
-//    turnDegrees(TIMER_1, 720, 90, 100.0f); //errDeg, velMeas
-//    
-//    moveDistance(TIMER_1, 30, 300, 100.0f); //controlError, vCorr_mmps
-//    
-//    static uint8_t counter = 0;
-//
-//    P1DC2 = ((sin((double) counter/0xFF * 2 * M_PI) + 1) / 2) * PWM_1KHZ;
-//
-//    counter++;
-//
-//    if (counter == 0xFF) {
-//        counter = 0;
-//    }
-    
-    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, UP, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, UP, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, UP, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-    __delay_ms(300);
-    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-    __delay_ms(300);
-    
-//#define RIGHT_A 90
-//#define LEFT_A -90
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-////    turnDegrees(TIMER_1, RIGHT_A, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-////    turnDegrees(TIMER_1, LEFT_A, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-////    turnDegrees(TIMER_1, LEFT_A, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-////    turnDegrees(TIMER_1, RIGHT_A, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    __delay_ms(300);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    __delay_ms(300);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, UP, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 2, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, RIGHT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, LEFT, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    turnOrientation(TIMER_1, DOWN, 90, 100.0f);
-//    moveDistance(TIMER_1, CELL_SIZE * 1, 300, 100.0f);
-//    
-    
-    
-    /*
-    for (uint8_t i = 0; i < 5; i++) {
-        moveDistance(TIMER_1, 720, 300, 100.0f);
-        turnDegrees(TIMER_1, 180, 90, 100.0f);
-        moveDistance(TIMER_1, 720, 300, 100.0f);
-        turnDegrees(TIMER_1, -180, 90, 100.0f);
-    }
-    */
-    
-    
-    /*
-    setMotorsStandbyState(false);
-
-    setMotorSpeedLeft(250);
-    setMotorSpeedRight(250);
-    __delay_ms(1000);
-    setMotorSpeedLeft(-250);
-    setMotorSpeedRight(-250);
-    __delay_ms(1000);
-    setMotorSpeedLeft(0);
-    setMotorSpeedRight(0);
-    */
-    
-    //for (uint8_t i = 0; i < 6; i++) {
-    //    int8_t degrees = i % 2 == 0 ? 90 : -90;
-    //    turnDegrees(TIMER_1, degrees, 50);
-    //}
-    
-    //moveDistance(TIMER_1, 200, 25);
-    
     LED1 = LEDOFF;
     LED2 = LEDOFF;
     LED3 = LEDOFF;
     LED4 = LEDOFF;
     LED5 = LEDOFF;
     
-    //while (1) {}
+    while (1) {}
 }
 
 void bootReset() {

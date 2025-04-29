@@ -9,6 +9,8 @@
 #define RIGHT_ANG 90
 #define LEFT_ANG -90
 
+void centerMouseInCell();
+
 //Movement API
 void moveForward(uint16_t cells);
 

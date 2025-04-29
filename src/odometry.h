@@ -37,7 +37,7 @@ extern volatile uint64_t lastUpdateTimeUs;
 /**
  * @brief Setup odometry to trigger every 1ms, resets data.
  */
-void setupOdometry(Timer_t fastTimer, Timer_t slowTimer);
+void setupOdometry(Timer_t timer, uint16_t numTicks);
 
 /**
  * @brief Reset all integrated states.
@@ -45,23 +45,14 @@ void setupOdometry(Timer_t fastTimer, Timer_t slowTimer);
 void resetOdometry(void);
 
 /**
- * @brief Timer callback that triggers IMU measurement reads (gyro / accel).
+ * @brief Timer callback that triggers IMU measurement reads (gyro / accel / mag / encoder).
  *
  * This function is called by a timer; it initiates asynchronous
  * reads of gyro & accel from the IMU. The completion of each read calls
  * back to odometryIMUGyroUpdate() or odometryIMUAccelUpdate().
  */
-int16_t triggerGyroAccelUpdate();
+int16_t triggerOdometryUpdate();
 
-/**
- * @brief Timer callback that triggers IMU measurement reads (mag) and updates
- * quadrature encoder estimates.
- *
- * This function is called by a timer; it initiates asynchronous
- * reads of mage from the IMU. The completion of each read calls
- * back to odometryIMUMagUpdate().
- */
-int16_t triggerEncoderMagUpdate();
 
 /**
  * @brief Integrates Z-gyro measurement to maintain yaw estimate.

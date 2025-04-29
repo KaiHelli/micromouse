@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <xc.h>
 
+volatile float timerCurrentFreq[NUM_TIMER_IDS] = { 0.0f };
+
 void initTimer1(uint16_t period, uint16_t prescaler)
 {
     // unsigned TimerControlValue;
@@ -315,6 +317,16 @@ int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs)
     // 25 * 10^{-9} * 256 * (2^{32} - 1) = 27_487.790688s = 458.1298448min = 7.6354974133h
     // For longer times: Add a separate counter in software to wait x interrupts of y ms.
 
+    // Compute achieved frequency and store globally
+    float requested_freq = 1e6 / (float)timeInUs;
+    float actual_freq    = (float)fcy / ((float)prescaler_options[prescaler] * (float)count);
+    float deviation_pct  = (actual_freq - requested_freq) / requested_freq * 100.0;
+
+    timerCurrentFreq[timer] = actual_freq;
+
+    uprintf("Timer %u | requested: %.5f Hz | achieved: %.5f Hz | deviation: %.5f %%\r\n",
+           (unsigned)timer, requested_freq, actual_freq, deviation_pct);
+    
     return 0;
 }
 
@@ -336,11 +348,25 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs)
     return initTimerInUs(timer, timeInUs);
 }
 
+float getTimerFrequency (Timer_t timer) { 
+    return timerCurrentFreq[timer]; 
+}
 
-static volatile TimerCallback_t timerCallbacks[NUM_TIMERS][TIMER_CALLBACK_BUFFER_SIZE];
-static volatile uint8_t registeredTimerCallbacks[NUM_TIMERS];
 
-int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
+typedef struct {
+    TimerCallback_t cb;      // user function
+    uint16_t        period;  // call every <period> ticks   (==1 ? every tick)
+    uint16_t        cnt;     // internal counter
+} TimerCbEntry_t;
+
+static volatile TimerCbEntry_t timerCallbacks[NUM_TIMERS][TIMER_CALLBACK_BUFFER_SIZE];
+static volatile uint8_t       registeredTimerCallbacks[NUM_TIMERS];
+
+int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback, uint16_t numTicks) {
+    if (numTicks == 0) {
+        return -1;
+    }
+    
     Timer_t idx = timer;
     
     // In case a combined timer is used, select the respective timer that handles 
@@ -359,10 +385,14 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback) {
     
     // Temporarily disable timer interrupts during modifying callbacks.
     setTimerInterruptState(timer, false);
-
-    timerCallbacks[idx][registeredTimerCallbacks[idx]] = callback;
-    registeredTimerCallbacks[idx]++;
     
+    TimerCbEntry_t *slot = &timerCallbacks[idx][registeredTimerCallbacks[idx]];
+    slot->cb     = callback;
+    slot->period = numTicks;
+    slot->cnt    = 0;                        // first call happens after num_ticks
+
+    registeredTimerCallbacks[idx]++;
+
     // Enable the timer itself, if we are the first callback.
     if (registeredTimerCallbacks[idx] == 1) {
         setTimerState(timer, true);
@@ -393,7 +423,7 @@ int16_t removeTimerCallback(Timer_t timer, TimerCallback_t callback) {
     int16_t status = -1;
     
     for (uint8_t i = 0; i < registeredTimerCallbacks[idx]; i++) {
-        if (timerCallbacks[idx][i] != callback) {
+        if (timerCallbacks[idx][i].cb != callback) {
             continue;
         }
         
@@ -439,8 +469,16 @@ static void generalTimerISR(Timer_t timer) {
 
     uint8_t i = 0;
     while (i < registeredTimerCallbacks[timer]) {
-        TimerCallback_t callback = timerCallbacks[timer][i];
-        uint8_t status = callback();
+        TimerCbEntry_t *entry = &timerCallbacks[timer][i];
+
+        /* advance the per-callback divider */
+        if (++entry->cnt < entry->period) {
+            i++;                    // not time yet ? skip
+            continue;
+        }
+        entry->cnt = 0;             // reached target ? call now
+        
+        uint8_t status = entry->cb();
 
         if (status == 0) {
             

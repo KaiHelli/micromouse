@@ -21,7 +21,7 @@ void initGlobalTimekeeping(void) {
     
     // Attach an ISR that counts each counter overflow. 
     // Overflow occurs every: 200 * 10^{-9} * 4.25 * 10^9 = 850s
-    registerTimerCallback(TIMER_54_COMBINED, globalTimerISR);
+    registerTimerCallback(TIMER_54_COMBINED, globalTimerISR, 1);
     
     // Initialize overflow counter
     globalTimerOverflows = 0;

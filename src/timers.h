@@ -6,6 +6,8 @@
 #include <xc.h> // include processor files - each processor file is guarded.
 
 #define NUM_TIMERS 5
+#define NUM_TIMER_IDS 7
+
 #define TIMER_CALLBACK_BUFFER_SIZE 5
 
 typedef enum {
@@ -98,12 +100,18 @@ int16_t initTimerInMs(Timer_t timer, uint32_t timeInMs);
 int16_t initTimerInUs(Timer_t timer, uint64_t timeInUs);
 
 /**
+ * @brief  Returns the frequency (in Hz) currently configured for timer.
+ * @note   If the timer has not been initialised yet the returned value is 0.
+ */
+float getTimerFrequency (Timer_t timer);
+
+/**
  * @brief Registers a callback function for the specified timer.
  * Takes a Timer_t and a TimerCallback_t. 
  * 
  * @return A positive value on success, negative on failure.
  */
-int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback);
+int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback, uint16_t numTicks);
 
 /**
  * @brief Removes a specific timer callback function.

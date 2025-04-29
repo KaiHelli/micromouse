@@ -14,22 +14,22 @@ typedef enum {
 
 /**
  * @brief Rotates the robot by the specified angle in degrees on the spot.
- * Takes an int16_t degrees value; positive rotates CW, negative CCW.
+ * Takes an float degrees value; positive rotates CW, negative CCW.
  * The powerInPercent parameter (float) defines the overall base power level
  * as a percentage of the motor's maximum (0 for no power, 100 for full power).
  * Registers a timer callback on the stated timer to check for turn completion
  * periodically.
  */
-void turnDegrees(Timer_t timer, int16_t degrees, float cruiseDegPerSec, float timer_hz);
+void turnDegrees(Timer_t timer, float degrees, float cruiseDegPerSec, uint16_t numTicks, float timer_hz);
 
-void turnOrientation(Timer_t timer, Direction direction, float cruiseDegPerSec, float timer_hz);
+void turnOrientation(Timer_t timer, Direction direction, float cruiseDegPerSec, uint16_t numTicks, float timer_hz);
 
 /**
  * @brief TODO
  */
-void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, float timer_hz);
+void moveDistance(Timer_t timer, int16_t distance, float cruise_mmps, uint16_t numTicks, float timer_hz);
 
-void calibrateGlobalOrientation();
+void setGlobalOrientation();
 
 #endif	/* MOVE_H */
 

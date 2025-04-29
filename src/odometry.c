@@ -18,8 +18,8 @@
 #define MAG_INIT_SAMPLES 150
 
 #define CF_TAU_PITCHROLL   0.25f      // 250 ms - accel vs. gyro
-#define CF_TAU_YAW_MAG     15.0f      // 15 s - mag vs. gyro
-#define CF_TAU_YAW_ENC     1.0f       // 200 ms - encoder vs. gyro
+#define CF_TAU_YAW_MAG     30.0f      // 15 s - mag vs. gyro
+#define CF_TAU_YAW_ENC     1.0f       // 1 s - encoder vs. gyro
 #define FAST_TURN_RAD_S    (60.0f * DEG2RAD)   // ~60 °/s  (skip mag during fast turns)
 
 #define G_TO_MM_S2             9.80665f * 1000.0f
@@ -52,25 +52,24 @@ volatile bool initDone = false;
 /**
  * @brief Setup odometry to trigger every 1ms, resets data.
  */
-void setupOdometry(Timer_t fastTimer, Timer_t slowTimer)
+void setupOdometry(Timer_t timer, uint16_t numTicks)
 {
     resetOdometry();
     
     // Register fast IMU updates for gyroscope and accelerometer (200Hz)
-    registerTimerCallback(fastTimer, triggerGyroAccelUpdate);
-    
-    // Register slower IMU updates for magnetometer and slower quadrature
-    // encoder updates (100 Hz) .
-    registerTimerCallback(slowTimer, triggerEncoderMagUpdate);
+    registerTimerCallback(timer, triggerOdometryUpdate, numTicks);
     
     // Initialize PITCH / ROLL estimates
     while (!initDone) { 
         /* spin until PITCH / ROLL / YAW estimates are initialized */ 
     }
+
+    putsUART1Str("Waiting for IMU readings to settle.\r\n");
+            
+    __delay_ms(5000);
     
     putsUART1Str("Odometry initialized.\r\n");
     
-    // TODO: Encoder PID runs at wrong rate
     // TODO: Might execute encoder update only every 2nd timer call
     // TODO: Unify timers?
     // TODO: Might increase dlpf of acc since only used for pitch / roll
@@ -108,33 +107,16 @@ void resetOdometry(void) {
  * reads of gyro & accel from the IMU. The completion of each read calls
  * back to odometryIMUGyroUpdate() or odometryIMUAccelUpdate().
  */
-int16_t triggerGyroAccelUpdate()
+int16_t triggerOdometryUpdate()
 {
     // Will trigger async polls of gyro / accel readings from the IMU.
     // Each call will call back to odometryIMUGyroUpdate / odometryIMUAccelUpdate
     // once new measurements are available to process.
     //imuReadGyro();
     //imuReadAccel();
+    //imuReadMag();
     //imuReadTemp();
     imuReadFifo();
-    
-    return 1;
-}
-
-/**
- * @brief Timer callback that triggers IMU measurement reads (mag) and updates
- * quadrature encoder estimates.
- *
- * This function is called by a timer; it initiates asynchronous
- * reads of mage from the IMU. The completion of each read calls
- * back to odometryIMUMagUpdate().
- */
-int16_t triggerEncoderMagUpdate()
-{
-    // Will trigger async polls of magnetometer readings from the IMU.
-    // Each call will call back to odometryIMUMagUpdate once new measurements
-    // are available to process.
-    //imuReadMag();
     
     return 1;
 }

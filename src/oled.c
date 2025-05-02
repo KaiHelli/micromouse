@@ -112,40 +112,40 @@ void oledPushArea(uint8_t start_x, uint8_t start_y, uint8_t end_x, uint8_t end_y
 
 void oledDrawMouse(uint8_t row, uint8_t col, bool state){
     //Draw 2x2 Block at center of the cell
-    oledSetPixel(CELL_WIDTH*col + X_OFFSET + 3, CELL_WIDTH*row + 3, state);
-    oledSetPixel(CELL_WIDTH*col +X_OFFSET +4,CELL_WIDTH*row + 4, state);
-    oledSetPixel(CELL_WIDTH*col +X_OFFSET + 4,CELL_WIDTH*row + 3, state);
-    oledSetPixel(CELL_WIDTH*col +X_OFFSET + 3,CELL_WIDTH*row + 4, state);
+    oledSetPixel(OLED_MAZE_CELL_WIDTH*col + OLED_MAZE_X_OFFSET + 3, OLED_MAZE_CELL_WIDTH*row + 3, state);
+    oledSetPixel(OLED_MAZE_CELL_WIDTH*col + OLED_MAZE_X_OFFSET + 4, OLED_MAZE_CELL_WIDTH*row + 4, state);
+    oledSetPixel(OLED_MAZE_CELL_WIDTH*col + OLED_MAZE_X_OFFSET + 4, OLED_MAZE_CELL_WIDTH*row + 3, state);
+    oledSetPixel(OLED_MAZE_CELL_WIDTH*col + OLED_MAZE_X_OFFSET + 3, OLED_MAZE_CELL_WIDTH*row + 4, state);
    
 }
 
 void oledDrawEmptyMaze(void) {
     for (uint8_t i = 1; i < OLED_HEIGHT; i++) {
-        oledSetPixel(X_OFFSET + i, 1, 1);
-        oledSetPixel(X_OFFSET + i, OLED_HEIGHT - 1, 1);
+        oledSetPixel(OLED_MAZE_X_OFFSET + i, 1, 1);
+        oledSetPixel(OLED_MAZE_X_OFFSET + i, OLED_HEIGHT - 1, 1);
     }
     
     for (uint8_t i = 1; i < OLED_HEIGHT - 1; i++) {
-        oledSetPixel(X_OFFSET+1, i, 1);
-        oledSetPixel(X_OFFSET + OLED_HEIGHT-1, i, 1);
+        oledSetPixel(OLED_MAZE_X_OFFSET+1, i, 1);
+        oledSetPixel(OLED_MAZE_X_OFFSET + OLED_HEIGHT-1, i, 1);
     }
     
     //Draw wall markings
     for (uint8_t i = 1; i < N; i++) {
         for (uint8_t j = 1; j < N; j++) {
-            oledSetPixel(X_OFFSET + CELL_WIDTH*i + 1, CELL_WIDTH*j + 1, 1);
+            oledSetPixel(OLED_MAZE_X_OFFSET + OLED_MAZE_CELL_WIDTH*i + 1, OLED_MAZE_CELL_WIDTH*j + 1, 1);
         }
     }
     
     //Draw reference pixel on the left of bottom left corner
-    oledSetPixel(X_OFFSET, CELL_WIDTH*N + 1, 1);
+    oledSetPixel(OLED_MAZE_X_OFFSET, OLED_MAZE_CELL_WIDTH*N + 1, 1);
     
     //Draw mouse at initial position (Bottom left corner)
     oledDrawMouse(5,0,1);
 }
 
 void oledPushMouse(uint8_t row, uint8_t col){
-    oledPushArea(CELL_WIDTH*col + X_OFFSET + 3, CELL_WIDTH*row + 3,CELL_WIDTH*col +X_OFFSET + 4,CELL_WIDTH*row + 4);
+    oledPushArea(OLED_MAZE_CELL_WIDTH*col + OLED_MAZE_X_OFFSET + 3, OLED_MAZE_CELL_WIDTH*row + 3,OLED_MAZE_CELL_WIDTH*col +OLED_MAZE_X_OFFSET + 4,OLED_MAZE_CELL_WIDTH*row + 4);
 }
 
 void oledUpdateMouse(Mouse* mouse){
@@ -171,21 +171,21 @@ void oledUpdateMouse(Mouse* mouse){
 void oledDrawCell(Maze* maze,uint8_t row, uint8_t col) {
     for (uint8_t i = 1; i < N; i++){
         if(maze->cells[row][col].wallBottom){
-            oledSetPixel(CELL_WIDTH * col + X_OFFSET + i, CELL_WIDTH * (row + 1) + 1, 1);
+            oledSetPixel(OLED_MAZE_CELL_WIDTH * col + OLED_MAZE_X_OFFSET + i, OLED_MAZE_CELL_WIDTH * (row + 1) + 1, 1);
         }
         
         if(maze->cells[row][col].wallTop){
-            oledSetPixel(CELL_WIDTH * col + X_OFFSET + i, CELL_WIDTH * row + 1, 1);
+            oledSetPixel(OLED_MAZE_CELL_WIDTH * col + OLED_MAZE_X_OFFSET + i, OLED_MAZE_CELL_WIDTH * row + 1, 1);
         }
         
         if(maze->cells[row][col].wallLeft){
-            oledSetPixel(CELL_WIDTH * col + X_OFFSET + 1, CELL_WIDTH * row + i, 1);
+            oledSetPixel(OLED_MAZE_CELL_WIDTH * col + OLED_MAZE_X_OFFSET + 1, OLED_MAZE_CELL_WIDTH * row + i, 1);
         }
         
         if(maze->cells[row][col].wallRight){
-            oledSetPixel(CELL_WIDTH * (col+1) + X_OFFSET + 1, CELL_WIDTH * row + i, 1);
+            oledSetPixel(OLED_MAZE_CELL_WIDTH * (col+1) + OLED_MAZE_X_OFFSET + 1, OLED_MAZE_CELL_WIDTH * row + i, 1);
         }   
     }
-    oledPushArea(CELL_WIDTH*col + X_OFFSET + 1, CELL_WIDTH*row + 1,CELL_WIDTH*(col+1) +X_OFFSET +1,CELL_WIDTH*(row+1) + 1);
+    oledPushArea(OLED_MAZE_CELL_WIDTH*col + OLED_MAZE_X_OFFSET + 1, OLED_MAZE_CELL_WIDTH*row + 1,OLED_MAZE_CELL_WIDTH*(col+1) +OLED_MAZE_X_OFFSET +1,OLED_MAZE_CELL_WIDTH*(row+1) + 1);
     __delay_ms(10);
 }

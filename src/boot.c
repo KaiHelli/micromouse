@@ -44,11 +44,18 @@ int16_t readIMU(void) {
 }
 
 int16_t printSensorReadings(void) {
-    uint16_t left  = getSensorDistance(SENSOR_LEFT);
-    uint16_t front = getSensorDistance(SENSOR_CENTER);
-    uint16_t right = getSensorDistance(SENSOR_RIGHT);
+    #define ROBOTDISTANCE
+    #ifdef ROBOTDISTANCE
+    uint32_t left  = getRobotDistanceUm(SENSOR_LEFT);
+    uint32_t front = getRobotDistanceUm(SENSOR_CENTER);
+    uint32_t right = getRobotDistanceUm(SENSOR_RIGHT);
+    #else
+    uint32_t left  = getSensorDistanceUm(SENSOR_LEFT);
+    uint32_t front = getSensorDistanceUm(SENSOR_CENTER);
+    uint32_t right = getSensorDistanceUm(SENSOR_RIGHT);
+    #endif
     
-    uint8_t buffer[8];
+    uint8_t buffer[20];
     size_t idx = 0;
     
     buffer[idx++] = FRAME_START_BYTE;
@@ -259,8 +266,6 @@ int16_t printOdometry(void) {
 
 
 int16_t startMaze(void) {
-    initMotorsState(TIMER_1, 1, getTimerFrequency(TIMER_1)); // initialize motor PIDs
-    
     setMotorsStandbyState(false);
     
     LED3 = LEDON;
@@ -278,7 +283,7 @@ int16_t startMaze(void) {
     turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
     */
     
-    solveMaze();
+    //solveMaze();
     
     LED4 = LEDON;
     
@@ -299,13 +304,30 @@ int16_t initMouse(void) {
     
     __delay_ms(250);
     
-    setupOdometry(TIMER_1, 1); // track odometry
+    //setupOdometry(TIMER_1, 1); // track odometry
+    registerTimerCallback(TIMER_1, triggerOdometryUpdate, 1);
+    registerTimerCallback(TIMER_1, updateEncoderVelocities, 1);
     
-    setGlobalOrientation();
+    __delay_ms(2000);
+    
+    setMotorsStandbyState(false);
+    
+    resetControlAll();
+    enableMouseControl();
+    disableWallsControl();
+    //setMaxForce(0.2f);
+    initMouseController(TIMER_1, 1, getTimerFrequency(TIMER_1));
+    
+    sideSensorsCloseControl(true);
+    //setIdealAngularSpeed(2.0);
+    setTargetLinearSpeed(0.2);
+    __delay_ms(3000);
+    setIdealAngularSpeed(0.0);
+    setTargetLinearSpeed(0.0);
     
     // Data Visualizer Callbacks
     //registerTimerCallback(TIMER_3, printEncoderVelocities, 1);
-    registerTimerCallback(TIMER_3, printOdometry, 1);
+    //registerTimerCallback(TIMER_3, printOdometry, 1);
     //registerTimerCallback(TIMER_3, printIMU_trampoline, 1);
     //registerTimerCallback(TIMER_3, printSensorReadings, 1);
     
@@ -340,8 +362,8 @@ void bootSetup() {
     
     FifoConfig_t fifoCfg = {
         .gyro   = true,
-        .accel  = true,
-        .mag    = true,
+        .accel  = false,
+        .mag    = false,
         .temp   = false
     };
     imuSetup(GYRO_RANGE_1000DPS, ACCEL_RANGE_2G, MAG_MODE_100HZ, TEMP_OFF, fifoCfg); // configure IMU over I2C

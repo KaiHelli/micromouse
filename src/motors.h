@@ -4,10 +4,7 @@
 #include "pwm.h"
 #include "IOconfig.h"
 #include "timers.h"
-
-
-#define WHEEL_MAX_ACC 3000.0f // dps^2 -- exact 3054.976
-#define WHEEL_MAX_VEL 1000.0f // dps - exact 1022.728
+#include "motorEncoders.h"
 
 static const uint16_t PWM_MOTOR_MAX_DC = (60U * 100U) / 84U;  // voltage ranges from 2*3.7V = 7.4V to 2*4.2V = 8.4V
 
@@ -28,13 +25,6 @@ typedef enum {
     MOTOR_LEFT = 0, // Motor A
     MOTOR_RIGHT     // Motor B
 } Motor_t;
-
-void initMotorsState(Timer_t timer, uint16_t numTicks, float timer_hz);
-
-
-void setMotorSpeedLeft(int16_t mmPerSec);
-
-void setMotorSpeedRight(int16_t mmPerSec);
 
 void setMotorsStandbyState(bool state);
 

@@ -1427,7 +1427,7 @@ static void imuReadFifoCb(bool success) {
             }
             remapGyroAxesFloat(localFifoGyroMeasurements, rawFifoGyroMeasurements);
             
-            odometryIMUGyroUpdate(numSamples, dtPerSample, dtTotal);
+            //odometryIMUGyroUpdate(numSamples, dtPerSample, dtTotal);
         }
         if (fifoConfig.accel) {
             for (int j = 0; j < 3; j++) {
@@ -1435,7 +1435,7 @@ static void imuReadFifoCb(bool success) {
             }
             remapAccelAxesFloat(localFifoAccelMeasurements, rawFifoAccelMeasurements);
             
-            odometryIMUAccelUpdate(numSamples, dtPerSample, dtTotal);
+            //odometryIMUAccelUpdate(numSamples, dtPerSample, dtTotal);
         }
         if (fifoConfig.mag && numMagSamples > 0) {
             for (int j = 0; j < 3; j++) {
@@ -1443,7 +1443,7 @@ static void imuReadFifoCb(bool success) {
             }
             remapMagAxesFloat(localFifoMagMeasurements, rawFifoMagMeasurements);
             
-            odometryIMUMagUpdate(dtTotal);
+            //odometryIMUMagUpdate(dtTotal);
         }
         if (fifoConfig.temp) {
             localFifoTempMeasurement = (float) tempSum / (float) numSamples;

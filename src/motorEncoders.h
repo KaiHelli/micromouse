@@ -8,16 +8,6 @@
 // Definitions and Constants
 #define ENC_MAX_VALUE          0x10000
 
-#define TICKS_PER_REV          (4 * 16 * 33)  // 4x QEI, 16 pulses, 33:1 gearbox
-#define TICKS_TO_RAD           (2.0f * M_PI) / TICKS_PER_REV
-#define TICKS_TO_DEG           360.0f / TICKS_PER_REV
-
-#define WHEEL_BASE_MM          97.0f
-#define WHEEL_RADIUS_MM        30.0f
-#define WHEEL_DIAMETER_MM      60.0f
-#define WHEEL_CIRCUMFERENCE_MM (WHEEL_DIAMETER_MM * M_PI)
-#define DIST_PER_TICK          (WHEEL_CIRCUMFERENCE_MM / TICKS_PER_REV)
-
 /**
  * @brief Enumeration for selecting which encoder to use.
  * 
@@ -65,7 +55,7 @@ float getEncoderPositionDeg(MotorEncoder_t encoder);
  * This function should be called periodically (e.g., from a timer interrupt)
  * to update velocity values based on the new encoder positions.
  */
-void updateEncoderVelocities(void);
+int16_t updateEncoderVelocities(void);
 
 /**
  * @brief Returns the current rotational velocity in counts per sample.
@@ -98,6 +88,10 @@ float getEncoderVelocityMmPerSec(MotorEncoder_t encoder);
 float getEncoderYawRateRadPerSec(void);
 
 float getEncoderLinearVelocityMmPerSec(void);
+
+float getEncoderAverageDistanceMm(void);
+
+float getEncoderAverageDistanceUm(void);
 
 void getEncoderLinearVelocityAndYawRate(float* linearVelocityMmPerSec, float* yawRateRadPerSec);
 

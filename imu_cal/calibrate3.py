@@ -17,22 +17,60 @@ class Magnetometer(object):
     '''
     MField = 1000  #arbitrary norm of magnetic field vectors
 
-    def __init__(self, F=MField, file="mag3_raw.csv"): 
+    def __init__(self, F=MField, file="mag3_raw.csv", mad_sigma=3.5): 
 
 
         # initialize values
         self.F   = F
         self.file = file
+        self.mad_sigma = mad_sigma
         self.b   = np.zeros([3, 1])
         self.A_1 = np.eye(3)
-        
-    def run(self):
 
+    @staticmethod
+    def _mad(arr):
+        """Median Absolute Deviation (scaled to be comparable to σ of a normal)."""
+        med = np.median(arr)
+        return 1.4826 * np.median(np.abs(arr - med))   # 1.4826 == Φ⁻¹(3/4)
+
+    def _drop_outliers(self, data):
+        """
+        Return `data` rows whose vector length (measured in a centred frame)
+        is within `mad_sigma` × MAD of the median length.
+        The centring step prevents bias-induced asymmetry from skewing the test.
+        """
+        # --- robust centre of the cloud -------------------------------
+        centre = np.median(data, axis=0)          # shape (3,)
+        centred = data - centre                   # translate to origin
+
+        # --- robust scale of radii ------------------------------------
+        vlen  = np.linalg.norm(centred, axis=1)   # length in centred frame
+        med   = np.median(vlen)
+        mad   = self._mad(vlen)
+
+        if mad == 0:                              # all on perfect sphere
+            return data
+
+        # --- mask & report -------------------------------------------
+        mask     = np.abs(vlen - med) <= self.mad_sigma * mad
+        kept     = np.count_nonzero(mask)
+        dropped  = len(data) - kept
+        if dropped:
+            print(f"Outlier filter: kept {kept}, dropped {dropped} samples "
+                  f"({dropped / len(data):.1%}).")
+
+        # Return the *original* rows, untouched
+        return data[mask]
+    
+    def run(self):
         data = np.loadtxt(self.file, delimiter=',')
         print("shape of data array:",data.shape)
         #print("datatype of data:",data.dtype)
         print("First 5 rows raw:\n", data[:5])
         
+        data = self._drop_outliers(data)
+        print("shape after filtering:", data.shape)
+
         # ellipsoid fit
         s = np.array(data).T
         M, n, d = self.__ellipsoid_fit(s)
@@ -166,7 +204,7 @@ class Magnetometer(object):
 if __name__=='__main__':
         print("Magnetometer calibration:")
         print("=====================================")
-        Magnetometer(318.2586, "mag3_raw_garching.csv").run()
+        Magnetometer(318.2586, "mag3_raw_garching_2.csv").run()
 
         print("Accelerometer calibration:")
         print("=====================================")

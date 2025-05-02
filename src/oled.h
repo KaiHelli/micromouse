@@ -21,8 +21,8 @@
 #define OLED_FIRST_COL      0U + OLED_COL_OFFSET
 #define OLED_LAST_COL       (OLED_WIDTH - 1U) + OLED_COL_OFFSET
 
-#define CELL_WIDTH 5
-#define X_OFFSET (OLED_WIDTH - OLED_HEIGHT)/2 + 1
+#define OLED_MAZE_CELL_WIDTH 5
+#define OLED_MAZE_X_OFFSET (OLED_WIDTH - OLED_HEIGHT)/2 + 1
 
 /**
  * @brief Initializes the OLED display.

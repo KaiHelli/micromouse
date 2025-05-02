@@ -1,26 +1,79 @@
-#ifndef MOUSECONTROLLER_H
-#define	MOUSECONTROLLER_H
+#ifndef MOUSE_CONTROLLER_H
+#define MOUSE_CONTROLLER_H
 
-#include <xc.h>
-#include "mazeSolver.h"
-#include "move.h"
+/*--------------------------------------------------------------------
+ *  Required system headers
+ *------------------------------------------------------------------*/
+#include <stdint.h>
+#include <stdbool.h>
 
-#define CELL_SIZE 180
-#define RIGHT_ANG 90
-#define LEFT_ANG -90
+/*--------------------------------------------------------------------
+ *  Forward declarations (types defined elsewhere)
+ *------------------------------------------------------------------*/
+#include "timers.h"      /* Provides Timer_t                */
 
-void centerMouseInCell();
+/*--------------------------------------------------------------------
+ *  API ? High-level helpers
+ *------------------------------------------------------------------*/
+void   centerMouseInCell(void);
 
-//Movement API
-void moveForward(uint16_t cells);
+/*--------------------------------------------------------------------
+ *  API ? Force / speed limits & query-set helpers
+ *------------------------------------------------------------------*/
+float  getMaxForce(void);
+void   setMaxForce(float value);
+void   resetMaxForce(void);
 
-void turnLeft();
+float  getLinearAcceleration(void);
+float  getLinearDeceleration(void);
 
-void turnRight();
+float  getTargetLinearSpeed(void);
+void   setTargetLinearSpeed(float value);
 
-void turnAround();
+float  getIdealLinearSpeed(void);
+void   setIdealLinearSpeed(float value);
 
-void turnDirection(Direction direction);
+float  getIdealAngularSpeed(void);
+void   setIdealAngularSpeed(float value);
 
-#endif	/* MOUSECONTROLLER_H */
+float  getMaxLinearSpeed(void);
+void   setMaxLinearSpeed(float value);
+void   resetMaxLinearSpeed(float value);
 
+/*--------------------------------------------------------------------
+ *  API ? Control-loop helpers
+ *------------------------------------------------------------------*/
+void   updateIdealLinearSpeed(void);
+
+bool   sensorIsWallFront(void);
+bool   sensorIsWallRight(void);
+bool   sensorIsWallLeft(void);
+
+float getSideSensorsCloseError(void);
+float getSideSensorsFarError(void);
+
+/* One control-loop step; returns non-zero on success */
+int16_t mouseControlStep(void);
+
+/* Enable / disable sub-controls */
+void   sideSensorsCloseControl(bool enable);
+void   sideSensorsFarControl(bool enable);
+void   disableWallsControl(void);
+
+/* Reset helpers */
+void   resetControlErrors(void);
+void   resetControlSpeed(void);
+void   resetControlAll(void);
+
+/* Enable / disable the main controller */
+void   enableMouseControl(void);
+void   disableMouseControl(void);
+
+/*--------------------------------------------------------------------
+ *  API ? Initialisation
+ *------------------------------------------------------------------*/
+void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz);
+
+/*--------------------------------------------------------------------*/
+
+#endif /* MOUSE_CONTROLLER_H */

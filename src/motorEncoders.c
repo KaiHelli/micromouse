@@ -159,7 +159,7 @@ int32_t getEncoderPositionCounts(MotorEncoder_t encoder)
 float getEncoderPositionRad(MotorEncoder_t encoder)
 {
     int32_t currentEncoderPosition = readEncoderCount(encoder);
-    return currentEncoderPosition * TICKS_TO_RAD;
+    return currentEncoderPosition * ENC_TICKS_TO_RAD;
 }
 
 /*-------------------------------------------------------------------------
@@ -169,7 +169,7 @@ float getEncoderPositionRad(MotorEncoder_t encoder)
 float getEncoderPositionDeg(MotorEncoder_t encoder)
 {
     int32_t currentEncoderPosition = readEncoderCount(encoder);
-    return currentEncoderPosition * TICKS_TO_DEG;
+    return currentEncoderPosition * ENC_TICKS_TO_DEG;
 }
 
 //*****************************************************************************
@@ -179,7 +179,7 @@ float getEncoderPositionDeg(MotorEncoder_t encoder)
 //   - Update the global timestamps and positions.
 // Time is measured in microseconds using getTimeInUs().
 //*****************************************************************************
-void updateEncoderVelocities(void)
+int16_t updateEncoderVelocities(void)
 {
     // Sample the current time and read both encoders together.
     uint64_t currentTimeUs = getTimeInUs();
@@ -193,7 +193,7 @@ void updateEncoderVelocities(void)
     // --- Left encoder PI tracking loop ---
     {
         // measured position in radians
-        float measPos = leftPos * TICKS_TO_RAD;
+        float measPos = leftPos * ENC_TICKS_TO_RAD;
         // predict next pos: x_est += v_est * dt
         encoderPosEstRad[ENCODER_LEFT] += encoderVelEstRad[ENCODER_LEFT] * dtSec;
         // position error
@@ -205,7 +205,7 @@ void updateEncoderVelocities(void)
         // clamp
         currentVelocityRadPerSec[ENCODER_LEFT] = fabs(encoderVelEstRad[ENCODER_LEFT]) < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_LEFT];
         // publish
-        currentVelocityMmPerSec[ENCODER_LEFT]  = encoderVelEstRad[ENCODER_LEFT] * WHEEL_RADIUS_MM;
+        currentVelocityMmPerSec[ENCODER_LEFT]  = encoderVelEstRad[ENCODER_LEFT] * MOUSE_WHEEL_RADIUS_MM;
         // still update lastEncoderPosition for rollover logic
         lastEncoderPosition[ENCODER_LEFT]      = leftPos;
             
@@ -222,15 +222,17 @@ void updateEncoderVelocities(void)
 
     // --- Right encoder PI tracking loop ---
     {
-        float measPos = rightPos * TICKS_TO_RAD;
+        float measPos = rightPos * ENC_TICKS_TO_RAD;
         encoderPosEstRad[ENCODER_RIGHT] += encoderVelEstRad[ENCODER_RIGHT] * dtSec;
         float err = measPos - encoderPosEstRad[ENCODER_RIGHT];
         encoderVelIntegrator[ENCODER_RIGHT] += err * ENC_PID_KI * dtSec;
         encoderVelEstRad[ENCODER_RIGHT] = err * ENC_PID_KP + encoderVelIntegrator[ENCODER_RIGHT];
         currentVelocityRadPerSec[ENCODER_RIGHT] = fabs(encoderVelEstRad[ENCODER_RIGHT]) < ENC_MIN_VEL ? 0.0f : encoderVelEstRad[ENCODER_RIGHT];
-        currentVelocityMmPerSec[ENCODER_RIGHT]  = encoderVelEstRad[ENCODER_RIGHT] * WHEEL_RADIUS_MM;
+        currentVelocityMmPerSec[ENCODER_RIGHT]  = encoderVelEstRad[ENCODER_RIGHT] * MOUSE_WHEEL_RADIUS_MM;
         lastEncoderPosition[ENCODER_RIGHT]      = rightPos;
     }
+    
+    return 1;
 }
 
 int32_t getEncoderVelocityCountsPerSample(MotorEncoder_t encoder)
@@ -246,7 +248,6 @@ float getEncoderVelocityRadPerSec(MotorEncoder_t encoder)
 float getEncoderVelocityDegPerSec(MotorEncoder_t encoder)
 {
     return currentVelocityRadPerSec[encoder] * RAD2DEG;
-    //return currentVelocityDegPerSec[encoder];
 }
 
 float getEncoderVelocityMmPerSec(MotorEncoder_t encoder)
@@ -260,7 +261,7 @@ float getEncoderYawRateRadPerSec(void)
     float vRight = getEncoderVelocityMmPerSec(ENCODER_RIGHT);
     
     // Yaw rate (rad/s) using differential drive model.
-    float yawRateRadPerSec = (vLeft - vRight) / WHEEL_BASE_MM;
+    float yawRateRadPerSec = (vLeft - vRight) / MOUSE_WHEEL_SEPARATION_MM;
 
     return yawRateRadPerSec;
 }
@@ -274,6 +275,16 @@ float getEncoderLinearVelocityMmPerSec(void)
     return (vLeft + vRight) * 0.5f;
 }
 
+float getEncoderAverageDistanceMm(void)
+{
+    return ((float) getEncoderPositionCounts(ENCODER_LEFT) * ENC_DIST_PER_TICK_MM + (float) getEncoderPositionCounts(ENCODER_RIGHT) * ENC_DIST_PER_TICK_MM) * 0.5f;
+}
+
+float getEncoderAverageDistanceUm(void)
+{
+    return ((float) getEncoderPositionCounts(ENCODER_LEFT) * ENC_DIST_PER_TICK_UM + (float) getEncoderPositionCounts(ENCODER_RIGHT) * ENC_DIST_PER_TICK_UM) * 0.5f;
+}
+
 void getEncoderLinearVelocityAndYawRate(float* linearVelocityMmPerSec, float* yawRateRadPerSec) {
     float vLeft = getEncoderVelocityMmPerSec(ENCODER_LEFT);
     float vRight = getEncoderVelocityMmPerSec(ENCODER_RIGHT);
@@ -281,5 +292,5 @@ void getEncoderLinearVelocityAndYawRate(float* linearVelocityMmPerSec, float* ya
     *linearVelocityMmPerSec = (vLeft + vRight) * 0.5f;
     
     // Yaw rate (rad/s) using differential drive model.
-    *yawRateRadPerSec = (vRight - vLeft) / WHEEL_BASE_MM;
+    *yawRateRadPerSec = (vRight - vLeft) / MOUSE_WHEEL_SEPARATION_MM;
 }

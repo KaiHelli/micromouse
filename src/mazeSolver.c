@@ -6,15 +6,12 @@
 #include "uart.h"
 
 #include <stdlib.h>
+#include <stdbool.h>
 
-#define MAZESOLVER
+//#define MAZESOLVER
 #ifdef MAZESOLVER
 
 static Mouse mouse;
-
-//TODO verify value
-//in mm, distance of a wall if mouse in the centre of the cell 
-#define WALL_MAX_DISTANCE 75
 
 void queue_init(Queue *q) {
     q->head = 0;
@@ -192,6 +189,7 @@ int mouse_plan_next(Mouse* mouse) {
     int turn = NO_TURN;
     int next_row = neighbors_points[min_index].row;
     int next_col = neighbors_points[min_index].col;
+    
     switch(mouse->dir) {
         case UP:
             if (next_row == row - 1) {
@@ -296,36 +294,13 @@ int mouse_move_next(Mouse* mouse) {
     return status;
 }
 
-
-int sensor_has_wall_front() {
-    uint16_t distance = getSensorDistance(SENSOR_CENTER);
-    if (distance > WALL_MAX_DISTANCE) {
-        return 0;
-    }
-    return 1;
-}
-int sensor_has_wall_right() {
-    uint16_t distance = getSensorDistance(SENSOR_RIGHT);
-    if (distance > WALL_MAX_DISTANCE) {
-        return 0;
-    }
-    return 1;
-}
-int sensor_has_wall_left() {
-    uint16_t distance = getSensorDistance(SENSOR_LEFT);
-    if (distance > WALL_MAX_DISTANCE) {
-        return 0;
-    }
-    return 1;
-}
-
 int discover_maze_step(Mouse* mouse) {
     int status = OK;
 
     // sensor readings
-    int sensorWallFront = sensor_has_wall_front();
-    int sensorWallRight = sensor_has_wall_right();
-    int sensorWallLeft = sensor_has_wall_left();
+    bool sensorWallFront = sensorIsWallFront();
+    bool sensorWallRight = sensorIsWallRight();
+    bool sensorWallLeft = sensorIsWallLeft();
     
     //uprintf("Sensor front: %d, left: %d, right: %d \r\n", sensorWallFront, sensorWallLeft, sensorWallRight);
     

@@ -1,6 +1,7 @@
 #include "switches.h"
 #include "IOconfig.h"
 #include "interrupts.h"
+#include "atomic.h"
 
 #include <xc.h>
 #include <stdint.h>
@@ -90,23 +91,16 @@ static void generalSwitchISR(Switch_t sw) {
         return;
     }
     
-    // Guard from registerSwitchCallback being called from an interrupt with
-    // higher priority while reading/writing from/to the callback buffers below.
-            
-    // Save current interrupt enable state
-    uint16_t state = __builtin_get_isr_state();
-            
-    // Disable interrupts
-    __builtin_disable_interrupts();
-            
     uint8_t i = 0;
     while (i < registeredSwitchCallbacks[sw]) {
-        
         
         SwitchCallback_t callback = switchCallbacks[sw][i];
         uint8_t status = callback();
 
         if (status == 0) {
+            // Guard from registerSwitchCallback being called from an interrupt with
+            // higher priority while reading/writing from/to the callback buffers below.
+            uint16_t state = _atomic_enter();
             
             registeredSwitchCallbacks[sw]--;
             
@@ -121,13 +115,13 @@ static void generalSwitchISR(Switch_t sw) {
                 // Do not increment i, as we've moved a new callback into position i
             }
             // If removed callback was already last, just continue without incrementing i
+            
+            _atomic_leave(state);
         } else {
             i++;  // move to next callback only if no removal
         }
     }
             
-    // Restore interrupt enable state
-    __builtin_set_isr_state(state);
 }
 
 void __attribute__((__interrupt__, auto_psv)) _INT1Interrupt(void) {

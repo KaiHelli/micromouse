@@ -30,6 +30,7 @@
       <itemPath>fastPID.h</itemPath>
       <itemPath>constants.h</itemPath>
       <itemPath>move.h</itemPath>
+      <itemPath>atomic.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

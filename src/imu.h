@@ -488,6 +488,8 @@ bool imuReadTempSync(int16_t *raw, float *scaled, bool remap);
 
 void imuReadFifo(void);
 
+bool imuReadFifoSync(void);
+
 /**
  * @brief Converts scaled magnetometer data to heading in radians.
  */

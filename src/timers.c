@@ -8,6 +8,7 @@
 #include "interrupts.h"
 #include "dma.h"
 #include "rtttl.h"
+#include "atomic.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -386,7 +387,7 @@ int16_t registerTimerCallback(Timer_t timer, TimerCallback_t callback, uint16_t 
     // Temporarily disable timer interrupts during modifying callbacks.
     setTimerInterruptState(timer, false);
     
-    TimerCbEntry_t *slot = &timerCallbacks[idx][registeredTimerCallbacks[idx]];
+    volatile TimerCbEntry_t *slot = &timerCallbacks[idx][registeredTimerCallbacks[idx]];
     slot->cb     = callback;
     slot->period = numTicks;
     slot->cnt    = 0;                        // first call happens after num_ticks
@@ -461,15 +462,9 @@ static void generalTimerISR(Timer_t timer) {
     // Guard from registerTimerCallback being called from an interrupt with
     // higher priority while reading/writing from/to the callback buffers below.
 
-    // Save current interrupt enable state
-    uint16_t state = __builtin_get_isr_state();
-
-    // Disable interrupts
-    __builtin_disable_interrupts();
-
     uint8_t i = 0;
     while (i < registeredTimerCallbacks[timer]) {
-        TimerCbEntry_t *entry = &timerCallbacks[timer][i];
+        volatile TimerCbEntry_t *entry = &timerCallbacks[timer][i];
 
         /* advance the per-callback divider */
         if (++entry->cnt < entry->period) {
@@ -481,6 +476,8 @@ static void generalTimerISR(Timer_t timer) {
         uint8_t status = entry->cb();
 
         if (status == 0) {
+            
+            uint16_t state = _atomic_enter();
             
             registeredTimerCallbacks[timer]--;
             
@@ -495,13 +492,12 @@ static void generalTimerISR(Timer_t timer) {
                 // Do not increment i, as we've moved a new callback into position i
             }
             // If removed callback was already last, just continue without incrementing i
+            
+            _atomic_leave(state);
         } else {
             i++;  // move to next callback only if no removal
         }
     }
-            
-    // Restore interrupt enable state
-    __builtin_set_isr_state(state);
 }
 
 

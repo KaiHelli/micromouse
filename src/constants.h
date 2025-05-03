@@ -41,7 +41,7 @@
 /* Drive-wheel parameters */
 
 #define MOUSE_WHEEL_SEPARATION_MM       97.15f
-#define MOUSE_WHEEL_RADIUS_MM           30.25f
+#define MOUSE_WHEEL_RADIUS_MM           30.55f
 #define MOUSE_WHEEL_DIAMETER_MM         (2.0f * MOUSE_WHEEL_RADIUS_MM)
 #define MOUSE_WHEEL_CIRCUMFERENCE_MM    (MOUSE_WHEEL_DIAMETER_MM * (float)M_PI)
 
@@ -68,9 +68,9 @@
 /* Encoder constants */
 
 #define ENC_TICKS_PER_REV            (4U * 16U * 33U)          /* 4×QEI × 16 slots × 33:1 */
-#define ENC_TICKS_TO_RAD             (2.0f * (float)M_PI / ENC_TICKS_PER_REV)
-#define ENC_TICKS_TO_DEG             (360.0f / ENC_TICKS_PER_REV)
-#define ENC_DIST_PER_TICK_MM         (MOUSE_WHEEL_CIRCUMFERENCE_MM / ENC_TICKS_PER_REV)
+#define ENC_TICKS_TO_RAD             (2.0f * (float)M_PI / (float)ENC_TICKS_PER_REV)
+#define ENC_TICKS_TO_DEG             (360.0f / (float) ENC_TICKS_PER_REV)
+#define ENC_DIST_PER_TICK_MM         (MOUSE_WHEEL_CIRCUMFERENCE_MM / (float) ENC_TICKS_PER_REV)
 #define ENC_DIST_PER_TICK_UM         (ENC_DIST_PER_TICK_MM * MICROMETERS_PER_MILLIMETER)
 
 /* Control & alignment tolerances */

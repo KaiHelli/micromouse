@@ -19,26 +19,24 @@
 #include "mouseController.h"
 #include "globalTimers.h"
 
-/** Encoder reference (?m) marking the start of the current maze cell. */
+/** Encoder reference (um) marking the start of the current maze cell. */
 static int32_t currentCellStartMicrometers;
-
-/** Runtime angular acceleration (rad?/?s²). */
-static float angularAcceleration;
 
 /* -------------------------------------------------------------------------- */
 /* Helper functions                                                           */
 /* -------------------------------------------------------------------------- */
 
 void sleepTicks(uint16_t ticks) {
-    //TODO
-    __delay_ms(ticks * 10);
+    //TODO - not exactly right, due to the loop overhead... but fine for now
+    for (uint16_t i = 0; i < ticks; i++) {
+        __delay_ms(10);
+    }
 }
 
 int sign(float number)
 {
 	return (int)(number > 0) - (int)(number < 0);
 }
-
 
 #define SENSOR_OFFSET_THRESHOLD 1000 // TODO
 
@@ -52,7 +50,7 @@ void centerMouseInCell() {
         uint32_t front = getRobotDistanceUm(SENSOR_CENTER);
 
         lrOffset = (int32_t) right - (int32_t) left;
-        frOffset = (int32_t) front - (int32_t) MIDDLE_MAZE_DISTANCE_MM;
+        frOffset = (int32_t) front - (int32_t) MIDDLE_MAZE_DISTANCE_UM;
         uprintf("LR Offset: %ld | FR Offset: %ld\r\n", lrOffset, frOffset);
         uprintf("L: %u F: %u R: %u\r\n", left, front, right);
         
@@ -60,6 +58,14 @@ void centerMouseInCell() {
     } while (labs(lrOffset) > SENSOR_OFFSET_THRESHOLD || labs(frOffset) > SENSOR_OFFSET_THRESHOLD);
     
     uprintf("Centering done. Don't move anymore.\r\n");
+}
+
+void calibrateStartPosition(void)
+{
+    centerMouseInCell();        // user?driven centre?of?cell alignment
+    resetControlErrors();       // zero all PID integrators, etc.
+    disableWallsControl();      // start clean, no wall?following
+    setStartingPosition();      // record current encoder as cell start
 }
 
 /**
@@ -77,10 +83,10 @@ static void enteredNextCell(void)
 {
     int32_t frontWallCorrection;
 
-    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm();
+    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm() - MIDDLE_MAZE_DISTANCE_UM;
     
     if (sensorIsWallFront()) {
-        frontWallCorrection = (int32_t) getRobotDistanceUm(SENSOR_CENTER) - (int32_t) (CELL_DIMENSION_UM);
+        frontWallCorrection = (int32_t) getRobotDistanceUm(SENSOR_CENTER) - (int32_t) (0.5f * CELL_DIMENSION_UM);
         currentCellStartMicrometers += frontWallCorrection;
     }
 }
@@ -91,7 +97,7 @@ static void enteredNextCell(void)
 
 void setStartingPosition(void)
 {
-    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm();
+    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm() - MIDDLE_MAZE_DISTANCE_UM;
 }
 
 int32_t requiredMicrometersToSpeed(float speed)
@@ -292,22 +298,23 @@ void inplaceTurnDeg(float degrees, float force) {
 void inplaceTurn(float radians, float force)
 {
     uint64_t startTime, curTime;
-    float t, transition, arc, transitionAngle, maxAngularVelocity, angularVelocity, factor;
+    float angularAcceleration, t, duration, transition, arc, transitionAngle, maxAngularVelocity, angularVelocity, factor;
+    
     int signDir = sign(radians);
-
     radians = fabsf(radians);
 
     /* Compute trapezoidal angular profile. */
-    angularAcceleration = force * MOUSE_WHEEL_SEPARATION_MM * MILLIMETERS_PER_METER / MOUSE_MOMENT_OF_INERTIA_KGM2;
+    angularAcceleration = force * MOUSE_WHEEL_SEPARATION_MM / (MILLIMETERS_PER_METER * MOUSE_MOMENT_OF_INERTIA_KGM2);
     maxAngularVelocity = sqrtf(radians / 2.0f * angularAcceleration);
     if (maxAngularVelocity > MOUSE_MAX_ANGULAR_VELOCITY_RADPS)
         maxAngularVelocity = MOUSE_MAX_ANGULAR_VELOCITY_RADPS;
-
-    transition = maxAngularVelocity / angularAcceleration;      // time to accel/decel
-    transitionAngle = 0.5f * angularAcceleration * transition * transition;
-    arc = radians - 2.0f * transitionAngle;                     // constant-speed arc
-    maxAngularVelocity *= signDir;                              // apply direction
-
+    
+    duration = maxAngularVelocity / angularAcceleration * M_PI;
+    transitionAngle = duration * maxAngularVelocity / M_PI;
+    arc = (radians - 2.0f * transitionAngle) / maxAngularVelocity;
+    transition = duration / 2.0f;
+    maxAngularVelocity *= signDir; 
+    
     setTargetLinearSpeed(getIdealLinearSpeed());
     disableWallsControl();
 
@@ -315,19 +322,21 @@ void inplaceTurn(float radians, float force)
     while (true) {
         curTime = getTimeInUs();
         t = (float) (curTime - startTime) / MICROSECONDS_PER_SECOND;
-        if (t >= 2 * transition + arc / fabsf(maxAngularVelocity))
+        if (t >= 2 * transition + arc)
             break;
 
         angularVelocity = maxAngularVelocity;
         if (t < transition) {
             factor = t / transition;
             angularVelocity *= sinf(factor * M_PI / 2.0f);
-        } else if (t > transition + arc / fabsf(maxAngularVelocity)) {
-            factor = (t - (transition + arc / fabsf(maxAngularVelocity))) / transition;
+        } else if (t >= transition + arc) {
+			factor = (t - arc) / transition;
             angularVelocity *= sinf(factor * M_PI / 2.0f);
         }
+        
         setIdealAngularSpeed(angularVelocity);
     }
+    
     setIdealAngularSpeed(0.0f);
 }
 
@@ -335,144 +344,117 @@ void inplaceTurn(float radians, float force)
 /* Composite high-level moves                                                 */
 /* -------------------------------------------------------------------------- */
 
-void turnBack(float force)
-{
-    int dirSign;
-
-    if (getRobotDistanceUm(SENSOR_CENTER) < CELL_DIMENSION_UM)
-        keepFrontWallDistance(CELL_DIMENSION_UM / 2.0f);
-
-    disableWallsControl();
-
-    dirSign = (int)(rand() % 2) * 2 - 1;      // random left/right pivot
-    inplaceTurn(dirSign * M_PI, force);
-
-    currentCellStartMicrometers =
-        getEncoderAverageDistanceUm() -
-        (CELL_DIMENSION_UM / 2.0f + SHIFT_AFTER_180_DEG_TURN_UM);
-}
-
-void turnToStartPosition(float force)
-{
-    float delta;
-
-    setMaxForce(getMaxForce() / 4.0f);
-
-    turnBack(force);
-    delta = MOUSE_START_SHIFT_MM * MICROMETERS_PER_MILLIMETER - currentCellShift();
-    targetStraight(getEncoderAverageDistanceUm(), delta, 0.0f);
-
-    setMaxForce(getMaxForce() * 4.0f);
-
-    disableWallsControl();
-    resetControlAll();
-    enableMouseControl();
-    setMotorsState(MOTORS_BRAKE);
-}
-
-void moveFront(void)
+/**
+ * Drive one whole cell forward (centre ? centre).
+ */
+static void forwardOneCell(float cruiseSpeed, float endSpeed)
 {
     sideSensorsCloseControl(true);
     sideSensorsFarControl(false);
 
-    targetStraight(currentCellStartMicrometers, CELL_DIMENSION_UM, getMaxLinearSpeed());
-    enteredNextCell();
-}
+    setMaxLinearSpeed(cruiseSpeed);
 
-void parametricMoveFront(float distance, float endLinearSpeed)
-{
-    targetStraight(getEncoderAverageDistanceUm(), distance, endLinearSpeed);
+    targetStraight(currentCellStartMicrometers, CELL_DIMENSION_UM, endSpeed);
+
+    enteredNextCell();
 }
 
 /**
- * @brief Move into the next cell with a 90° in-place turn if requested.
+ * Perform a 90° pivot *in place* while sitting in the cell centre.  No
+ * longitudinal motion is required because we already have clearance front and
+ * back (1/2?cell each way).
  */
-void moveSide(Movement_t turn, float force)
+static void pivot90(Movement_t dir, float force)
 {
-    float beforeTurn = CELL_DIMENSION_UM / 2.0f;   // forward half-cell, pivot, forward half-cell
-
-    /* Forward to mid-cell. */
-    sideSensorsCloseControl(true);
-    sideSensorsFarControl(false);
-    targetStraight(currentCellStartMicrometers, beforeTurn, 0.0f);
-
-    /* Pivot */
     disableWallsControl();
-    if (turn == MOVE_LEFT)
-        inplaceTurn(M_PI / 2.0f, force);
+
+    if (dir == MOVE_LEFT)
+        inplaceTurn( M_PI / 2.0f, force);
     else
         inplaceTurn(-M_PI / 2.0f, force);
-
-    /* Second half cell. */
-    sideSensorsCloseControl(true);
-    sideSensorsFarControl(false);
-    targetStraight(getEncoderAverageDistanceUm(), beforeTurn, getMaxLinearSpeed());
-    enteredNextCell();
 }
 
-void moveBack(float force)
+
+/**
+ * Perform a 180° turn (dead?end recovery) while staying centred.
+ */
+static void pivot180(float force)
+{   
+    disableWallsControl();
+    
+    int16_t dirSign = (int16_t) (rand() % 2) * 2 - 1;      // random left/right pivot
+
+    inplaceTurn(dirSign * M_PI, force);
+}
+
+/**
+ * @brief  Move forward *n* cells (centre ? centre).
+ *
+ * The function accelerates once, cruises through the middle cells and decelerates
+ * so that it reaches @p endSpeed exactly at the centre of the last cell.
+ */
+void moveForwardCells(uint8_t nCells, float cruiseSpeed, float endSpeed)
 {
-    stopMiddle();
-    turnBack(force);
-    moveFront();
+    if (nCells == 0) return;
+
+    for (uint8_t k = 1; k < nCells; ++k)
+        forwardOneCell(cruiseSpeed, cruiseSpeed);
+
+    forwardOneCell(cruiseSpeed, endSpeed);
 }
 
-void move(StepDirection_t dir, float force)
+/**
+ * @brief  One?cell step forward.
+ */
+void moveForwardCenter(float cruiseSpeed, float endSpeed)
+{
+    forwardOneCell(cruiseSpeed, endSpeed);
+}
+
+/**
+ * @brief  90° left turn, centre?pivot.
+ */
+void turnLeftCenter(float force)
+{
+    pivot90(MOVE_LEFT, force);
+}
+
+/**
+ * @brief  90° right turn, centre?pivot.
+ */
+void turnRightCenter(float force)
+{
+    pivot90(MOVE_RIGHT, force);
+}
+
+/**
+ * @brief  Dead?end handling: square?up, 180° pivot, step back one cell.
+ */
+void escapeDeadEnd(float force, float cruiseSpeed, float endSpeed)
+{
+    if (getRobotDistanceUm(SENSOR_CENTER) < CELL_DIMENSION_UM)
+        keepFrontWallDistance(CELL_DIMENSION_UM / 2.0f);
+
+    pivot180(force);
+    
+    //TODO
+    currentCellStartMicrometers = getEncoderAverageDistanceUm() - (int32_t) (CELL_DIMENSION_UM / 2 + SHIFT_AFTER_180_DEG_TURN_UM);
+    
+    /* After the about?face we just re?use the forward routine. */
+    forwardOneCell(cruiseSpeed, endSpeed);
+}
+
+/**
+ * @brief  Dispatch function similar to the old *move()* but using the new
+ *         centre?to?centre primitives.  BACK performs a dead?end escape.
+ */
+void moveCentered(StepDirection_t dir, float force, float cruiseSpeed, float endSpeed)
 {
     switch (dir) {
-    case LEFT:
-        moveSide(MOVE_LEFT, force);
-        break;
-    case RIGHT:
-        moveSide(MOVE_RIGHT, force);
-        break;
-    case FRONT:
-        moveFront();
-        break;
-    case BACK:
-        moveBack(force);
-        break;
-    default:
-        stopMiddle();
-        break;
-    }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Simple sequence executor - handles only front / left / right / stop.       */
-/* -------------------------------------------------------------------------- */
-
-void executeMovementSequence(char *seq, float force, PathLanguage_t lang)
-{
-    int i = 0;
-    char cmd;
-
-    (void)lang; // Diagonals not supported in minimal build.
-
-    while (true) {
-        cmd = seq[i++];
-        switch (cmd) {
-        case MOVE_FRONT:
-            moveFront();
-            break;
-        case MOVE_LEFT:
-            moveSide(MOVE_LEFT, force);
-            break;
-        case MOVE_RIGHT:
-            moveSide(MOVE_RIGHT, force);
-            break;
-        case MOVE_STOP:
-            stopMiddle();
-            turnToStartPosition(force);
-            break;
-        case MOVE_END:
-            return;
-        default:
-            return;
-        }
-
-        //if (collision_detected()) {
-        //    return;
-        //}
+    case FRONT:  moveForwardCenter(cruiseSpeed, endSpeed);       break;
+    case LEFT:   turnLeftCenter(force);     moveForwardCenter(cruiseSpeed, endSpeed);    break;
+    case RIGHT:  turnRightCenter(force);    moveForwardCenter(cruiseSpeed, endSpeed);    break;
+    case BACK:   escapeDeadEnd(force, cruiseSpeed, endSpeed);    break;
+    default:     resetControlErrors();              break;
     }
 }

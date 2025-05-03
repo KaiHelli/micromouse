@@ -9,6 +9,7 @@
 #include "constants.h"
 #include "imu.h"
 #include "odometry.h"
+#include "atomic.h"
 
 #include "clock.h" // Has to be imported before libpic30, as it defines FCY
 #include <libpic30.h>
@@ -18,32 +19,11 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
-#define SIDE_WALL_DETECTION (CELL_DIMENSION_MM * 0.90)
+#define SIDE_WALL_DETECTION (CELL_DIMENSION_UM * 0.90)
 // #define FRONT_WALL_DETECTION (CELL_DIMENSION_MM * 1.5)
-#define FRONT_WALL_DETECTION (CELL_DIMENSION_MM * 1.1)
-
-#define SENSOR_OFFSET_THRESHOLD 1 // TODO
-
-void centerMouseInCell() {
-    uprintf("Center mouse in cell.\r\n");
-    int32_t lrOffset = 0;
-    int32_t frOffset = 0;
-    do {
-        uint32_t left  = getRobotDistanceUm(SENSOR_LEFT);
-        uint32_t right = getRobotDistanceUm(SENSOR_RIGHT);
-        uint32_t front = getRobotDistanceUm(SENSOR_CENTER);
-
-        lrOffset = (int32_t) right - (int32_t) left;
-        frOffset = (int32_t) front - (int32_t) MIDDLE_MAZE_DISTANCE_MM;
-        uprintf("LR Offset: %ld | FR Offset: %ld\r\n", lrOffset, frOffset);
-        uprintf("L: %u F: %u R: %u\r\n", left, front, right);
-        
-        __delay_ms(500);
-    } while (labs(lrOffset) > SENSOR_OFFSET_THRESHOLD || labs(frOffset) > SENSOR_OFFSET_THRESHOLD);
-    
-    uprintf("Centering done. Don't move anymore.\r\n");
-}
+#define FRONT_WALL_DETECTION (CELL_DIMENSION_UM * 0.90)
 
 // NEW STUFF
 
@@ -60,101 +40,101 @@ void centerMouseInCell() {
 
 #define MCTRL_LIN_PID_KP                (8.0f * TICK_IN_MS)  // 3.25f
 #define MCTRL_LIN_PID_KD                (20.0f * TICK_IN_MS) // 16.0f // 24.0f
-#define MCTRL_ANG_PID_KP                (0.13f * TICK_IN_MS)
+#define MCTRL_ANG_PID_KP                (0.13f * TICK_IN_MS) // TODO
 #define MCTRL_ANG_PID_KD                (0.5f * TICK_IN_MS)
 #define MCTRL_ANG_SENS_PID_KP           (2.0f * TICK_IN_MS)
 #define MCTRL_ANG_SENS_PID_KI           (4.0f * TICK_IN_MS)
 
 static volatile float maxForce = MOUSE_WHEEL_MAX_FORCE_CONT_N;
-static volatile float maxLinearSpeed = MOUSE_WHEEL_MAX_VEL_MMPS;
+static volatile float maxLinearSpeed = MOUSE_WHEEL_MAX_VEL_MMPS / MILLIMETERS_PER_METER;
 
-static volatile float pidFrequency;
+static volatile float pidFrequency = 0.0f;
 
-static volatile float targetLinearSpeed;
-static volatile float idealLinearSpeed;
-static volatile float idealAngularSpeed;
+static volatile float targetLinearSpeed = 0.0f;
+static volatile float idealLinearSpeed = 0.0f;
+static volatile float idealAngularSpeed = 0.0f;
 
-static volatile float linearError;
-static volatile float angularError;
-static volatile float lastLinearError;
-static volatile float lastAngularError;
+static volatile float linearError = 0.0f;
+static volatile float angularError = 0.0f;
+static volatile float lastLinearError = 0.0f;
+static volatile float lastAngularError = 0.0f;
 
-static volatile bool collisionDetected;
-static volatile bool mouseControlEnabled;
-static volatile bool sideSensorsCloseControlEnabled;
-static volatile bool sideSensorsFarControlEnabled;
+static volatile bool collisionDetected = false;
+static volatile bool mouseControlEnabled = false;
+static volatile bool sideSensorsCloseControlEnabled = false;
+static volatile bool sideSensorsFarControlEnabled = false;
 
 static volatile float sideSensorsIntegral;
 
 // TODO: Set percentage of max force.
 float getMaxForce(void)
 {
-	return maxForce;
+	return atomic_read_f32(&maxForce);
 }
 
 void setMaxForce(float value)
 {
-	maxForce = value;
+    atomic_write_f32(&maxForce, value);
 }
 
 void resetMaxForce(void)
 {
-    maxForce = MOUSE_WHEEL_MAX_FORCE_CONT_N;
+    atomic_write_f32(&maxForce, MOUSE_WHEEL_MAX_FORCE_CONT_N);
 }
 
 float getLinearAcceleration(void)
 {
-	return 2 * maxForce / MOUSE_MASS_KG;
+	return 2 * getMaxForce() / MOUSE_MASS_KG;
 }
 
 float getLinearDeceleration(void)
 {
-	return 2 * maxForce / MOUSE_MASS_KG;
+	return 2 * getMaxForce() / MOUSE_MASS_KG;
 }
 
 float getTargetLinearSpeed(void)
 {
-	return targetLinearSpeed;
+	return atomic_read_f32(&targetLinearSpeed);
 }
 
 void setTargetLinearSpeed(float value)
 {
-	targetLinearSpeed = value;
+    atomic_write_f32(&targetLinearSpeed, value);
 }
 
 float getIdealLinearSpeed(void)
 {
-	return idealLinearSpeed;
+	return atomic_read_f32(&idealLinearSpeed);
 }
 
 void setIdealLinearSpeed(float value)
 {
-	idealLinearSpeed = value;
+    atomic_write_f32(&idealLinearSpeed, value);
 }
 
 float getIdealAngularSpeed(void)
 {
-	return idealAngularSpeed;
+	return atomic_read_f32(&idealAngularSpeed);
 }
 
 void setIdealAngularSpeed(float value)
 {
-	idealAngularSpeed = value;
+    atomic_write_f32(&idealAngularSpeed, value);
 }
 
 float getMaxLinearSpeed(void)
 {
-	return maxLinearSpeed;
+	return atomic_read_f32(&maxLinearSpeed);
 }
 
 void setMaxLinearSpeed(float value)
 {
-	maxLinearSpeed = value;
+    atomic_write_f32(&maxLinearSpeed, value);
 }
 
-void resetMaxLinearSpeed(float value)
+void resetMaxLinearSpeed(void)
 {
-    maxLinearSpeed = MOUSE_WHEEL_MAX_VEL_MMPS;
+    atomic_write_f32(&maxLinearSpeed, MOUSE_WHEEL_MAX_VEL_MMPS / MILLIMETERS_PER_METER);
 }
 
 void updateIdealLinearSpeed(void)
@@ -173,19 +153,19 @@ void updateIdealLinearSpeed(void)
 }
 
 bool sensorIsWallFront() {
-    uint16_t distance = getRobotDistanceMm(SENSOR_CENTER);
+    uint16_t distance = getRobotDistanceUm(SENSOR_CENTER);
     
-    return distance > SIDE_WALL_DETECTION ? false : true;
+    return distance > FRONT_WALL_DETECTION ? false : true;
 }
 bool sensorIsWallRight() {
-    uint16_t distance = getRobotDistanceMm(SENSOR_RIGHT);
+    uint16_t distance = getRobotDistanceUm(SENSOR_RIGHT);
     
     return distance > SIDE_WALL_DETECTION ? false : true;
 }
 bool sensorIsWallLeft() {
-    uint16_t distance = getRobotDistanceMm(SENSOR_LEFT);
+    uint16_t distance = getRobotDistanceUm(SENSOR_LEFT);
     
-    return distance > FRONT_WALL_DETECTION ? false : true;
+    return distance > SIDE_WALL_DETECTION ? false : true;
 }
 
 float getSideSensorsCloseError(void)
@@ -206,9 +186,12 @@ float getSideSensorsFarError(void)
 	int32_t leftError = (int32_t) getRobotDistanceUm(SENSOR_LEFT) - MIDDLE_MAZE_DISTANCE_UM;
 	int32_t rightError = (int32_t) getRobotDistanceUm(SENSOR_RIGHT) - MIDDLE_MAZE_DISTANCE_UM;
 
-	if ((leftError > 10) && (rightError < 4))
+    const int32_t upperBound = 100000; // 10cm
+    const int32_t lowerBound =  40000; // 4cm
+    
+	if ((leftError > upperBound) && (rightError < lowerBound))
 		return (float) rightError / MICROMETERS_PER_METER;
-	if ((rightError > 10) && (leftError < 4))
+	if ((rightError > upperBound) && (leftError < lowerBound))
 		return (float) -leftError / MICROMETERS_PER_METER;
     
 	return 0.0f;
@@ -235,13 +218,19 @@ int16_t mouseControlStep() {
 		sideSensorsIntegral += sideSensorsFeedback;
 	}
 
-    float measuredLinVel = getEncoderLinearVelocityMmPerSec() / MILLIMETERS_PER_METER;
-    float measuredAngVel;
-    imuScaleGyroMeasurementFloat(&rawFifoGyroMeasurements[YAW], &measuredAngVel);
-    measuredAngVel *= DEG2RAD;
     
-	linearError += idealLinearSpeed - measuredLinVel;
-	angularError += idealAngularSpeed - measuredAngVel;
+    float measuredLinVel = getEncoderLinearVelocityMmPerSec() / MILLIMETERS_PER_METER;
+    linearError += idealLinearSpeed - measuredLinVel;
+
+    bool status = imuReadFifoSync();
+    float measuredAngVelScaled = 0.0f;
+    if (status) {
+        float measuredAngVelRaw = atomic_read_f32(&rawFifoGyroMeasurements[YAW]);
+        imuScaleGyroMeasurementFloat(&measuredAngVelRaw, &measuredAngVelScaled);
+        measuredAngVelScaled *= DEG2RAD;
+        
+        angularError += idealAngularSpeed - measuredAngVelScaled;
+    }
 
 	float linearPower = MCTRL_LIN_PID_KP * linearError + MCTRL_LIN_PID_KD * (linearError - lastLinearError);
 	float angularPower =
@@ -278,8 +267,8 @@ int16_t mouseControlStep() {
         memcpy(&buffer[idx], &idealAngularSpeed, sizeof(idealAngularSpeed));
         idx += sizeof(idealAngularSpeed);
 
-        memcpy(&buffer[idx], &measuredAngVel, sizeof(measuredAngVel));
-        idx += sizeof(measuredAngVel);
+        memcpy(&buffer[idx], &measuredAngVelScaled, sizeof(measuredAngVelScaled));
+        idx += sizeof(measuredAngVelScaled);
 
         memcpy(&buffer[idx], &linearError, sizeof(linearError));
         idx += sizeof(linearError);
@@ -374,6 +363,8 @@ void disableMouseControl(void)
 
 void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz) {
     pidFrequency = timer_hz;
+    
+    targetLinearSpeed = 0.0f;
     
     registerTimerCallback(timer, mouseControlStep, numTicks);
 }

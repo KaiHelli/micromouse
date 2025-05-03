@@ -1347,14 +1347,9 @@ static inline int16_t read_le16(const uint8_t *ptr) {
     return (int16_t)(((uint16_t)ptr[1] << 8) | (uint16_t)ptr[0]);
 }
 
-static void imuReadFifoCb(bool success) {
-    if (!success) {
-        putsUART1Str("FIFO read failed\r\n");
-        return;
-    }
-
+static void imuProcessFifo(uint16_t bytes) {
     // how many complete samples
-    uint16_t numSamples  = bytesRead / fifoBytesPerDataset;
+    uint16_t numSamples  = bytes / fifoBytesPerDataset;
     uint16_t numMagSamples = 0;
 
     int32_t gyroSum[3] = {0}, accelSum[3] = {0}, magSum[3] = {0}, tempSum = 0;
@@ -1414,6 +1409,7 @@ static void imuReadFifoCb(bool success) {
         }
     }
 
+    // TODO: Set in initIMU
     const float odr = 562.5f;
     const float dtPerSample = 1.0f / odr;
     
@@ -1453,6 +1449,16 @@ static void imuReadFifoCb(bool success) {
     }
 }
 
+
+static void imuReadFifoCb(bool success) {
+    if (!success) {
+        putsUART1Str("FIFO read failed\r\n");
+        return;
+    }
+
+    imuProcessFifo(bytesRead);
+}
+
 // FIFO read callback
 static void imuReadFifoCountCb(bool success) {
     if (!success) {
@@ -1471,7 +1477,7 @@ static void imuReadFifoCountCb(bool success) {
         
         if (startOffset > 0) {
             // do a dummy read of exactly startOffset bytes
-            static uint8_t dummyBuf[32];
+            static uint8_t dummyBuf[MAX_DATASET_BYTES];
             imuSetUsrBank(0);
             // if startOffset > sizeof(dummyBuf) you can loop or malloc, but typically it's small
             imuRead(fifoDataReg, 1, dummyBuf, startOffset, NULL);
@@ -1514,6 +1520,57 @@ void imuReadFifo(void) {
     imuRead(fifoCountReg, 1, (uint8_t*)&fifoCount, 2, imuReadFifoCountCb);
 }
 
+bool imuReadFifoSync(void) {
+    const uint8_t fifoCountReg = ICM20948_FIFO_COUNTH;
+    const uint8_t fifoDataReg = ICM20948_FIFO_R_W;
+
+    if (!fifoAligned) {
+        imuFifoReset();
+        __delay_ms(1);
+    }
+    
+    IMU_CHECK_BANK_SYNC(0);
+
+    if (!imuReadSync(fifoCountReg, (uint8_t*)&fifoCount, 2)) {
+        return false;
+    }
+
+    fifoCount = SWAP_BYTES(fifoCount);
+
+     // ---- ALIGN ONCE ----
+    if (!fifoAligned) {
+        // compute how many "junk" bytes to throw away
+        uint16_t startOffset = fifoCount % fifoBytesPerDataset;
+        
+        if (startOffset > 0) {
+            // do a dummy read of exactly startOffset bytes
+            static uint8_t dummyBuf[MAX_DATASET_BYTES];
+            IMU_CHECK_BANK_SYNC(0);
+            // if startOffset > sizeof(dummyBuf) you can loop or malloc, but typically it's small
+            imuReadSync(fifoDataReg, dummyBuf, startOffset);
+        }
+        
+        fifoAligned = true;
+        return false;  // wait until next timer tick to do real processing
+    }
+
+    uint16_t bytesToRead = fifoCount - (fifoCount % fifoBytesPerDataset);
+    if (bytesToRead > MAX_READ_BYTES)
+        bytesToRead = MAX_READ_BYTES - (MAX_READ_BYTES % fifoBytesPerDataset);
+
+    if (bytesToRead == 0)
+        return true;  // nothing new we can process this cycle
+
+    IMU_CHECK_BANK_SYNC(0);
+
+    if (!imuReadSync(fifoDataReg, fifoData, bytesToRead)) {
+        return false;
+    }
+
+    imuProcessFifo(bytesToRead);
+    
+    return true;
+}
 
 /*
  * Tools

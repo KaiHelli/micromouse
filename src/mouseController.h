@@ -38,7 +38,7 @@ void   setIdealAngularSpeed(float value);
 
 float  getMaxLinearSpeed(void);
 void   setMaxLinearSpeed(float value);
-void   resetMaxLinearSpeed(float value);
+void   resetMaxLinearSpeed(void);
 
 /*--------------------------------------------------------------------
  *  API ? Control-loop helpers

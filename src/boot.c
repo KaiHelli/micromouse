@@ -76,6 +76,42 @@ int16_t printSensorReadings(void) {
     return 1;
 }
 
+int16_t printEncoderValues(void) {
+    uint8_t buffer[25];
+    size_t idx = 0;
+    
+    int32_t leftDistTicks = getEncoderPositionCounts(ENCODER_LEFT);
+    int32_t rightDistTicks = getEncoderPositionCounts(ENCODER_RIGHT);
+    
+    float leftDistUm = leftDistTicks * ENC_DIST_PER_TICK_UM;
+    float rightDistUm = rightDistTicks * ENC_DIST_PER_TICK_UM;
+    
+    float distAvg = getEncoderAverageDistanceUm();
+    
+    buffer[idx++] = FRAME_START_BYTE;
+    
+    memcpy(&buffer[idx], &leftDistTicks, sizeof(leftDistTicks));
+    idx += sizeof(leftDistTicks);
+    
+    memcpy(&buffer[idx], &rightDistTicks, sizeof(rightDistTicks));
+    idx += sizeof(rightDistTicks);
+    
+    memcpy(&buffer[idx], &leftDistUm, sizeof(leftDistUm));
+    idx += sizeof(leftDistUm);
+    
+    memcpy(&buffer[idx], &rightDistUm, sizeof(rightDistUm));
+    idx += sizeof(rightDistUm);
+    
+    memcpy(&buffer[idx], &distAvg, sizeof(distAvg));
+    idx += sizeof(distAvg);
+    
+    buffer[idx++] = FRAME_END_BYTE;
+    
+    putsUART1(buffer, idx);
+    
+    return 1;
+}
+
 int16_t estimateEncoderAcceleration(void) {
     static float lastPosDegLeft = 0.0f;
     float posDegLeft = getEncoderPositionDeg(ENCODER_LEFT);
@@ -305,31 +341,47 @@ int16_t initMouse(void) {
     __delay_ms(250);
     
     //setupOdometry(TIMER_1, 1); // track odometry
-    registerTimerCallback(TIMER_1, triggerOdometryUpdate, 1);
-    registerTimerCallback(TIMER_1, updateEncoderVelocities, 1);
+    //registerTimerCallback(TIMER_1, triggerOdometryUpdate, 1);
+    //registerTimerCallback(TIMER_1, updateEncoderVelocities, 1);
     
     __delay_ms(2000);
     
     setMotorsStandbyState(false);
     
     resetControlAll();
-    enableMouseControl();
-    disableWallsControl();
-    //setMaxForce(0.2f);
+    //calibrateStartPosition();
+    //setStartingPosition();
+    setMaxForce(0.5f);
     initMouseController(TIMER_1, 1, getTimerFrequency(TIMER_1));
     
-    sideSensorsCloseControl(true);
+    setMaxLinearSpeed(0.3);
+    enableMouseControl();
+    
+    //targetStraight(0, 0.3 * MICROMETERS_PER_METER, 0.0);
+            
+    //moveForwardCells(1, 0.05, 0.0);
+    
+    // TODO: It seems we overshoot in distance with 30.25 diameter
+    // TODO: Two turns in a row don't work
+    // 90° don't seem right
+    
+    inplaceTurn( M_PI / 2.0f, 0.2f);
+    //inplaceTurn( -M_PI / 2.0f, 0.2f);
+    
+    
+    //sideSensorsCloseControl(true);
     //setIdealAngularSpeed(2.0);
-    setTargetLinearSpeed(0.2);
-    __delay_ms(3000);
-    setIdealAngularSpeed(0.0);
-    setTargetLinearSpeed(0.0);
+    //setTargetLinearSpeed(0.2);
+    //__delay_ms(3000);
+    //setIdealAngularSpeed(0.0);
+    //setTargetLinearSpeed(0.0);
     
     // Data Visualizer Callbacks
     //registerTimerCallback(TIMER_3, printEncoderVelocities, 1);
     //registerTimerCallback(TIMER_3, printOdometry, 1);
     //registerTimerCallback(TIMER_3, printIMU_trampoline, 1);
     //registerTimerCallback(TIMER_3, printSensorReadings, 1);
+    //registerTimerCallback(TIMER_3, printEncoderValues, 1);
     
     registerSwitchCallback(SWITCH_1, startMaze);
     

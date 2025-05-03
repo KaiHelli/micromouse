@@ -46,7 +46,6 @@ void resetGlobalTimekeeping(void) {
 }
 
 uint64_t getTimeInUs(void) {
-    
     uint64_t currentTime = TMR4;    // set lower bits of 32bit timer (lsw) - triggers internal copy of TMR5 to TMR5HLD
     currentTime |= (uint32_t) TMR5HLD << 16;   // set upper bits of 32bit timer (msw)
     

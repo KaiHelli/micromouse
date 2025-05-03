@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "atomic.h"
 #include "constants.h"
 #include "interrupts.h"
 #include "IOconfig.h"
@@ -48,7 +49,9 @@ volatile uint64_t lastVelocityUpdateTime = 0;
 static inline int32_t readEncoderCount(MotorEncoder_t encoder)
 {
     int32_t count;
-    _NSTDIS = 1;
+    
+    uint16_t state = _atomic_enter();
+    
     switch(encoder)
     {
         case ENCODER_LEFT:
@@ -61,7 +64,9 @@ static inline int32_t readEncoderCount(MotorEncoder_t encoder)
             count = 0;
             break;
     }
-    _NSTDIS = 0;
+    
+    _atomic_leave(state);
+    
     return count;
 }
 

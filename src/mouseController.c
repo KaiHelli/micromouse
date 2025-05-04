@@ -34,9 +34,9 @@
 #define MCTRL_ANG_SENS_PID_KI           4.0f
 */
 
-#define MCTRL_LIN_PID_KP                (8.0f)  // 3.25f
+#define MCTRL_LIN_PID_KP                (42.0f)  // 3.25f
 #define MCTRL_LIN_PID_KD                (20.0f) // 16.0f // 24.0f
-#define MCTRL_ANG_PID_KP                (0.3f)
+#define MCTRL_ANG_PID_KP                (1.6f)
 #define MCTRL_ANG_PID_KD                (1.3f)
 #define MCTRL_ANG_SENS_PID_KP           (2.0f)
 #define MCTRL_ANG_SENS_PID_KI           (4.0f)
@@ -388,12 +388,12 @@ void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz) {
 
     // PID Gains where tuned w.r.t. 1ms ticks, therefore we scale them:
     // Linear-speed positional PD
-    pidLin.Kp = MCTRL_LIN_PID_KP * dt_ms;
+    pidLin.Kp = MCTRL_LIN_PID_KP;
     pidLin.Ki = 0.0f;
     pidLin.Kd = MCTRL_LIN_PID_KD * dt_ms;
 
     // Angular-rate positional PD
-    pidAng.Kp = MCTRL_ANG_PID_KP * dt_ms;
+    pidAng.Kp = MCTRL_ANG_PID_KP;
     pidAng.Ki = 0.0f;
     pidAng.Kd = MCTRL_ANG_PID_KD * dt_ms;
 

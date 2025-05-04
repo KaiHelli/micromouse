@@ -40,8 +40,8 @@
 
 /* Drive-wheel parameters */
 
-#define MOUSE_WHEEL_SEPARATION_MM       97.15f
-#define MOUSE_WHEEL_RADIUS_MM           30.55f
+#define MOUSE_WHEEL_SEPARATION_MM       97.55f
+#define MOUSE_WHEEL_RADIUS_MM           30.1f
 #define MOUSE_WHEEL_DIAMETER_MM         (2.0f * MOUSE_WHEEL_RADIUS_MM)
 #define MOUSE_WHEEL_CIRCUMFERENCE_MM    (MOUSE_WHEEL_DIAMETER_MM * (float)M_PI)
 
@@ -79,7 +79,7 @@
 #define KEEP_FRONT_DISTANCE_TOLERANCE_MM   3.0f                    /* was 0.001 m (!): */
 #define KEEP_FRONT_DISTANCE_TOLERANCE_UM   (KEEP_FRONT_DISTANCE_TOLERANCE_MM * MICROMETERS_PER_MILLIMETER)
 
-#define SHIFT_AFTER_180_DEG_TURN_MM        0.0f                   /* was 0.010 m */
+#define SHIFT_AFTER_180_DEG_TURN_MM        2.5f
 #define SHIFT_AFTER_180_DEG_TURN_UM        (SHIFT_AFTER_180_DEG_TURN_MM * MICROMETERS_PER_MILLIMETER)
 
 #endif /* CONSTANTS_H */

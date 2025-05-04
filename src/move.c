@@ -81,8 +81,9 @@ static void enteredNextCell(void)
 
     currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm() - MIDDLE_MAZE_DISTANCE_UM;
     
+    // TODO: minus or plus, also apply correction...
     if (sensorIsWallFront()) {
-        frontWallCorrection = (int32_t) getRobotDistanceUm(SENSOR_CENTER) - (int32_t) (0.5f * CELL_DIMENSION_UM);
+        frontWallCorrection = (int32_t) getRobotDistanceUm(SENSOR_CENTER) - (int32_t) (MIDDLE_MAZE_DISTANCE_UM);
         currentCellStartMicrometers += frontWallCorrection;
     }
 }
@@ -137,11 +138,12 @@ void targetStraight(int32_t startMicrometers, float distance, float endSpeed)
     if (distance > 0) {
         /* Accelerate */
         setTargetLinearSpeed(getMaxLinearSpeed());
-        while (getEncoderAverageDistanceUm() < targetDistance - requiredMicrometersToSpeed(endSpeed))
+        while ((int32_t) getEncoderAverageDistanceUm() < targetDistance - requiredMicrometersToSpeed(endSpeed))
+            //uprintf("%ld, %ld, %ld\r\n", (int32_t) getEncoderAverageDistanceUm(), targetDistance, requiredMicrometersToSpeed(endSpeed));
             ;
     } else {
         setTargetLinearSpeed(-getMaxLinearSpeed());
-        while (getEncoderAverageDistanceUm() > targetDistance - requiredMicrometersToSpeed(endSpeed))
+        while ((int32_t) getEncoderAverageDistanceUm() > targetDistance - requiredMicrometersToSpeed(endSpeed))
             ;
     }
 
@@ -248,7 +250,7 @@ void keepFrontWallDistance(float distance)
         frontWallDistance /= 20;
         diff = frontWallDistance - distance;
         
-        uprintf("diff: %.5f\r\n", diff);
+        //uprintf("diff: %.5f\r\n", diff);
         
         if (fabsf(diff) < KEEP_FRONT_DISTANCE_TOLERANCE_UM)
             break;

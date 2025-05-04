@@ -21,9 +21,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define SIDE_WALL_DETECTION (CELL_DIMENSION_UM * 0.90)
+#define SIDE_WALL_DETECTION ((uint32_t) (CELL_DIMENSION_UM * 0.90))
 // #define FRONT_WALL_DETECTION (CELL_DIMENSION_MM * 1.5)
-#define FRONT_WALL_DETECTION (CELL_DIMENSION_UM * 0.90)
+#define FRONT_WALL_DETECTION ((uint32_t) (CELL_DIMENSION_UM * 0.90))
 
 /*
 #define MCTRL_LIN_PID_KP                8.0f
@@ -159,17 +159,17 @@ void updateIdealLinearSpeed(void)
 }
 
 bool sensorIsWallFront() {
-    uint16_t distance = getRobotDistanceUm(SENSOR_CENTER);
+    uint32_t distance = getRobotDistanceUm(SENSOR_CENTER);
     
     return distance > FRONT_WALL_DETECTION ? false : true;
 }
 bool sensorIsWallRight() {
-    uint16_t distance = getRobotDistanceUm(SENSOR_RIGHT);
+    uint32_t distance = getRobotDistanceUm(SENSOR_RIGHT);
     
     return distance > SIDE_WALL_DETECTION ? false : true;
 }
 bool sensorIsWallLeft() {
-    uint16_t distance = getRobotDistanceUm(SENSOR_LEFT);
+    uint32_t distance = getRobotDistanceUm(SENSOR_LEFT);
     
     return distance > SIDE_WALL_DETECTION ? false : true;
 }
@@ -316,7 +316,7 @@ int16_t mouseControlStep() {
 
         buffer[idx++] = FRAME_END_BYTE;
         
-        putsUART1(buffer, idx);
+        //putsUART1(buffer, idx);
     }
     
     setMotorPower(MOTOR_LEFT, powerLeft);
@@ -387,17 +387,17 @@ void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz) {
     const float dt_ms = 1000.0f / timer_hz;   // real control period in?ms
 
     // PID Gains where tuned w.r.t. 1ms ticks, therefore we scale them:
-    // Linear?speed positional PD
+    // Linear-speed positional PD
     pidLin.Kp = MCTRL_LIN_PID_KP * dt_ms;
     pidLin.Ki = 0.0f;
     pidLin.Kd = MCTRL_LIN_PID_KD * dt_ms;
 
-    // Angular?rate positional PD
+    // Angular-rate positional PD
     pidAng.Kp = MCTRL_ANG_PID_KP * dt_ms;
     pidAng.Ki = 0.0f;
     pidAng.Kd = MCTRL_ANG_PID_KD * dt_ms;
 
-    // Side?sensor "wall following" loop
+    // Side-sensor "wall following" loop
     pidAngSens.Kp = MCTRL_ANG_SENS_PID_KP * dt_ms;
     pidAngSens.Ki = MCTRL_ANG_SENS_PID_KI * dt_ms;
     pidAngSens.Kd = 0.0f;

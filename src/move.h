@@ -13,26 +13,18 @@
 #include <stdbool.h>
 
 /* ------------------------------------------------------------------------- */
-/* High?level direction selectors                                            */
+/* High-level direction selectors                                            */
 /* ------------------------------------------------------------------------- */
-typedef enum {
-    FRONT,
-    LEFT,
-    RIGHT,
-    BACK
-} StepDirection_t;
 
 /* Direction selector used by pivot / side?turn helpers                      */
 typedef enum {
-    MOVE_LEFT,              /* turn ?+90° (CCW)  */
-    MOVE_RIGHT              /* turn ?90° (CW)    */
+    MOVE_LEFT,              /* turn -> +90° (CCW)  */
+    MOVE_RIGHT              /* turn -> 90° (CW)    */
 } Movement_t;
 
 /* ------------------------------------------------------------------------- */
 /* Miscellaneous helpers                                                     */
 /* ------------------------------------------------------------------------- */
-int      sign(float number);
-void     sleepTicks(uint16_t ticks);
 void     centerMouseInCell(void);
 void     calibrateStartPosition(void);
 
@@ -55,7 +47,7 @@ void inplaceTurnDeg(float degrees, float force);
 void inplaceTurn   (float radians, float force);
 
 /* ------------------------------------------------------------------------- */
-/* Wall?alignment helpers                                                    */
+/* Wall-alignment helpers                                                    */
 /* ------------------------------------------------------------------------- */
 void squareUpByWiggle      (float initStepDeg, uint8_t maxIter, float force);
 void keepFrontWallDistance (float distance_um);
@@ -68,20 +60,18 @@ void stopHeadFrontWall(void);
 void stopMiddle(void);
 
 /* ------------------------------------------------------------------------- */
-/* Composite / high?level moves                                              */
+/* Composite / high-level moves                                              */
 /* ------------------------------------------------------------------------- */
-void moveForwardCells (uint8_t nCells, float cruiseSpeed, float endSpeed);
+void pivot90(Movement_t dir, float force);
+void pivot180(float force);
+
+void moveForwardCenterCells (uint8_t nCells, float cruiseSpeed, float endSpeed);
 void moveForwardCenter(float cruiseSpeed, float endSpeed);
 
 void turnLeftCenter (float force);
 void turnRightCenter(float force);
 
-void escapeDeadEnd(float force, float cruiseSpeed, float endSpeed);
+void escapeDeadEnd(float force);
 
-/* Unified dispatcher: performs FRONT / LEFT / RIGHT / BACK moves            */
-void moveCentered(StepDirection_t dir,
-                  float           force,
-                  float           cruiseSpeed,
-                  float           endSpeed);
 
 #endif /* MOVE_H */

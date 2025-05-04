@@ -8,10 +8,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-//#define MAZESOLVER
+#define MAZESOLVER
 #ifdef MAZESOLVER
 
 static Mouse mouse;
+
 
 void queue_init(Queue *q) {
     q->head = 0;
@@ -170,6 +171,9 @@ int mouse_plan_next(Mouse* mouse) {
         neighbors_dist[neighbors_count] = mouse->cell_distances[row][col - 1];
         neighbors_count++;
     }
+    
+    // uprintf("row: %d, col: %d, top: %d, right: %d, left: %d, bottom: %d", row, col, mouse->maze.cells[row][col].wallTop, mouse->maze.cells[row][col].wallRight, mouse->maze.cells[row][col].wallLeft, mouse->maze.cells[row][col].wallBottom);
+    
     if ( neighbors_count == 0 ) {
         // impossible?
         return FAIL;
@@ -269,27 +273,25 @@ int mouse_plan_next(Mouse* mouse) {
 
 int mouse_move_next(Mouse* mouse) {
     int status = mouse_plan_next(mouse);
+   
     if (status == OK || status == TARGET) {
         int turn = mouse->commands[mouse->command_count - 1].turn;
-#ifdef RELATIVE_TURN
-        if (turn == TURN_LEFT) {
-            turnLeft();
-        } else if (turn == TURN_RIGHT) {
-            turnRight();
-        } else if (turn == TURN_BACK) {
-            // turn back
-//            turnLeft();
-//            turnLeft();
-            turnAround();
+        
+        switch (turn) {
+            case NO_TURN: 
+                break;
+            case TURN_LEFT:
+                turnLeftCenter(getMaxForce());
+                break;
+            case TURN_RIGHT: 
+                turnRightCenter(getMaxForce());
+                break;
+            case TURN_BACK:
+                escapeDeadEnd(getMaxForce());
+                break;
         }
-        moveForward(1);
-#else
-        int turn_direction = mouse->commands[mouse->command_count - 1].dir;
-        if (turn != NO_TURN) {
-            turnDirection(turn_direction);
-        }
-        moveForward(1);
-#endif        
+        
+        moveForwardCenter(getMaxLinearSpeed(), 0.0f);
     }
     return status;
 }
@@ -302,7 +304,8 @@ int discover_maze_step(Mouse* mouse) {
     bool sensorWallRight = sensorIsWallRight();
     bool sensorWallLeft = sensorIsWallLeft();
     
-    //uprintf("Sensor front: %d, left: %d, right: %d \r\n", sensorWallFront, sensorWallLeft, sensorWallRight);
+    // uprintf("Sensor front: %d, left: %d, right: %d \r\n", sensorWallFront, sensorWallLeft, sensorWallRight);
+    // uprintf("row: %d, col: %d, top: %d, right: %d, left: %d, bottom: %d \r\n", mouse->row, mouse->row, mouse->maze.cells[mouse->row][mouse->col].wallTop, mouse->maze.cells[mouse->row][mouse->col].wallRight, mouse->maze.cells[mouse->row][mouse->col].wallLeft, mouse->maze.cells[mouse->row][mouse->col].wallBottom);
     
     // register walls
     if ( sensorWallFront ) {
@@ -402,114 +405,54 @@ int plan_run(Mouse* mouse) {
     return status;
 }
 
-#ifdef RELATIVE_TURN
 void maze_runner(Mouse* mouse) {
     for(int i=0; i<mouse->command_count; i++) {
-        Command* cmd = &mouse->commands[i];        
-        if ( cmd->turn == TURN_LEFT ) {
-            turnLeft();
-        } else if ( cmd->turn == TURN_RIGHT ) {
-            turnRight();
-        } else if ( cmd->turn == TURN_BACK ) {
-//            turnLeft();
-//            turnLeft();
-            turnAround();
+        Command* cmd = &mouse->commands[i];   
+        
+        switch (cmd->turn) {
+            case NO_TURN: 
+                break;
+            case TURN_LEFT:
+                turnLeftCenter(getMaxForce());
+                break;
+            case TURN_RIGHT: 
+                turnRightCenter(getMaxForce());
+                break;
+            case TURN_BACK:
+                escapeDeadEnd(getMaxForce());
+                break;
         }
-        moveForward(cmd->cells);
+        
+        moveForwardCenterCells((uint8_t) cmd->cells, getMaxLinearSpeed(), 0.0f);
     }
 }
 
 
 void go_back(Mouse* mouse) {
+    pivot180(getMaxForce());
     
-//    turnLeft();
-//    turnLeft();
-    turnAround();
     for (int i = mouse->command_count - 1; i >= 0; i--) {
         Command* cmd = &mouse->commands[i];
         int turn = cmd->turn;
-        if (turn == TURN_LEFT) {
-            turn = TURN_RIGHT;
-        } else if (turn == TURN_RIGHT) {
-            turn = TURN_LEFT;
-        }
         
-        moveForward(cmd->cells);
-        
-        if ( turn == TURN_LEFT ) {
-            turnLeft();
-        } else if ( turn == TURN_RIGHT ) {
-            turnRight();
-        } else if ( turn == TURN_BACK ) {
-//            turnLeft();
-//            turnLeft();
-            turnAround();
+        moveForwardCenterCells((uint8_t) cmd->cells, getMaxLinearSpeed(), 0.0f);
+
+        // Invert turns to go back
+        switch (cmd->turn) {
+            case TURN_LEFT:
+                turnRightCenter(getMaxForce());
+                break;
+            case TURN_RIGHT:
+                turnLeftCenter(getMaxForce());
+                break;
+            case TURN_BACK:
+                escapeDeadEnd(getMaxForce());
+                
         }
     }
     
-//    turnLeft();
-//    turnLeft();
-    turnAround();
+    escapeDeadEnd(getMaxForce());
 }
-#else
-int oppositeDirection(int dir) {
-    switch (dir) {
-        case UP: return DOWN;
-        case RIGHT: return LEFT;
-        case DOWN: return UP;
-        case LEFT: return RIGHT;
-    }
-    return -1;
-}
-
-int oppositeTurn(int turn, int dir) {
-    switch (turn) {
-        case TURN_LEFT: 
-            switch (dir) {
-                case UP: return LEFT;
-                case RIGHT: return UP;
-                case DOWN: return RIGHT;
-                case LEFT: return DOWN;
-            }
-            break;
-        case TURN_RIGHT:
-            switch (dir) {
-                case UP: return RIGHT;
-                case RIGHT: return DOWN;
-                case DOWN: return LEFT;
-                case LEFT: return UP;
-            }
-            break;
-        case TURN_BACK: return dir;
-    }
-    return NO_TURN;
-}
-
-void go_back(Mouse* mouse) {
-    turnDirection(oppositeDirection(mouse->dir));
-    for (int i = mouse->command_count - 1; i >= 0; i--) {
-        Command* cmd = &mouse->commands[i];
-        int turn = cmd->turn;
-        int dir = cmd->dir;
-        moveForward(cmd->cells);
-        if ( turn != NO_TURN ) {
-            turnDirection(oppositeTurn(turn, dir));
-        }
-    }
-    turnDirection(mouse->commands[0].dir);
-}
-
-void maze_runner(Mouse* mouse) {
-    for(int i=0; i<mouse->command_count; i++) {
-        Command* cmd = &mouse->commands[i];        
-        if ( cmd->turn != NO_TURN ) {
-            turnDirection(cmd->dir);
-        }
-        moveForward(cmd->cells);
-    }
-}
-
-#endif
 
 void mouse_final_distances(Mouse* mouse) {
     Queue q;
@@ -566,6 +509,7 @@ uint8_t solveMaze() {
     //mouse_print_distances(&mouse);
     
     int status = discover_maze(&mouse);
+    
     if ( status == TARGET ) {
         go_back(&mouse);
         

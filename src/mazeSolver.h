@@ -5,7 +5,6 @@
 
 #define N 6
 #define MAX_STEPS N*N
-#undef RELATIVE_TURN
 
 enum Turn {
     NO_TURN = -1,
@@ -20,6 +19,13 @@ enum Status {
     TARGET = 2,
     FAIL = 3
 };
+
+typedef enum {
+    UP = 0,
+    RIGHT,
+    DOWN,
+    LEFT
+} Direction;
 
 typedef struct Target_ {
     int count;
@@ -44,7 +50,6 @@ typedef struct Cell_ {
 typedef struct Maze_ {
     Cell cells[N][N];
 } Maze;
-
 
 typedef struct Mouse_ {
     // memory of the maze

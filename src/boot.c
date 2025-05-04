@@ -306,20 +306,7 @@ int16_t startMaze(void) {
     
     LED3 = LEDON;
     
-    /*
-    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, LEFT, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, DOWN, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, RIGHT, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, RIGHT, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, DOWN, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, LEFT, 90, 2, getTimerFrequency(TIMER_1));
-    turnOrientation(TIMER_1, UP, 90, 2, getTimerFrequency(TIMER_1));
-    */
-    
-    //solveMaze();
+    solveMaze();
     
     LED4 = LEDON;
     
@@ -349,32 +336,32 @@ int16_t initMouse(void) {
     setMotorsStandbyState(false);
     
     resetControlAll();
-    //calibrateStartPosition();
-    //setStartingPosition();
-    setMaxForce(0.5f);
+    calibrateStartPosition();
+    setStartingPosition();
+    
+    setMaxForce(0.2f);
+    setMaxLinearSpeed(0.1f);
+
     initMouseController(TIMER_1, 1, getTimerFrequency(TIMER_1));
     
-    setMaxLinearSpeed(0.3);
     enableMouseControl();
     
     //targetStraight(0, 0.3 * MICROMETERS_PER_METER, 0.0);
-            
     //moveForwardCells(1, 0.05, 0.0);
     
+    //float startMicrometers = 0.0f;
+    //float distance = 0.1 * MICROMETERS_PER_METER;
     
-    float startMicrometers = 0.0f;
-    float distance = 0.05 * MICROMETERS_PER_METER;
-
+    //targetStraight(startMicrometers, distance, 0.0);
+    
+    /*
     for (uint8_t i = 0; i < 4 * 5; i++) {
         targetStraight(startMicrometers, distance, 0.0);
         inplaceTurn( M_PI / 2., 1.0f);
         
         startMicrometers += distance;
     }
-    
-
-    
-    
+    */
     
     //sideSensorsCloseControl(true);
     //setIdealAngularSpeed(2.0);
@@ -390,6 +377,9 @@ int16_t initMouse(void) {
     //registerTimerCallback(TIMER_3, printSensorReadings, 1);
     //registerTimerCallback(TIMER_3, printEncoderValues, 1);
     
+    //keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
+    
+    //squareUpByWiggle(10.0, 10, getMaxForce());
     registerSwitchCallback(SWITCH_1, startMaze);
     
     LED2 = LEDON;
@@ -442,10 +432,7 @@ void bootSetup() {
    
     __delay_ms(1000);
         
-    //registerSwitchCallback(SWITCH_1, initMouse);
-    initMouse();
-    __delay_ms(1000);
-    startMaze();
+    registerSwitchCallback(SWITCH_1, initMouse);
 
     LED1 = LEDOFF;
     LED2 = LEDOFF;

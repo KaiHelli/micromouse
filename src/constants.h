@@ -76,7 +76,7 @@
 
 /* Control & alignment tolerances */
 
-#define KEEP_FRONT_DISTANCE_TOLERANCE_MM   1.0f                    /* was 0.001 m (!): */
+#define KEEP_FRONT_DISTANCE_TOLERANCE_MM   3.0f                    /* was 0.001 m (!): */
 #define KEEP_FRONT_DISTANCE_TOLERANCE_UM   (KEEP_FRONT_DISTANCE_TOLERANCE_MM * MICROMETERS_PER_MILLIMETER)
 
 #define SHIFT_AFTER_180_DEG_TURN_MM        0.0f                   /* was 0.010 m */

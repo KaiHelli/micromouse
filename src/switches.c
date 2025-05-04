@@ -23,8 +23,22 @@ void setSwitchInterruptState(Switch_t sw, bool state) {
     }
 }
 
-static volatile SwitchCallback_t switchCallbacks[NUM_SWITCHES][SWITCH_CALLBACK_BUFFER_SIZE];
+typedef enum {
+    CB_EVEN   = 0,   /* run when the current ISR cycle is even            */
+    CB_ODD    = 1,   /* run when the current ISR cycle is odd             */
+    CB_ALWAYS = 2    /* already executed once -> run on every cycle        */
+} CbPhase_t;
+
+typedef struct {
+    SwitchCallback_t cb;
+    CbPhase_t        phase;
+} SwitchCbEntry_t;
+
+static volatile SwitchCbEntry_t switchCallbacks[NUM_SWITCHES][SWITCH_CALLBACK_BUFFER_SIZE];
+
 static volatile uint8_t registeredSwitchCallbacks[NUM_SWITCHES];
+static volatile uint8_t currentPhase[NUM_SWITCHES];
+
 
 int16_t registerSwitchCallback(Switch_t sw, SwitchCallback_t callback) {
     // Check if there buffer of interrupt callbacks is already full.
@@ -35,9 +49,12 @@ int16_t registerSwitchCallback(Switch_t sw, SwitchCallback_t callback) {
     // Temporarily disable switch interrupts during modifying callbacks.
     setSwitchInterruptState(sw, false);
 
-    switchCallbacks[sw][registeredSwitchCallbacks[sw]] = callback;
-    registeredSwitchCallbacks[sw]++;
+    uint8_t idx = registeredSwitchCallbacks[sw]++;
+    switchCallbacks[sw][idx].cb  = callback;
     
+    // run in the *next* generation => currentGeneration+1           
+    switchCallbacks[sw][idx].phase = (currentPhase[sw] == 0) ? CB_ODD : CB_EVEN;
+           
     // Re-enable switch interrupts.
     setSwitchInterruptState(sw, true);
     
@@ -53,7 +70,7 @@ int16_t removeSwitchCallback(Switch_t sw, SwitchCallback_t callback) {
     int16_t status = -1;
     
     for (uint8_t i = 0; i < registeredSwitchCallbacks[sw]; i++) {
-        if (switchCallbacks[sw][i] != callback) {
+        if (switchCallbacks[sw][i].cb != callback) {
             continue;
         }
         
@@ -91,11 +108,25 @@ static void generalSwitchISR(Switch_t sw) {
         return;
     }
     
+    uint8_t thisPhase = currentPhase[sw] ^= 1;     // 0 <-> 1
+    
     uint8_t i = 0;
     while (i < registeredSwitchCallbacks[sw]) {
+
+        CbPhase_t phase = switchCallbacks[sw][i].phase;
+
+        // Skip if not yet eligible
+        if (phase != CB_ALWAYS && phase != (CbPhase_t)thisPhase) {
+            i++;
+            continue;
+        }
         
-        SwitchCallback_t callback = switchCallbacks[sw][i];
+        SwitchCallback_t callback = switchCallbacks[sw][i].cb;
         uint8_t status = callback();
+        
+        // First execution completed? -> mark as ?always? 
+        if (phase != CB_ALWAYS)
+            switchCallbacks[sw][i].phase = CB_ALWAYS;
 
         if (status == 0) {
             // Guard from registerSwitchCallback being called from an interrupt with

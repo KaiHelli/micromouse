@@ -57,6 +57,8 @@ float getEncoderPositionDeg(MotorEncoder_t encoder);
  */
 int16_t updateEncoderVelocities(void);
 
+int16_t updateEncoderVelocitiesNaive(float hz);
+
 /**
  * @brief Returns the current rotational velocity in counts per sample.
  * @param encoder ENCODER_LEFT or ENCODER_RIGHT.

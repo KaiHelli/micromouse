@@ -49,12 +49,13 @@
 
 #define MOUSE_MASS_KG                   0.307f
 #define MOUSE_MOMENT_OF_INERTIA_KGM2    0.0005641125f   // \frac{0.307}{12}\cdot \left(0.105^2+0.105^2\right)
-#define MOUSE_MAX_ANGULAR_VELOCITY_RADPS 32.0f          // \frac{\left(2\cdot 30\cdot 3000\cdot \frac{\pi }{180}\right)}{97}
 
 /* Motor data sheet (33:1 HP + 30 mm wheel) */
 #define MOUSE_WHEEL_MAX_ACC_DPS2        3000.0f // dps2 -- exact 3054.976
 #define MOUSE_WHEEL_MAX_VEL_DPS         878.65 // dps  -- exact 1022.728 - but takes longer to reach from 878.65 on
 #define MOUSE_WHEEL_MAX_VEL_MMPS        (MOUSE_WHEEL_MAX_VEL_DPS * DEG2RAD * MOUSE_WHEEL_RADIUS_MM)
+
+#define MOUSE_MAX_ANGULAR_VELOCITY_RADPS ((2.0f * MOUSE_WHEEL_RADIUS_MM * (MOUSE_WHEEL_MAX_VEL_DPS * DEG2RAD)) / MOUSE_WHEEL_SEPARATION_MM)
 
 #define MOUSE_WHEEL_TORQUE_CONT_NM      0.03f
 #define MOUSE_WHEEL_TORQUE_PEAK_NM      0.10f

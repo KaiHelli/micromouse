@@ -36,6 +36,8 @@ volatile int32_t currentVelocityCounts[2]  = {0, 0};
 volatile int32_t lastEncoderPosition[2] = {0, 0};
 volatile uint64_t lastVelocityUpdateTime = 0;
 
+volatile bool encVelInit = false;
+
 // PI gains
 #define ENC_PID_KP  101.0f
 #define ENC_PID_KI  3948.0f
@@ -195,6 +197,11 @@ int16_t updateEncoderVelocities(void)
     float dtSec = deltaTime * 1e-6f;
     lastVelocityUpdateTime = currentTimeUs;
     
+    if(!encVelInit) {
+        encVelInit = true;
+        return 1;
+    }
+    
     // --- Left encoder PI tracking loop ---
     {
         // measured position in radians
@@ -236,6 +243,31 @@ int16_t updateEncoderVelocities(void)
         currentVelocityMmPerSec[ENCODER_RIGHT]  = encoderVelEstRad[ENCODER_RIGHT] * MOUSE_WHEEL_RADIUS_MM;
         lastEncoderPosition[ENCODER_RIGHT]      = rightPos;
     }
+    
+    return 1;
+}
+
+int16_t updateEncoderVelocitiesNaive(float hz)
+{
+    static int32_t lastLeftPos;
+    static int32_t lastRightPos;
+    
+    int32_t leftPos = readEncoderCount(ENCODER_LEFT);
+    int32_t rightPos = readEncoderCount(ENCODER_RIGHT);
+    
+    int32_t dLeftPos = leftPos - lastLeftPos;
+    int32_t dRightPos = rightPos - lastRightPos;
+    
+    lastLeftPos = leftPos;
+    lastRightPos = rightPos;
+    
+    if(!encVelInit) {
+        encVelInit = true;
+        return 1;
+    }
+    
+    currentVelocityMmPerSec[ENCODER_LEFT]  = (float) dLeftPos  * ENC_DIST_PER_TICK_MM * hz;
+    currentVelocityMmPerSec[ENCODER_RIGHT] = (float) dRightPos * ENC_DIST_PER_TICK_MM * hz;
     
     return 1;
 }

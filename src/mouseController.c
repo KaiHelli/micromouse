@@ -25,10 +25,6 @@
 // #define FRONT_WALL_DETECTION (CELL_DIMENSION_MM * 1.5)
 #define FRONT_WALL_DETECTION (CELL_DIMENSION_UM * 0.90)
 
-// NEW STUFF
-
-#define TICK_IN_MS 5.333f
-
 /*
 #define MCTRL_LIN_PID_KP                8.0f
 #define MCTRL_LIN_PID_KD                16.0f
@@ -38,12 +34,22 @@
 #define MCTRL_ANG_SENS_PID_KI           4.0f
 */
 
-#define MCTRL_LIN_PID_KP                (8.0f * TICK_IN_MS)  // 3.25f
-#define MCTRL_LIN_PID_KD                (20.0f * TICK_IN_MS) // 16.0f // 24.0f
-#define MCTRL_ANG_PID_KP                (0.13f * TICK_IN_MS) // TODO
-#define MCTRL_ANG_PID_KD                (0.5f * TICK_IN_MS)
-#define MCTRL_ANG_SENS_PID_KP           (2.0f * TICK_IN_MS)
-#define MCTRL_ANG_SENS_PID_KI           (4.0f * TICK_IN_MS)
+#define MCTRL_LIN_PID_KP                (8.0f)  // 3.25f
+#define MCTRL_LIN_PID_KD                (20.0f) // 16.0f // 24.0f
+#define MCTRL_ANG_PID_KP                (0.3f)
+#define MCTRL_ANG_PID_KD                (1.3f)
+#define MCTRL_ANG_SENS_PID_KP           (2.0f)
+#define MCTRL_ANG_SENS_PID_KI           (4.0f)
+
+typedef struct {
+    float Kp;
+    float Ki;
+    float Kd;
+} PIDGains_t;
+
+static volatile PIDGains_t pidLin;
+static volatile PIDGains_t pidAng;
+static volatile PIDGains_t pidAngSens;
 
 static volatile float maxForce = MOUSE_WHEEL_MAX_FORCE_CONT_N;
 static volatile float maxLinearSpeed = MOUSE_WHEEL_MAX_VEL_MMPS / MILLIMETERS_PER_METER;
@@ -218,10 +224,11 @@ int16_t mouseControlStep() {
 		sideSensorsIntegral += sideSensorsFeedback;
 	}
 
-    
+    updateEncoderVelocitiesNaive(pidFrequency);
     float measuredLinVel = getEncoderLinearVelocityMmPerSec() / MILLIMETERS_PER_METER;
     linearError += idealLinearSpeed - measuredLinVel;
 
+    /*
     bool status = imuReadFifoSync();
     float measuredAngVelScaled = 0.0f;
     if (status) {
@@ -231,14 +238,27 @@ int16_t mouseControlStep() {
         
         angularError += idealAngularSpeed - measuredAngVelScaled;
     }
+    */
+    
+    int16_t measuredAngVelRaw[3];
+    float measuredAngVelScaled;
+    
+    bool status = imuReadGyroSync(measuredAngVelRaw, NULL, true);
+    if (status) {
+        imuScaleGyroMeasurement(&measuredAngVelRaw[YAW], &measuredAngVelScaled);
+        measuredAngVelScaled *= DEG2RAD;
+        
+        angularError += idealAngularSpeed - measuredAngVelScaled;
+    }
 
-	float linearPower = MCTRL_LIN_PID_KP * linearError + MCTRL_LIN_PID_KD * (linearError - lastLinearError);
-	float angularPower =
-	    MCTRL_ANG_PID_KP * angularError +
-	    MCTRL_ANG_PID_KD * (angularError - lastAngularError) +
-	    MCTRL_ANG_SENS_PID_KP * sideSensorsFeedback +
-	    MCTRL_ANG_SENS_PID_KI * sideSensorsIntegral;
+    float linearPower  = pidLin.Kp * linearError
+                       + pidLin.Kd * (linearError - lastLinearError);
 
+    float angularPower = pidAng.Kp      * angularError
+                       + pidAng.Kd      * (angularError - lastAngularError)
+                       + pidAngSens.Kp  * sideSensorsFeedback
+                       + pidAngSens.Ki  * sideSensorsIntegral;
+    
 	float left_f  = linearPower + angularPower;
     if (left_f >  100.0f) left_f =  100.0f;
     if (left_f < -100.0f) left_f = -100.0f;
@@ -363,6 +383,24 @@ void disableMouseControl(void)
 
 void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz) {
     pidFrequency = timer_hz;
+    
+    const float dt_ms = 1000.0f / timer_hz;   // real control period in?ms
+
+    // PID Gains where tuned w.r.t. 1ms ticks, therefore we scale them:
+    // Linear?speed positional PD
+    pidLin.Kp = MCTRL_LIN_PID_KP * dt_ms;
+    pidLin.Ki = 0.0f;
+    pidLin.Kd = MCTRL_LIN_PID_KD * dt_ms;
+
+    // Angular?rate positional PD
+    pidAng.Kp = MCTRL_ANG_PID_KP * dt_ms;
+    pidAng.Ki = 0.0f;
+    pidAng.Kd = MCTRL_ANG_PID_KD * dt_ms;
+
+    // Side?sensor "wall following" loop
+    pidAngSens.Kp = MCTRL_ANG_SENS_PID_KP * dt_ms;
+    pidAngSens.Ki = MCTRL_ANG_SENS_PID_KI * dt_ms;
+    pidAngSens.Kd = 0.0f;
     
     targetLinearSpeed = 0.0f;
     

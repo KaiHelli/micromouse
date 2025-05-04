@@ -361,12 +361,19 @@ int16_t initMouse(void) {
             
     //moveForwardCells(1, 0.05, 0.0);
     
-    // TODO: It seems we overshoot in distance with 30.25 diameter
-    // TODO: Two turns in a row don't work
-    // 90° don't seem right
     
-    inplaceTurn( M_PI / 2.0f, 0.2f);
-    //inplaceTurn( -M_PI / 2.0f, 0.2f);
+    float startMicrometers = 0.0f;
+    float distance = 0.05 * MICROMETERS_PER_METER;
+
+    for (uint8_t i = 0; i < 4 * 5; i++) {
+        targetStraight(startMicrometers, distance, 0.0);
+        inplaceTurn( M_PI / 2., 1.0f);
+        
+        startMicrometers += distance;
+    }
+    
+
+    
     
     
     //sideSensorsCloseControl(true);
@@ -413,7 +420,7 @@ void bootSetup() {
     oledSetup();    // Setup oled display
     
     FifoConfig_t fifoCfg = {
-        .gyro   = true,
+        .gyro   = false,
         .accel  = false,
         .mag    = false,
         .temp   = false

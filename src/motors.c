@@ -118,9 +118,11 @@ void setMotorPower(Motor_t motor, int8_t powerInPercent)
     {
         case MOTOR_LEFT:
             SET_MOTOR_LEFT(powerInPercent);
+            powerPctLeft = powerInPercent;
             break;
         case MOTOR_RIGHT:
             SET_MOTOR_RIGHT(powerInPercent);
+            powerPctRight = powerInPercent;
             break;
     }
 }

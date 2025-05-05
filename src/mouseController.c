@@ -34,12 +34,51 @@
 #define MCTRL_ANG_SENS_PID_KI           4.0f
 */
 
-#define MCTRL_LIN_PID_KP                (42.0f)  // 3.25f
-#define MCTRL_LIN_PID_KD                (20.0f) // 16.0f // 24.0f
-#define MCTRL_ANG_PID_KP                (1.6f)
-#define MCTRL_ANG_PID_KD                (1.3f)
-#define MCTRL_ANG_SENS_PID_KP           (2.0f)
+#define MCTRL_LIN_FF_TM                 (0.07839f)          // forward time constant
+#define MCTRL_LIN_FF_KM                 (1.0f / 171.752f)   // (m/s) / pwm %
+#define MCTRL_LIN_FF_KS                 (2.988f)
+
+#define MCTRL_ANG_FF_TM                 (0.03573f)         // forward time constant
+#define MCTRL_ANG_FF_KM                 (1.0f / 8.351f)    // (rad/s) / pwm %
+#define MCTRL_ANG_FF_KS                 (4.079f)
+
+#define MCTRL_LIN_FF_ZETA               (0.707f)
+#define MCTRL_LIN_FF_TD                 (MCTRL_LIN_FF_TM)
+
+#define MCTRL_ANG_FF_ZETA               (0.707f)
+#define MCTRL_ANG_FF_TD                 (MCTRL_ANG_FF_TM)
+
+//#define MCTRL_LIN_PID_KP                (16.0f * MCTRL_LIN_FF_TM / (MCTRL_LIN_FF_KM * MCTRL_LIN_FF_ZETA * MCTRL_LIN_FF_ZETA * MCTRL_LIN_FF_TD * MCTRL_LIN_FF_TD))
+//#define MCTRL_LIN_PID_KD                ((8.0f * MCTRL_LIN_FF_TM - MCTRL_LIN_FF_TD) / (MCTRL_LIN_FF_KM * MCTRL_LIN_FF_TD))
+//#define MCTRL_ANG_PID_KP                (16.0f * MCTRL_ANG_FF_TM / (MCTRL_ANG_FF_KM * MCTRL_ANG_FF_ZETA * MCTRL_ANG_FF_ZETA * MCTRL_ANG_FF_TD * MCTRL_ANG_FF_TD))
+//#define MCTRL_ANG_PID_KD                ((8.0f * MCTRL_ANG_FF_TM - MCTRL_ANG_FF_TD) / (MCTRL_ANG_FF_KM * MCTRL_ANG_FF_TD))
+#define MCTRL_LIN_PID_KP                (0.0f)
+#define MCTRL_LIN_PID_KD                (0.0f)  //0.040756f
+#define MCTRL_ANG_PID_KP                (0.0f)  //0.5f
+#define MCTRL_ANG_PID_KD                (0.0f)  //0.05f
+#define MCTRL_ANG_SENS_PID_KP           (10.0f)
 #define MCTRL_ANG_SENS_PID_KI           (4.0f)
+
+typedef struct {
+    float Ks;       // static bias               (PWM%)
+    float Kv;       // speed gain                (PWM% * s / m   or   PWM% · s / rad)
+    float Ka;       // acceleration gain         (PWM% * s^2 / m  or   PWM% · s^2 / rad)
+    float prev_v;   // previous target speed     (m/s or rad/s)
+} FFProfile_t;
+
+static FFProfile_t ffLin = {
+    .Ks = MCTRL_LIN_FF_KS,
+    .Kv = 1.0f / MCTRL_LIN_FF_KM,
+    .Ka = MCTRL_LIN_FF_TM / MCTRL_LIN_FF_KM,
+    .prev_v = 0.0f
+};
+
+static FFProfile_t ffAng = {
+    .Ks = MCTRL_ANG_FF_KS,
+    .Kv = 1.0f / MCTRL_ANG_FF_KM,
+    .Ka = MCTRL_ANG_FF_TM / MCTRL_ANG_FF_KM,
+    .prev_v = 0.0f
+};
 
 typedef struct {
     float Kp;
@@ -203,15 +242,24 @@ float getSideSensorsFarError(void)
 	return 0.0f;
 }
 
-// TODO: Call update encoder velocities.
-// TODO: Call get gyro turn rate 
+static inline float ffTerm(FFProfile_t *p, float v_target)
+{
+    const float a_est   = (v_target - p->prev_v) * pidFrequency;   // dv/dt
+    p->prev_v           = v_target;
+
+    float ff = p->Kv * v_target + p->Ka * a_est;
+    
+    if (v_target >  1e-6f) ff += p->Ks;
+    if (v_target < -1e-6f) ff -= p->Ks;
+    return ff;
+}
 
 int16_t mouseControlStep() {
 	float sideSensorsFeedback = 0.;
 
 	if (!mouseControlEnabled)
 		return 1;
-
+    
 	updateIdealLinearSpeed();
 
 	if (sideSensorsCloseControlEnabled) {
@@ -223,8 +271,8 @@ int16_t mouseControlStep() {
 		sideSensorsFeedback += getSideSensorsFarError();
 		sideSensorsIntegral += sideSensorsFeedback;
 	}
-
-    updateEncoderVelocitiesNaive(pidFrequency);
+    
+    updateEncoderVelocities();
     float measuredLinVel = getEncoderLinearVelocityMmPerSec() / MILLIMETERS_PER_METER;
     linearError += idealLinearSpeed - measuredLinVel;
 
@@ -259,12 +307,20 @@ int16_t mouseControlStep() {
                        + pidAngSens.Kp  * sideSensorsFeedback
                        + pidAngSens.Ki  * sideSensorsIntegral;
     
-	float left_f  = linearPower + angularPower;
+    const float halfWheelBase = MOUSE_WHEEL_SEPARATION_MM / (MILLIMETERS_PER_METER * 2.0f);
+    
+    const float ffLinear = ffTerm(&ffLin, idealLinearSpeed);
+    const float ffAngular = ffTerm(&ffAng, idealAngularSpeed);
+    
+    const float ffLeft  = ffLinear + ffAngular;
+    const float ffRight = ffLinear - ffAngular;
+
+	float left_f  = ffLeft + linearPower + angularPower;
     if (left_f >  100.0f) left_f =  100.0f;
     if (left_f < -100.0f) left_f = -100.0f;
     int8_t powerLeft  = (int8_t) left_f;
 
-    float right_f = linearPower - angularPower;
+    float right_f = ffRight + linearPower - angularPower;
     if (right_f >  100.0f) right_f =  100.0f;
     if (right_f < -100.0f) right_f = -100.0f;
     int8_t powerRight = (int8_t) right_f;
@@ -302,6 +358,12 @@ int16_t mouseControlStep() {
         memcpy(&buffer[idx], &sideSensorsIntegral, sizeof(sideSensorsIntegral));
         idx += sizeof(sideSensorsIntegral);
         
+        memcpy(&buffer[idx], &ffLeft, sizeof(ffLeft));
+        idx += sizeof(ffLeft);
+        
+        memcpy(&buffer[idx], &ffRight, sizeof(ffRight));
+        idx += sizeof(ffRight);
+        
         memcpy(&buffer[idx], &linearPower, sizeof(linearPower));
         idx += sizeof(linearPower);
         
@@ -316,7 +378,7 @@ int16_t mouseControlStep() {
 
         buffer[idx++] = FRAME_END_BYTE;
         
-        //putsUART1(buffer, idx);
+        putsUART1(buffer, idx);
     }
     
     setMotorPower(MOTOR_LEFT, powerLeft);
@@ -382,23 +444,23 @@ void disableMouseControl(void)
 
 
 void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz) {
-    pidFrequency = timer_hz;
+    pidFrequency = timer_hz / numTicks;
     
-    const float dt_ms = 1000.0f / timer_hz;   // real control period in?ms
+    const float dt_ms = 1000.0f / pidFrequency;   // real control period in ms
 
     // PID Gains where tuned w.r.t. 1ms ticks, therefore we scale them:
     // Linear-speed positional PD
     pidLin.Kp = MCTRL_LIN_PID_KP;
     pidLin.Ki = 0.0f;
-    pidLin.Kd = MCTRL_LIN_PID_KD * dt_ms;
+    pidLin.Kd = MCTRL_LIN_PID_KD * pidFrequency;
 
     // Angular-rate positional PD
     pidAng.Kp = MCTRL_ANG_PID_KP;
     pidAng.Ki = 0.0f;
-    pidAng.Kd = MCTRL_ANG_PID_KD * dt_ms;
+    pidAng.Kd = MCTRL_ANG_PID_KD * pidFrequency;
 
     // Side-sensor "wall following" loop
-    pidAngSens.Kp = MCTRL_ANG_SENS_PID_KP * dt_ms;
+    pidAngSens.Kp = MCTRL_ANG_SENS_PID_KP;
     pidAngSens.Ki = MCTRL_ANG_SENS_PID_KI * dt_ms;
     pidAngSens.Kd = 0.0f;
     

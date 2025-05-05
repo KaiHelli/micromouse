@@ -112,59 +112,51 @@ int16_t printEncoderValues(void) {
     return 1;
 }
 
-int16_t estimateEncoderAcceleration(void) {
-    static float lastPosDegLeft = 0.0f;
-    float posDegLeft = getEncoderPositionDeg(ENCODER_LEFT);
+int16_t printMouseRotationalVelocity(void) {
+    imuReadFifoSync();
     
-    float velEstimateDps = (posDegLeft - lastPosDegLeft) / 1e-3f;
-    lastPosDegLeft = posDegLeft;
+    float scaledGyro;
+    imuScaleGyroMeasurementFloat(&rawFifoGyroMeasurements[YAW], &scaledGyro);
     
-    uint8_t buffer[10];
+    uint8_t buffer[25];
     size_t idx = 0;
     
     buffer[idx++] = FRAME_START_BYTE;
     
-    memcpy(&buffer[idx], &velEstimateDps, sizeof(velEstimateDps));
-    idx += sizeof(velEstimateDps);
+    memcpy(&buffer[idx], &scaledGyro, sizeof(scaledGyro));
+    idx += sizeof(scaledGyro);
+    memcpy(&buffer[idx], &powerPctLeft, sizeof(powerPctLeft));
+    idx += sizeof(powerPctLeft);
+    memcpy(&buffer[idx], &powerPctRight, sizeof(powerPctRight));
+    idx += sizeof(powerPctRight);
     
     buffer[idx++] = FRAME_END_BYTE;
     
     putsUART1(buffer, idx);
-    
+
     return 1;
 }
 
-int16_t printEncoderVelocities(void) {
-    /*
-    char buffer[100];
-    snprintf(buffer, sizeof(buffer),
-         "Left: %ld, Right: %ld, Left: %.2f deg, Right: %.2f deg, Vel Left: %.2f dps, Vel Right: %.2f dps, Vel C Left: %ld, Vel C Right: %ld, Lin Vel: %.2f mmps\r\n", 
-            getEncoderPositionCounts(ENCODER_LEFT), 
-            getEncoderPositionCounts(ENCODER_RIGHT), 
-            getEncoderPositionDeg(ENCODER_LEFT), 
-            getEncoderPositionDeg(ENCODER_RIGHT), 
-            getEncoderVelocityDegPerSec(ENCODER_LEFT), 
-            getEncoderVelocityDegPerSec(ENCODER_RIGHT),
-            getEncoderVelocityCountsPerSample(ENCODER_LEFT),
-            getEncoderVelocityCountsPerSample(ENCODER_RIGHT),
-            getEncoderYawRateRadPerSec(),
-            getEncoderLinearVelocityMmPerSec()
-            );
-    putsUART1Str(buffer);
-    */
-    float velLeft = getEncoderVelocityDegPerSec(ENCODER_LEFT);
-    float velRight = getEncoderVelocityDegPerSec(ENCODER_RIGHT);
+int16_t printMouseVelocities(void) {
+    float velLeft = getEncoderVelocityMmPerSec(ENCODER_LEFT);
+    float velRight = getEncoderVelocityMmPerSec(ENCODER_RIGHT);
+    float velMouse = getEncoderLinearVelocityMmPerSec();
     
-    uint8_t buffer[15];
+    uint8_t buffer[25];
     size_t idx = 0;
     
     buffer[idx++] = FRAME_START_BYTE;
     
     memcpy(&buffer[idx], &velLeft, sizeof(velLeft));
     idx += sizeof(velLeft);
-    
     memcpy(&buffer[idx], &velRight, sizeof(velRight));
     idx += sizeof(velRight);
+    memcpy(&buffer[idx], &velMouse, sizeof(velMouse));
+    idx += sizeof(velMouse);
+    memcpy(&buffer[idx], &powerPctLeft, sizeof(powerPctLeft));
+    idx += sizeof(powerPctLeft);
+    memcpy(&buffer[idx], &powerPctRight, sizeof(powerPctRight));
+    idx += sizeof(powerPctRight);
     
     buffer[idx++] = FRAME_END_BYTE;
     
@@ -172,6 +164,7 @@ int16_t printEncoderVelocities(void) {
 
     return 1;
 }
+
 
 // visualize_imu_raw.dvws / imu_scaled.dvws
 int16_t printIMU(bool fifo, bool scaled) {
@@ -212,7 +205,7 @@ int16_t printIMU(bool fifo, bool scaled) {
     // Start marker
     buffer[idx++] = FRAME_START_BYTE;
 
-    // Select element size and byte?pointer to the right data
+    // Select element size and byte-pointer to the right data
     const size_t elemSize = (scaled || fifo) ? sizeof(float) : sizeof(int16_t);
     const uint8_t *gyroBytes  = (const uint8_t *)(scaled ? (void*)scaledGyro  : (fifo ? (void*)rawFifoGyroMeasurements : (void*)rawGyroMeasurements));
     const uint8_t *accelBytes = (const uint8_t *)(scaled ? (void*)scaledAccel : (fifo ? (void*)rawFifoAccelMeasurements : (void*)rawAccelMeasurements));
@@ -300,7 +293,6 @@ int16_t printOdometry(void) {
     return 1;
 }
 
-
 int16_t startMaze(void) {
     setMotorsStandbyState(false);
     
@@ -336,32 +328,42 @@ int16_t initMouse(void) {
     setMotorsStandbyState(false);
     
     resetControlAll();
-    calibrateStartPosition();
+    //calibrateStartPosition();
     setStartingPosition();
+    disableWallsControl();
     
-    setMaxForce(0.2f);
+    setMaxForce(0.3f);
     setMaxLinearSpeed(0.1f);
 
     initMouseController(TIMER_1, 1, getTimerFrequency(TIMER_1));
     
     enableMouseControl();
     
-    //targetStraight(0, 0.3 * MICROMETERS_PER_METER, 0.0);
-    //moveForwardCells(1, 0.05, 0.0);
+    targetStraight(0, 0.18 * MICROMETERS_PER_METER, 0.0);
+    //moveForwardCenterCells(1, getMaxLinearSpeed(), 0.0f);
+    __delay_ms(250);
+    inplaceTurn( M_PI / 2., 0.3f);
+    __delay_ms(250);
+    inplaceTurn( -M_PI / 2., 0.3f);
+    __delay_ms(250);
+    targetStraight(0, -0.18 * MICROMETERS_PER_METER, 0.0);
     
-    //float startMicrometers = 0.0f;
-    //float distance = 0.1 * MICROMETERS_PER_METER;
+    /*
+    
+    float startMicrometers = 0.0f;
+    float distance = 0.1 * MICROMETERS_PER_METER;
     
     //targetStraight(startMicrometers, distance, 0.0);
     
-    /*
+    
     for (uint8_t i = 0; i < 4 * 5; i++) {
         targetStraight(startMicrometers, distance, 0.0);
         inplaceTurn( M_PI / 2., 1.0f);
         
         startMicrometers += distance;
     }
-    */
+     * */
+    
     
     //sideSensorsCloseControl(true);
     //setIdealAngularSpeed(2.0);
@@ -370,12 +372,30 @@ int16_t initMouse(void) {
     //setIdealAngularSpeed(0.0);
     //setTargetLinearSpeed(0.0);
     
+    //registerTimerCallback(TIMER_2, updateEncoderVelocities, 1);
+    
     // Data Visualizer Callbacks
-    //registerTimerCallback(TIMER_3, printEncoderVelocities, 1);
+    //registerTimerCallback(TIMER_2, printMouseRotationalVelocity, 1);
     //registerTimerCallback(TIMER_3, printOdometry, 1);
     //registerTimerCallback(TIMER_3, printIMU_trampoline, 1);
     //registerTimerCallback(TIMER_3, printSensorReadings, 1);
     //registerTimerCallback(TIMER_3, printEncoderValues, 1);
+    
+    int8_t dutyCycles[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
+    
+    for (uint8_t i = 0; i < sizeof(dutyCycles); i++) {
+        int8_t dir = i % 2 == 0 ? -1 : 1;
+        
+        setMotorPower(MOTOR_LEFT, dir * dutyCycles[i]);
+        setMotorPower(MOTOR_RIGHT, dir * -dutyCycles[i]);
+        
+        __delay_ms(1000);
+        
+        setMotorPower(MOTOR_LEFT, 0);
+        setMotorPower(MOTOR_RIGHT, 0);
+        
+        __delay_ms(1000);
+    }
     
     //keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
     
@@ -422,7 +442,7 @@ void bootSetup() {
     // For calibration -> remember to set current calibration to identity matrix and 0 bias beforehand)
     
     initTimerInUs(TIMER_1, 5333); // high frequency timer
-    //initTimerInMs(TIMER_2, 5); 
+    //initTimerInMs(TIMER_2, 2); 
     initTimerInMs(TIMER_3, 25); // 100ms timer interrupt for testing
 
     initSwitch1();     // Initialize switch 1 for interrupts
@@ -432,8 +452,10 @@ void bootSetup() {
    
     __delay_ms(1000);
         
-    registerSwitchCallback(SWITCH_1, initMouse);
+    //registerSwitchCallback(SWITCH_1, initMouse);
 
+    initMouse();
+    
     LED1 = LEDOFF;
     LED2 = LEDOFF;
     LED3 = LEDOFF;

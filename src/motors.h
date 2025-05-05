@@ -13,6 +13,9 @@ static const uint16_t PWM_MOTOR_MAX_DC = (60U * 100U) / 84U;  // voltage ranges 
 #define H 1
 #define L 0
 
+extern volatile uint8_t powerPctLeft;
+extern volatile uint8_t powerPctRight;
+
 typedef enum {
     MOTORS_BRAKE,
     MOTORS_BACKWARD,

@@ -60,13 +60,6 @@ int16_t updateEncoderVelocities(void);
 int16_t updateEncoderVelocitiesNaive(float hz);
 
 /**
- * @brief Returns the current rotational velocity in counts per sample.
- * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
- * @return Rotational velocity in counts since the last sample.
- */
-int32_t getEncoderVelocityCountsPerSample(MotorEncoder_t encoder);
-
-/**
  * @brief Returns the current rotational velocity in radians per second.
  * @param encoder ENCODER_LEFT or ENCODER_RIGHT.
  * @return Rotational velocity in rad/s.

@@ -88,13 +88,8 @@ class Magnetometer(object):
         print("Hard iron bias:\n", self.b)
 
         plt.rcParams["figure.autolayout"] = True
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(data[:,0], data[:,1], data[:,2], marker='o', color='r')
-        plt.show()
 
-        result = [] 
+        calibrated_data = [] 
         for row in data: 
         
             # subtract the hard iron offset
@@ -107,18 +102,28 @@ class Magnetometer(object):
             ym_cal = xm_off *  self.A_1[1,0] + ym_off *  self.A_1[1,1]  + zm_off *  self.A_1[1,2] 
             zm_cal = xm_off *  self.A_1[2,0] + ym_off *  self.A_1[2,1]  + zm_off *  self.A_1[2,2] 
 
-            result = np.append(result, np.array([xm_cal, ym_cal, zm_cal]) )#, axis=0 )
+            calibrated_data = np.append(calibrated_data, np.array([xm_cal, ym_cal, zm_cal]) )#, axis=0 )
 
-        result = result.reshape(-1, 3)
-        fig = plt.figure()
+        calibrated_data = calibrated_data.reshape(-1, 3)
+        
+        fig = plt.figure(figsize=(14, 10))
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(result[:,0], result[:,1], result[:,2], marker='o', color='g')
+        
+        ax.scatter(data[:, 0], data[:, 1], data[:, 2], marker='o', color='#FF6F61', alpha=0.7, label='Raw Data (Before)')
+        ax.scatter(calibrated_data[:, 0], calibrated_data[:, 1], calibrated_data[:, 2], marker='^', color='#2E8B57', alpha=0.8, label='Calibrated Data (After)')
+        
+        ax.set_title("Accelerometer Calibration - Before and After", fontsize=20, color='#333333', fontweight='bold')
+        ax.set_xlabel("X", fontsize=16, color='#555555')
+        ax.set_ylabel("Y", fontsize=16, color='#555555')
+        ax.set_zlabel("Z", fontsize=16, color='#555555')
+        ax.legend(loc='upper right', fontsize=14, frameon=True, fancybox=True, framealpha=0.8, borderpad=1)
+        plt.savefig('calibration_comparison_2d.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        print("First 5 rows calibrated:\n", result[:5])
+        print("First 5 rows calibrated:\n", calibrated_data[:5])
 		
         #save corrected data to file "out.txt"
-        np.savetxt('out.txt', result, fmt='%f', delimiter=' ,')
+        np.savetxt('out.txt', calibrated_data, fmt='%f', delimiter=' ,')
 
         print("*************************" )        
         print("code to paste (edits required) : " )

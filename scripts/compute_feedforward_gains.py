@@ -1,25 +1,20 @@
 #!/usr/bin/env python3
 """
-identify_drive_ff_vmax.py – estimate kS, kM, kA for micromouse motors
+identify_drive_ff_vmax.py – estimate kS, kM, kA for micromouse motors
 =====================================================================
 
-This **unified** version works with **both linear‑velocity logs** (millimetres per
-second) *and* **angular‑velocity logs** (degrees per second).  It auto‑detects the
-file type by the presence of the velocity column and applies the same
-identification pipeline:
-
-1.  **Segment the trace** by power‑step changes.
-2.  **Fit a single mechanical time‑constant Tₘ** shared by all segments using the
-    exponential‑response model  *v(t) ≈ vₘₐₓ·(1 – e^(−t/Tₘ)).*
-3.  **Extract one (vₘₐₓ, u_step) pair per segment.**
-4.  **Linear least‑squares** on those pairs →  *u_step = kS + kM·vₘₐₓ*.
+1.  **Segment the trace** by power-step changes.
+2.  **Fit a single mechanical time-constant Tₘ** shared by all segments using the
+    exponential-response model  *v(t) ≈ vₘₐₓ·(1 – e^(−t/Tₘ)).*
+3.  **Extract one (vₘₐₓ, u_step) pair per segment.**
+4.  **Linear least-squares** on those pairs →  *u_step = kS + kM·vₘₐₓ*.
 
 For purely rotational data the script additionally **flips the sign of the
 velocity for every second power step** because the test routine alternated the
 motor directions (see drive loop in the question).
 
 The output coefficients therefore have consistent sign conventions – positive
-*`v`* means *counter‑clockwise* (or *forward*) and negative means the opposite.
+*`v`* means *counter-clockwise* (or *forward*) and negative means the opposite.
 
 Usage
 -----
@@ -41,6 +36,8 @@ import pandas as pd
 from scipy.optimize import minimize_scalar
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.cm as cm
 
 DEG_TO_RAD = np.pi / 180.0
 
@@ -58,7 +55,7 @@ def _detect_file_type(df: pd.DataFrame) -> str:
 
 
 def load_data(path: Path) -> Tuple[pd.DataFrame, str]:
-    """Load a CSV and return (normalised‑DataFrame, kind)."""
+    """Load a CSV and return (normalised-DataFrame, kind)."""
     raw = pd.read_csv(path)
     kind = _detect_file_type(raw)
 
@@ -104,7 +101,7 @@ def split_segments(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def correct_direction_for_rotation(df: pd.DataFrame) -> pd.DataFrame:
-    """Flip the sign of *v* for even‑numbered segments (0‑based)."""
+    """Flip the sign of *v* for even-numbered segments (0-based)."""
     out = df.copy()                        # keep the original untouched
     flip_next = False                       # True ⇒ flip this eligible segment
 
@@ -115,7 +112,7 @@ def correct_direction_for_rotation(df: pd.DataFrame) -> pd.DataFrame:
         if seg["u"].iloc[0] == 0:
             continue
 
-        # Use the segment's **row index**, not the u‑values, to select the rows
+        # Use the segment's **row index**, not the u-values, to select the rows
         if flip_next:
             out.loc[seg.index, "v"] *= -1.0
 
@@ -131,18 +128,28 @@ def correct_direction_for_rotation(df: pd.DataFrame) -> pd.DataFrame:
 def _g_of_t(t: np.ndarray, Tm: float) -> np.ndarray:
     return 1.0 - np.exp(-t / Tm)
 
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+    """
+    Source: https://stackoverflow.com/questions/18926031/how-to-extract-a-subset-of-a-colormap-as-a-new-colormap-in-matplotlib
+    """
+    new_cmap = colors.LinearSegmentedColormap.from_list(
+        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+        cmap(np.linspace(minval, maxval, n)))
+    return new_cmap
 
 def fit_global_Tm(
     df: pd.DataFrame,
+    kind,
     *,
     save_csv: str = "global_exp_fit_params.csv",
     plot_overlay: bool = False,
     Tm_bounds=(1e-4, 5.0),
 ):
-    """Return (Tₘ_opt, summary_df) – same algorithm as original code."""
+    """Return (Tₘ_opt, summary_df) – same algorithm as original code."""
 
     segments: list[Tuple[np.ndarray, np.ndarray]] = []
     seg_ids: list[int] = []
+    seg_id_to_u: dict[int, int] = {}
     for sid, seg in df.groupby("seg"):
         if seg["u"].iloc[0] <= 0:
             continue  # ignore idle / braking
@@ -150,9 +157,10 @@ def fit_global_Tm(
         v = seg["v"].to_numpy()
         segments.append((t, v))
         seg_ids.append(sid)
+        seg_id_to_u[sid] = seg["u"].iloc[0]
 
     if not segments:
-        raise RuntimeError("No usable segments – check your CSV and u‑column")
+        raise RuntimeError("No usable segments – check your CSV and u-column")
 
     def total_sse(Tm: float) -> float:
         if Tm <= 0:
@@ -175,19 +183,39 @@ def fit_global_Tm(
         ss_tot = np.sum((v - v.mean()) ** 2)
         r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
         rows.append({"seg": sid, "v_max": v_m, "R2": r2, "T_m": Tm_opt})
-        if plot_overlay:
-            plt.plot(t, v, alpha=0.35)
-            plt.plot(t, v_m * g, "k", linewidth=1.2)
 
     summary = pd.DataFrame(rows)
     summary.to_csv(save_csv, index=False)
 
     if plot_overlay:
-        plt.title(f"Global‑Tₘ exponential fit  (Tₘ ≈ {Tm_opt:.3f} s)")
-        plt.xlabel("Elapsed time [s]")
-        plt.ylabel("Velocity [SI unit]")
-        plt.grid(True, linewidth=0.3)
+        cmap = cm.get_cmap("YlOrRd")
+        cmap = truncate_colormap(cmap, minval=0.2, maxval=1.0)
+
+        norm = plt.Normalize(vmin=0, vmax=100)
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array(np.linspace(0, 100, 256))
+        
+        fig, ax = plt.subplots(figsize=(5, 4))
+
+        for seg_id, (t, v) in zip(seg_ids, segments):
+            g = _g_of_t(t, Tm_opt)
+            v_m = np.dot(v, g) / np.dot(g, g)
+            color = cmap(norm(seg_id_to_u[seg_id]))   # map your real PWM % to [0,1]
+            ax.plot(t, v, alpha=0.6, color=color, label=f"$P_{{pwm}}={seg_id}\%$")
+            ax.plot(t, v_m * g, alpha=1.0, color="k", linewidth=1.2)
+
+        unit = "m/s" if kind == "linear" else "rad/s"
+        ax.set_title(f"Global-$T_m$ exponential fit\n$T_m$ ≈ {Tm_opt:.3f} [s]")
+        ax.set_xlabel("Elapsed time [s]")
+        ax.set_ylabel(f"Velocity [{unit}]")
+        ax.grid(True, linewidth=0.3)
+
+        # Color bar setup
+        cbar = fig.colorbar(sm, ax=ax, pad=0.02)
+        cbar.set_label("PWM duty cycle [%]")
+
         plt.tight_layout()
+        plt.savefig(f"Tm_fit_{kind}.png", dpi=300)
         plt.show()
 
     return Tm_opt, summary
@@ -200,6 +228,7 @@ def fit_global_Tm(
 def fit_km_ks_from_vmax(
     df: pd.DataFrame,
     fit_summary: pd.DataFrame,
+    kind: str,
     *,
     plot: bool = True,
 ):
@@ -215,23 +244,25 @@ def fit_km_ks_from_vmax(
         rows.append((v_max, u_step))
 
     if len(rows) < 2:
-        raise RuntimeError("Need ≥2 power‑step segments to fit kS/kM")
+        raise RuntimeError("Need ≥2 power-step segments to fit kS/kM")
 
     arr = np.asarray(rows)
     v_vals, u_vals = arr[:, 0], arr[:, 1]
     slope, intercept, *_ = linregress(v_vals, u_vals)
 
     if plot:
+        unit = "m/s" if kind == "linear" else "rad/s"
         plt.figure(figsize=(5, 4))
         plt.scatter(v_vals, u_vals, zorder=3)
         x_line = np.linspace(0, v_vals.max() * 1.05, 100)
         plt.plot(x_line, intercept + slope * x_line)
-        plt.xlabel("v_max [SI unit]")
-        plt.ylabel("u_step [% duty]")
-        plt.title("Linear fit of power step vs steady‑state speed")
+        plt.xlabel(f"$v_{{max}}$ [{unit}]")
+        plt.ylabel("$P_{pwm}$ [%]")
+        plt.title(f"Linear fit of power step vs speed\n"
+                  rf"$K_m \approx {slope:.3f}$ $\left[\frac{{\%}}{{{unit}}}\right]$, $K_s \approx {intercept:.3f}$ $\left[\%\right]$")
         plt.grid(True, linewidth=0.3, zorder=0)
         plt.tight_layout()
-        plt.savefig("vmax_fit.png", dpi=200)
+        plt.savefig(f"vmax_fit_{kind}.png", dpi=300)
         plt.show()
 
     return intercept, slope
@@ -242,15 +273,15 @@ def fit_km_ks_from_vmax(
 # ────────────────────────────────────────────────────────────────────────────
 
 def plot_velocity_curves(df: pd.DataFrame, *, kind: str):
-    ylabel = "Velocity [m s⁻¹]" if kind == "linear" else "Angular vel [rad s⁻¹]"
-    title = "Velocity curves per power step" if kind == "linear" else "Angular‑velocity curves per power step"
+    ylabel = "Velocity [m s⁻¹]" if kind == "linear" else "Angular vel [rad s⁻¹]"
+    title = "Velocity curves per power step" if kind == "linear" else "Angular-velocity curves per power step"
     fig, ax = plt.subplots(figsize=(7, 4))
     for _, seg in df.groupby("seg"):
         if seg["u"].iloc[0] == 0:
             continue
         t0 = seg["t"].iloc[0]
         ax.plot(seg["t"] - t0, seg["v"], alpha=0.7, label=f"u = {seg['u'].iloc[0]:.1f}%")
-    ax.set(xlabel="Time [s]", ylabel=ylabel, title=title)
+    ax.set(xlabel="Time [s]", ylabel=ylabel, title=title)
     ax.grid(True, linewidth=0.3)
     ax.legend(title="Power step", loc="upper left", fontsize="small")
     fig.tight_layout()
@@ -276,20 +307,20 @@ def main() -> None:
     # Visualise raw curves
     plot_velocity_curves(df, kind=kind)
 
-    # 1) Shared‑Tm exponential fit
-    T_m, fit_summary = fit_global_Tm(df, plot_overlay=True)
+    # 1) Shared-Tm exponential fit
+    T_m, fit_summary = fit_global_Tm(df, plot_overlay=True, kind=kind)
 
     # 2) kS / kM
-    kS, kM = fit_km_ks_from_vmax(df, fit_summary, plot=True)
+    kS, kM = fit_km_ks_from_vmax(df, fit_summary, plot=True, kind=kind)
 
     fit_summary.to_csv("segment_vmax_summary.csv", index=False)
 
-    unit = "m s⁻¹" if kind == "linear" else "rad s⁻¹"
-    print("\nEstimated feed‑forward coefficients (v_max method)")
+    unit = "m s⁻¹" if kind == "linear" else "rad s⁻¹"
+    print("\nEstimated feed-forward coefficients (v_max method)")
     print(f"  Data type : {kind}")
-    print(f"  Tm = {T_m:.5f} [s]")
-    print(f"  kM = {kM:.3f} [% / ({unit})]")
-    print(f"  kS = {kS:.3f} [%]")
+    print(f"  Tm = {T_m:.5f} [s]")
+    print(f"  kM = {kM:.3f} [% / ({unit})]")
+    print(f"  kS = {kS:.3f} [%]")
 
     print("\nDebug files written:")
     print("  • segment_vmax_summary.csv")

@@ -1,10 +1,12 @@
+# Adapted from: https://github.com/jremington/ICM_20948-AHRS/blob/main/calibrate3.py
+
 import numpy as np
 from scipy import linalg
 from matplotlib import pyplot as plt
 
- #started with https://github.com/nliaudat/magnetometer_calibration/blob/main/calibrate.py
- #this corrected code by S. James Remington, see issue #1 in above contribution.
- #required data input file: x,y,z values in .csv (text, comma separated value) format.
+ # started with https://github.com/nliaudat/magnetometer_calibration/blob/main/calibrate.py
+ # this corrected code by S. James Remington, see issue #1 in above contribution.
+ # required data input file: x,y,z values in .csv (text, comma separated value) format.
  # see example mag3_raw.csv, .out
  
 class Magnetometer(object):

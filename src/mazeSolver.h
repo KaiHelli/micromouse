@@ -62,7 +62,7 @@ typedef struct Mouse_ {
     Target target;
     // commands
     int command_count;
-    Command commands[N * N];
+    Command commands[MAX_STEPS];
     unsigned char visited[N][N];
 } Mouse;
 

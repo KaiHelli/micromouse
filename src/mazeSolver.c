@@ -258,7 +258,7 @@ int mouse_plan_next(Mouse* mouse) {
     mouse->col = neighbors_points[min_index].col;
     oledUpdateMouse(mouse);
     
-    if ( mouse->command_count >= N * N ) {
+    if ( mouse->command_count >= MAX_STEPS) {
         return FAIL;
     }
     mouse->commands[mouse->command_count].cells = 1;

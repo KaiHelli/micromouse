@@ -1410,10 +1410,10 @@ static void imuProcessFifo(uint16_t bytes) {
     }
 
     // TODO: Set in initIMU
-    const float odr = 562.5f;
-    const float dtPerSample = 1.0f / odr;
+    // const float odr = 562.5f;
+    // const float dtPerSample = 1.0f / odr;
     
-    float dtTotal = numSamples * dtPerSample;
+    // float dtTotal = numSamples * dtPerSample;
     
     // Float averaging
     if (numSamples > 0) {

@@ -18,7 +18,7 @@ uint16_t getSensorDistanceVoltage(Sensor_t sensor);
  * Takes a sensor enumerator and returns an 16-bit integer representing the measured distance.
  */
 
-/* Sensor?only distance (no offset) */
+/* Sensor-only distance (no offset) */
 uint16_t getSensorDistance(Sensor_t s);
 
 uint16_t getSensorDistanceMm(Sensor_t s);

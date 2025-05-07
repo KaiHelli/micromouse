@@ -1,3 +1,13 @@
+/* Source code inspired by:
+ *
+ * Feedforward Gains: Peter Harrison - mazerunner-core / motorlab
+ * - https://github.com/ukmars/mazerunner-core/tree/main/mazerunner-core
+ * - https://github.com/ukmars/motorlab/blob/main/documents/dirty-pd-controller.pdf
+ * Control Loops and Kinematics: Bulebule
+ * - https://github.com/Bulebots/bulebule
+ * - https://github.com/Bulebots/mmlib
+ */ 
+
 #include "mouseController.h"
 #include "fastPID.h"
 #include "motorEncoders.h"
@@ -21,9 +31,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define SIDE_WALL_DETECTION ((uint32_t) (CELL_DIMENSION_UM * 0.90))
-// #define FRONT_WALL_DETECTION (CELL_DIMENSION_MM * 1.5)
-#define FRONT_WALL_DETECTION ((uint32_t) (CELL_DIMENSION_UM * 0.90))
+#define SIDE_WALL_DETECTION         ((uint32_t) (CELL_DIMENSION_UM * 0.90))
+#define FRONT_WALL_DETECTION        ((uint32_t) (CELL_DIMENSION_UM * 0.90))
+#define FAR_FRONT_WALL_DETECTION    ((uint32_t) (CELL_DIMENSION_UM * 1.50))
 
 /*
 #define MCTRL_LIN_PID_KP                8.0f
@@ -34,11 +44,14 @@
 #define MCTRL_ANG_SENS_PID_KI           4.0f
 */
 
-#define MCTRL_LIN_FF_TM                 (0.07839f)          // forward time constant
+#define FEEDFORWARD_CTRL
+#ifdef FEEDFORWARD_CTRL
+
+#define MCTRL_LIN_FF_TM                 (0.07839f)          // forward time constant (initially 0.07839)
 #define MCTRL_LIN_FF_KM                 (1.0f / 171.752f)   // (m/s) / pwm %
 #define MCTRL_LIN_FF_KS                 (2.988f)
 
-#define MCTRL_ANG_FF_TM                 (0.03573f)         // forward time constant
+#define MCTRL_ANG_FF_TM                 (0.03573f)         // forward time constant (initially 0.03573f)
 #define MCTRL_ANG_FF_KM                 (1.0f / 8.351f)    // (rad/s) / pwm %
 #define MCTRL_ANG_FF_KS                 (4.079f)
 
@@ -52,17 +65,18 @@
 //#define MCTRL_LIN_PID_KD                ((8.0f * MCTRL_LIN_FF_TM - MCTRL_LIN_FF_TD) / (MCTRL_LIN_FF_KM * MCTRL_LIN_FF_TD))
 //#define MCTRL_ANG_PID_KP                (16.0f * MCTRL_ANG_FF_TM / (MCTRL_ANG_FF_KM * MCTRL_ANG_FF_ZETA * MCTRL_ANG_FF_ZETA * MCTRL_ANG_FF_TD * MCTRL_ANG_FF_TD))
 //#define MCTRL_ANG_PID_KD                ((8.0f * MCTRL_ANG_FF_TM - MCTRL_ANG_FF_TD) / (MCTRL_ANG_FF_KM * MCTRL_ANG_FF_TD))
-#define MCTRL_LIN_PID_KP                (0.0f)
-#define MCTRL_LIN_PID_KD                (0.0f)  //0.040756f
-#define MCTRL_ANG_PID_KP                (0.0f)  //0.5f
-#define MCTRL_ANG_PID_KD                (0.0f)  //0.05f
+
+#define MCTRL_LIN_PID_KP                (2.376771f)
+#define MCTRL_LIN_PID_KD                (0.040756f)
+#define MCTRL_ANG_PID_KP                (0.5f)
+#define MCTRL_ANG_PID_KD                (0.015f)
 #define MCTRL_ANG_SENS_PID_KP           (10.0f)
-#define MCTRL_ANG_SENS_PID_KI           (4.0f)
+#define MCTRL_ANG_SENS_PID_KI           (0.0f)
 
 typedef struct {
     float Ks;       // static bias               (PWM%)
-    float Kv;       // speed gain                (PWM% * s / m   or   PWM% · s / rad)
-    float Ka;       // acceleration gain         (PWM% * s^2 / m  or   PWM% · s^2 / rad)
+    float Kv;       // speed gain                (PWM% * s / m   or   PWM% ï¿½ s / rad)
+    float Ka;       // acceleration gain         (PWM% * s^2 / m  or   PWM% ï¿½ s^2 / rad)
     float prev_v;   // previous target speed     (m/s or rad/s)
 } FFProfile_t;
 
@@ -79,6 +93,18 @@ static FFProfile_t ffAng = {
     .Ka = MCTRL_ANG_FF_TM / MCTRL_ANG_FF_KM,
     .prev_v = 0.0f
 };
+
+#else
+
+#define MCTRL_LIN_PID_KP                (42.0f)
+#define MCTRL_LIN_PID_KD                (0.10666f)
+#define MCTRL_ANG_PID_KP                (1.6f)
+#define MCTRL_ANG_PID_KD                (0.006933f)
+#define MCTRL_ANG_SENS_PID_KP           (2.0f)
+#define MCTRL_ANG_SENS_PID_KI           (4.0f)
+
+#endif
+
 
 typedef struct {
     float Kp;
@@ -111,7 +137,6 @@ static volatile bool sideSensorsFarControlEnabled = false;
 
 static volatile float sideSensorsIntegral;
 
-// TODO: Set percentage of max force.
 float getMaxForce(void)
 {
 	return atomic_read_f32(&maxForce);
@@ -197,16 +222,24 @@ void updateIdealLinearSpeed(void)
 	}
 }
 
+bool sensorIsWallFarFront() {
+    uint32_t distance = getRobotDistanceUm(SENSOR_CENTER);
+    
+    return distance > FAR_FRONT_WALL_DETECTION ? false : true;
+}
+
 bool sensorIsWallFront() {
     uint32_t distance = getRobotDistanceUm(SENSOR_CENTER);
     
     return distance > FRONT_WALL_DETECTION ? false : true;
 }
+
 bool sensorIsWallRight() {
     uint32_t distance = getRobotDistanceUm(SENSOR_RIGHT);
     
     return distance > SIDE_WALL_DETECTION ? false : true;
 }
+
 bool sensorIsWallLeft() {
     uint32_t distance = getRobotDistanceUm(SENSOR_LEFT);
     
@@ -218,6 +251,23 @@ float getSideSensorsCloseError(void)
 	int32_t leftError = (int32_t) getRobotDistanceUm(SENSOR_LEFT) - MIDDLE_MAZE_DISTANCE_UM;
 	int32_t rightError = (int32_t) getRobotDistanceUm(SENSOR_RIGHT) - MIDDLE_MAZE_DISTANCE_UM;
 
+    /*
+    uint8_t buffer[20];
+    size_t idx = 0;
+    
+    buffer[idx++] = FRAME_START_BYTE;
+
+    memcpy(&buffer[idx], &leftError, sizeof(leftError));
+    idx += sizeof(leftError);
+    
+    memcpy(&buffer[idx], &rightError, sizeof(rightError));
+    idx += sizeof(rightError);
+    
+    buffer[idx++] = FRAME_END_BYTE;;
+    
+    putsUART1(buffer, idx);
+    */
+        
 	if ((leftError > 0) && (rightError < 0))
 		return (float) rightError / MICROMETERS_PER_METER;
 	if ((rightError > 0) && (leftError < 0))
@@ -242,6 +292,8 @@ float getSideSensorsFarError(void)
 	return 0.0f;
 }
 
+#ifdef FEEDFORWARD_CTRL
+
 static inline float ffTerm(FFProfile_t *p, float v_target)
 {
     const float a_est   = (v_target - p->prev_v) * pidFrequency;   // dv/dt
@@ -253,6 +305,28 @@ static inline float ffTerm(FFProfile_t *p, float v_target)
     if (v_target < -1e-6f) ff -= p->Ks;
     return ff;
 }
+
+static inline float ffTermLinLookahead(FFProfile_t *p, float v_set, float v_final)
+{
+    const float a_now  = (v_set - p->prev_v) * pidFrequency;
+    const float a_next = (v_final - v_set)  * pidFrequency;
+
+    float a_est;
+    if (fabs(a_next) < fabs(a_now)) {
+        a_est  = a_next;
+    } else {
+        a_est = a_now;
+    }
+    
+    p->prev_v = v_set;
+
+    float ff = p->Kv * v_set + p->Ka * a_est;
+    if (v_set >  1e-6f) ff += p->Ks;
+    if (v_set < -1e-6f) ff -= p->Ks;
+    return ff;
+}
+
+#endif
 
 int16_t mouseControlStep() {
 	float sideSensorsFeedback = 0.;
@@ -307,13 +381,20 @@ int16_t mouseControlStep() {
                        + pidAngSens.Kp  * sideSensorsFeedback
                        + pidAngSens.Ki  * sideSensorsIntegral;
     
-    const float halfWheelBase = MOUSE_WHEEL_SEPARATION_MM / (MILLIMETERS_PER_METER * 2.0f);
-    
-    const float ffLinear = ffTerm(&ffLin, idealLinearSpeed);
+    #ifdef FEEDFORWARD_CTRL
+
+    const float ffLinear =  ffTermLinLookahead(&ffLin, idealLinearSpeed, targetLinearSpeed);
     const float ffAngular = ffTerm(&ffAng, idealAngularSpeed);
     
     const float ffLeft  = ffLinear + ffAngular;
     const float ffRight = ffLinear - ffAngular;
+    
+    #else
+    
+    const float ffLeft  = 0.0f;
+    const float ffRight = 0.0f;
+    
+    #endif
 
 	float left_f  = ffLeft + linearPower + angularPower;
     if (left_f >  100.0f) left_f =  100.0f;
@@ -325,6 +406,7 @@ int16_t mouseControlStep() {
     if (right_f < -100.0f) right_f = -100.0f;
     int8_t powerRight = (int8_t) right_f;
 
+    /*
     uint8_t buffer[255];
     size_t idx = 0;
     
@@ -380,6 +462,7 @@ int16_t mouseControlStep() {
         
         putsUART1(buffer, idx);
     }
+    */
     
     setMotorPower(MOTOR_LEFT, powerLeft);
     setMotorPower(MOTOR_RIGHT, powerRight);
@@ -442,13 +525,11 @@ void disableMouseControl(void)
 	mouseControlEnabled = false;
 }
 
-
-void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz) {
-    pidFrequency = timer_hz / numTicks;
+void initMouseController(Timer_t timer, uint16_t numTicks) {
+    pidFrequency = getTimerFrequency(timer) / numTicks;
     
     const float dt_ms = 1000.0f / pidFrequency;   // real control period in ms
 
-    // PID Gains where tuned w.r.t. 1ms ticks, therefore we scale them:
     // Linear-speed positional PD
     pidLin.Kp = MCTRL_LIN_PID_KP;
     pidLin.Ki = 0.0f;

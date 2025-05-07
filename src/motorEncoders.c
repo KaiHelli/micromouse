@@ -1,3 +1,10 @@
+/* Source code inspired by:
+ *
+ * Encoder Velocity PLL State Estimator: Odrive Robotics
+ * - https://discourse.odriverobotics.com/t/rotor-encoder-pll-and-velocity/224
+ * - https://github.com/odriverobotics/ODrive/blob/master/Firmware/MotorControl/encoder.cpp
+ */ 
+
 #include <xc.h>
 #include <math.h>
 #include <stdint.h>
@@ -221,7 +228,7 @@ int16_t updateEncoderVelocities(void)
         }
         
         currentVelocityRadPerSec[ENCODER_LEFT] = encoderVelEst[ENCODER_LEFT] * ENC_TICKS_TO_RAD;
-        currentVelocityMmPerSec[ENCODER_LEFT]  = currentVelocityRadPerSec[ENCODER_LEFT] * MOUSE_WHEEL_RADIUS_MM;
+        currentVelocityMmPerSec[ENCODER_LEFT]  = encoderVelEst[ENCODER_LEFT] * ENC_DIST_PER_TICK_MM;
     }
     // --- Right encoder PI tracking loop ---
     {
@@ -237,7 +244,7 @@ int16_t updateEncoderVelocities(void)
         }
         
         currentVelocityRadPerSec[ENCODER_RIGHT] = encoderVelEst[ENCODER_RIGHT] * ENC_TICKS_TO_RAD;
-        currentVelocityMmPerSec[ENCODER_RIGHT]  = currentVelocityRadPerSec[ENCODER_RIGHT] * MOUSE_WHEEL_RADIUS_MM;
+        currentVelocityMmPerSec[ENCODER_RIGHT]  = encoderVelEst[ENCODER_RIGHT] * ENC_DIST_PER_TICK_MM;
     }
     
     return 1;

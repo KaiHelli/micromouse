@@ -4,6 +4,7 @@
 #include "sensors.h"
 #include "oled.h"
 #include "uart.h"
+#include "rtttl.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -406,6 +407,8 @@ int plan_run(Mouse* mouse) {
 }
 
 void maze_runner(Mouse* mouse) {
+    switchSong(SONG_MUPPETS);
+    
     for(int i=0; i<mouse->command_count; i++) {
         Command* cmd = &mouse->commands[i];   
         
@@ -429,11 +432,12 @@ void maze_runner(Mouse* mouse) {
 
 
 void go_back(Mouse* mouse) {
-    pivot180(getMaxForce());
+    switchSong(SONG_CANTINA);
+    
+    turnAroundCenter(getMaxForce());
     
     for (int i = mouse->command_count - 1; i >= 0; i--) {
         Command* cmd = &mouse->commands[i];
-        int turn = cmd->turn;
         
         moveForwardCenterCells((uint8_t) cmd->cells, getMaxLinearSpeed(), 0.0f);
 
@@ -508,6 +512,8 @@ uint8_t solveMaze() {
     //mouse_print_maze(&mouse);
     //mouse_print_distances(&mouse);
     
+    playSong(SONG_MISSION_IMPOSSIBLE, true, TIMER_2, 1);
+    
     int status = discover_maze(&mouse);
     
     if ( status == TARGET ) {
@@ -526,6 +532,8 @@ uint8_t solveMaze() {
             rc = 1;
         }
     } 
+    
+    stopSong();
     
     return rc;
 }

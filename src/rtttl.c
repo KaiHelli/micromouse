@@ -1,4 +1,3 @@
-#ifdef RTTTL_H
 #include <xc.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -10,6 +9,7 @@
 #include "timers.h"
 #include "pwm.h"
 #include "IOconfig.h"
+#include "constants.h"
 
 /**
  * @brief Interrupt service routine for song playback. Called periodically to
@@ -408,10 +408,12 @@ bool parseRTTTL(RtttlReader *input, RtttlNotes *output)
  */
 #define MAX_NOTES_PER_SONG 128
 
-volatile bool songRepeat = false;
-volatile bool songPlaying = false;
+static volatile bool songRepeat = false;
+static volatile bool songPlaying = false;
+static volatile uint32_t songCallbackTimeUs = 0;
+
 // Holds the song currently playing.
-volatile RtttlNotes rtttlNotes;
+static volatile RtttlNotes rtttlNotes;
 
 static const char *const songRTTTL[SONG_COUNT] = {
     [SONG_MISSION_IMPOSSIBLE] = "MissionImp:d=16,o=6,b=100:32d,32d#,32d,32d#,32d,32d#,32d,32d#,32d,32d,32d#,32e,32f,32f#,32g,g,8p,g,8p,a#,p,c7,p,g,8p,g,8p,f,p,f#,p,g,8p,g,8p,a#,p,c7,p,g,8p,g,8p,f,p,f#,p,a#,g,2d,32p,a#,g,2c#,32p,a#,g,2c,a#5,8c,2p,32p,a#5,g5,2f#,32p,a#5,g5,2f,32p,a#5,g5,2e,d#,8d",
@@ -455,6 +457,7 @@ bool playSong(RtttlSong song, bool repeat, Timer_t timer, uint16_t numTicks) {
 
     songRepeat = repeat;
     songPlaying = true;
+    songCallbackTimeUs = (uint32_t) (((float) numTicks / getTimerFrequency(timer)) * MICROSECONDS_PER_SECOND);
     rtttlNotes.noteIndex = 0;
 
     if (rtttlNotes.notes[0].frequency > 0) {
@@ -470,9 +473,12 @@ bool playSong(RtttlSong song, bool repeat, Timer_t timer, uint16_t numTicks) {
     return true;
 }
 
-void stopSong(void) {
-    setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
+void switchSong(RtttlSong song) {
+    rtttlNotes = preParsedSongs[song];
     rtttlNotes.noteIndex = 0;
+}
+
+void stopSong(void) {
     songPlaying = false;
 }
 
@@ -482,29 +488,36 @@ static int16_t songISR(void) {
     static uint32_t rtttlTimeCount = 0;
     
     // 1) First, increment the time counter.
-    rtttlTimeCount += 5;
+    rtttlTimeCount += songCallbackTimeUs;
     
     // 2) Check if we've reached the current note's duration.
-    if (rtttlTimeCount >= rtttlNotes.notes[rtttlNotes.noteIndex].duration)
+    if (rtttlTimeCount >= (uint32_t) rtttlNotes.notes[rtttlNotes.noteIndex].duration * MICROSECONDS_PER_MILLISECOND)
     {
         // Advance to next note
         rtttlNotes.noteIndex++;
       
         if (rtttlNotes.noteIndex >= rtttlNotes.notesLen)
         {
+          // If song is over, either repeat or stop the ISR.
           if (songRepeat) {
               rtttlNotes.noteIndex = 0;
           } else {
-              stopSong();
-              return 0;
+              songPlaying = false;
           }
         }
       
         // Reset and load the next note
         rtttlTimeCount = 0;
 
+        // If one-time playback is done or song is called to be stopped, disable
+        // PWM and unregister the ISR.
+        if (!songPlaying) {
+            setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, false);
+            return 0;
+        }
+        
         // Turn of PWM in case frequency is zero, enable otherwise
-        if (songPlaying && rtttlNotes.notes[rtttlNotes.noteIndex].frequency > 0) {
+        if (rtttlNotes.notes[rtttlNotes.noteIndex].frequency > 0) {
             setPWMFrequency(BUZZ_PWM_MODULE, rtttlNotes.notes[rtttlNotes.noteIndex].frequency);
             setPWMState(BUZZ_PWM_MODULE, BUZZ_PWM_CHANNEL, true);
         } else {
@@ -514,4 +527,3 @@ static int16_t songISR(void) {
     
     return 1;
 }
-#endif

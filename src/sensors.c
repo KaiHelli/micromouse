@@ -1,10 +1,14 @@
 #include <stdint.h>
+
+#include "clock.h" // Has to be imported before libpic30, as it defines FCY
+#include <libpic30.h>
+
 #include "sensors.h"
 #include "dma.h"
 
 typedef enum {
-    UNIT_MILI,   // × 10  ? returns uint16_t
-    UNIT_MICRO,  // × 10 000 ? returns uint32_t
+    UNIT_MILI,   // × 10  - returns uint16_t
+    UNIT_MICRO,  // × 10 000 - returns uint32_t
 } DistanceUnit;
 
 typedef struct {
@@ -49,7 +53,7 @@ static inline float _computeDistanceCm(Sensor_t s, uint16_t voltage) {
 #endif
 }
 
-/* generic converter: returns integer mm or ?m */
+/* generic converter: returns integer mm or um */
 static inline uint32_t sensorVoltageToDistance(
     Sensor_t      s,
     uint16_t      voltage,
@@ -66,7 +70,7 @@ static inline uint32_t sensorVoltageToDistance(
     }
 }
 
-/* Sensor?only distance (no offset) */
+/* Sensor-only distance (no offset) */
 uint16_t getSensorDistance(Sensor_t s) {
     return getSensorDistanceMm(s);
 }
@@ -83,13 +87,63 @@ uint32_t getSensorDistanceUm(Sensor_t s) {
 }
 
 /* Robot distance = sensor distance + offset */
-/* ?? in ?m (precise) ?? */
 uint32_t getRobotDistanceUm(Sensor_t s) {
     return getSensorDistanceUm(s) + sensorOffsetUm[s];
 }
-/* ?? in mm (rounded from ?m) ?? */
+
 uint16_t getRobotDistanceMm(Sensor_t s) {
     uint32_t total_um = getRobotDistanceUm(s);
     // round to nearest mm: (um + 500) / 1000
     return (uint16_t)((total_um + 500u) / 1000u);
+}
+
+void waitForSensorUpdate() {
+    __delay_ms(16);
+}
+
+uint32_t averageRobotDistanceUm(Sensor_t s, uint32_t numReadings)
+{
+    uint64_t sum = 0;
+    for (uint32_t i = 0; i < numReadings; i++) {
+        waitForSensorUpdate();
+        sum += getRobotDistanceUm(s);
+    }
+    return (uint32_t)(sum / numReadings);
+}
+
+
+uint32_t medianRobotDistanceUm(Sensor_t s, uint32_t numReadings)
+{
+    if (numReadings == 0) {
+        return getRobotDistanceUm(s);
+    }
+
+    uint32_t readings[numReadings];
+
+    for (uint32_t i = 0; i < numReadings; i++) {
+        waitForSensorUpdate();
+        readings[i] = getRobotDistanceUm(s);
+    }
+
+    // Sort with insertion sort (fast for small arrays)
+    for (uint32_t i = 1; i < numReadings; i++) {
+        uint32_t key = readings[i];
+        uint32_t j = i;
+        while (j > 0 && readings[j - 1] > key) {
+            readings[j] = readings[j - 1];
+            j--;
+        }
+        readings[j] = key;
+    }
+
+    // Pick median
+    if (numReadings & 1) {
+        // odd count -> middle element
+        return readings[numReadings / 2];
+    } else {
+        // even count -> average of two middle elements (rounded down)
+        uint32_t lo = readings[numReadings/2 - 1];
+        uint32_t hi = readings[numReadings/2];
+        return (lo + hi) / 2;
+    }
 }

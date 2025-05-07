@@ -30,5 +30,11 @@ uint32_t getRobotDistanceUm(Sensor_t s);
 
 uint16_t getRobotDistanceMm(Sensor_t s);
 
+void waitForSensorUpdate();
+
+uint32_t averageRobotDistanceUm(Sensor_t s, uint32_t numReadings);
+
+uint32_t medianRobotDistanceUm(Sensor_t s, uint32_t numReadings);
+
 #endif	/* SENSORS_H */
 

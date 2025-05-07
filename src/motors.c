@@ -14,6 +14,9 @@
 #include "uart.h"
 #include "motorEncoders.h"
 
+volatile uint8_t powerPctLeft;
+volatile uint8_t powerPctRight;
+
 void setMotorsStandbyState(bool state) {
     M_STDBY = !state;
 }

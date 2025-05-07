@@ -1,5 +1,5 @@
-#ifdef RTTTL_H
-//#define	RTTTL_H
+#ifndef RTTTL_H
+#define RTTTL_H
 
 #include <stdint.h>
 
@@ -74,6 +74,8 @@ bool parseRTTTL(RtttlReader *input, RtttlNotes *output);
  * Returns true if the song was successfully started, false otherwise.
  */
 bool playSong(RtttlSong song, bool repeat, Timer_t timer, uint16_t numTicks);
+
+void switchSong(RtttlSong song);
 
 /**
  * @brief Stops the currently playing song if any is active.

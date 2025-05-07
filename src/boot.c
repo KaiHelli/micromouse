@@ -328,25 +328,31 @@ int16_t initMouse(void) {
     setMotorsStandbyState(false);
     
     resetControlAll();
-    //calibrateStartPosition();
-    setStartingPosition();
-    disableWallsControl();
     
-    setMaxForce(0.3f);
-    setMaxLinearSpeed(0.1f);
+    setMaxForce(0.5f);
+    setMaxLinearSpeed(0.4f);
 
-    initMouseController(TIMER_1, 1, getTimerFrequency(TIMER_1));
-    
+    initMouseController(TIMER_1, 1);
     enableMouseControl();
+    //sideSensorsCloseControl(true);
     
-    targetStraight(0, 0.18 * MICROMETERS_PER_METER, 0.0);
+    calibrateStartPosition();
+    
+    //pivot180(getMaxForce());
+    
+    //resetControlErrors();       // zero all PID integrators, etc.
+    //disableWallsControl();      // start clean, no wall-following
+    //setStartingPosition();      // record current encoder as cell start
+    
+    //targetStraightEncoders(getEncoderAverageDistanceUm(), CELL_DIMENSION_UM + SHIFT_DISTANCE_UM, 0.0);
+    
     //moveForwardCenterCells(1, getMaxLinearSpeed(), 0.0f);
-    __delay_ms(250);
-    inplaceTurn( M_PI / 2., 0.3f);
-    __delay_ms(250);
-    inplaceTurn( -M_PI / 2., 0.3f);
-    __delay_ms(250);
-    targetStraight(0, -0.18 * MICROMETERS_PER_METER, 0.0);
+    //__delay_ms(250);
+    //inplaceTurn( M_PI, 0.5f);
+    //__delay_ms(250);
+    //inplaceTurn( -M_PI, 0.5f);
+    //__delay_ms(250);
+    //targetStraight(0.18 * MICROMETERS_PER_METER, -0.18 * MICROMETERS_PER_METER, 0.0);
     
     /*
     
@@ -376,11 +382,13 @@ int16_t initMouse(void) {
     
     // Data Visualizer Callbacks
     //registerTimerCallback(TIMER_2, printMouseRotationalVelocity, 1);
+    //registerTimerCallback(TIMER_1, printMouseVelocities, 1);
     //registerTimerCallback(TIMER_3, printOdometry, 1);
     //registerTimerCallback(TIMER_3, printIMU_trampoline, 1);
     //registerTimerCallback(TIMER_3, printSensorReadings, 1);
     //registerTimerCallback(TIMER_3, printEncoderValues, 1);
     
+    /*
     int8_t dutyCycles[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
     
     for (uint8_t i = 0; i < sizeof(dutyCycles); i++) {
@@ -396,8 +404,8 @@ int16_t initMouse(void) {
         
         __delay_ms(1000);
     }
+    */
     
-    //keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
     
     //squareUpByWiggle(10.0, 10, getMaxForce());
     registerSwitchCallback(SWITCH_1, startMaze);
@@ -441,20 +449,19 @@ void bootSetup() {
     //imuGetMagCalibrationData();     // Output calibration data of magnetometer
     // For calibration -> remember to set current calibration to identity matrix and 0 bias beforehand)
     
-    initTimerInUs(TIMER_1, 5333); // high frequency timer
-    //initTimerInMs(TIMER_2, 2); 
-    initTimerInMs(TIMER_3, 25); // 100ms timer interrupt for testing
+    initTimerInUs(TIMER_1, 5333); // control timer
+    initTimerInMs(TIMER_2, 1);    // buzzer timer
+    initTimerInMs(TIMER_3, 25);   // debug timer
 
     initSwitch1();     // Initialize switch 1 for interrupts
     
-    //parseAllSongs();
-    //playSong(SONG_MUPPETS, true, TIMER_2);
+    parseAllSongs();
    
     __delay_ms(1000);
         
-    //registerSwitchCallback(SWITCH_1, initMouse);
+    registerSwitchCallback(SWITCH_1, initMouse);
 
-    initMouse();
+    //initMouse();
     
     LED1 = LEDOFF;
     LED2 = LEDOFF;

@@ -7,18 +7,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/*--------------------------------------------------------------------
- *  Forward declarations (types defined elsewhere)
- *------------------------------------------------------------------*/
-#include "timers.h"      /* Provides Timer_t                */
+#include "timers.h" 
 
 /*--------------------------------------------------------------------
- *  API ? High-level helpers
+ *  API - High-level helpers
  *------------------------------------------------------------------*/
 void   centerMouseInCell(void);
 
 /*--------------------------------------------------------------------
- *  API ? Force / speed limits & query-set helpers
+ *  API - Force / speed limits & query-set helpers
  *------------------------------------------------------------------*/
 float  getMaxForce(void);
 void   setMaxForce(float value);
@@ -45,6 +42,7 @@ void   resetMaxLinearSpeed(void);
  *------------------------------------------------------------------*/
 void   updateIdealLinearSpeed(void);
 
+bool   sensorIsWallFarFront(void);
 bool   sensorIsWallFront(void);
 bool   sensorIsWallRight(void);
 bool   sensorIsWallLeft(void);
@@ -52,7 +50,7 @@ bool   sensorIsWallLeft(void);
 float getSideSensorsCloseError(void);
 float getSideSensorsFarError(void);
 
-/* One control-loop step; returns non-zero on success */
+/* One control-loop step */
 int16_t mouseControlStep(void);
 
 /* Enable / disable sub-controls */
@@ -70,9 +68,9 @@ void   enableMouseControl(void);
 void   disableMouseControl(void);
 
 /*--------------------------------------------------------------------
- *  API ? Initialisation
+ *  API - Initialization
  *------------------------------------------------------------------*/
-void initMouseController(Timer_t timer, uint16_t numTicks, float timer_hz);
+void initMouseController(Timer_t timer, uint16_t numTicks);
 
 /*--------------------------------------------------------------------*/
 

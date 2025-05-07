@@ -4,7 +4,7 @@
 #include <xc.h>
 
 #define N 6
-#define MAX_STEPS N*N
+#define MAX_STEPS 100 //N*N
 
 enum Turn {
     NO_TURN = -1,

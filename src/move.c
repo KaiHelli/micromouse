@@ -1,3 +1,10 @@
+/* Source code inspired by:
+ *
+ * Movements and Kinematics: Bulebule
+ * - https://github.com/Bulebots/bulebule
+ * - https://github.com/Bulebots/mmlib
+ */ 
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
@@ -19,17 +26,12 @@
 #include "mouseController.h"
 #include "globalTimers.h"
 
-/** Encoder reference (um) marking the start of the current maze cell. */
+// Encoder reference (um) marking the start of the current maze cell.
 static int32_t currentCellStartMicrometers;
 
-/* -------------------------------------------------------------------------- */
-/* Helper functions                                                           */
-/* -------------------------------------------------------------------------- */
-
-static void waitForSensorUpdate() {
-    __delay_ms(16);
-}
-
+/*--------------------------------------------------------------------
+ * Helper functions
+ *------------------------------------------------------------------*/
 static int sign(float number)
 {
 	return (int)(number > 0) - (int)(number < 0);
@@ -58,43 +60,69 @@ void centerMouseInCell() {
 
 void calibrateStartPosition(void)
 {
-    centerMouseInCell();        // user-driven centre-of-cell alignment
+    //centerMouseInCell();        // user-driven centre-of-cell alignment
+
+    pivot90(MOVE_LEFT, getMaxForce());
+    keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
+    pivot90(MOVE_RIGHT, getMaxForce());
+    keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
+    
     resetControlErrors();       // zero all PID integrators, etc.
     disableWallsControl();      // start clean, no wall-following
     setStartingPosition();      // record current encoder as cell start
 }
 
-/**
- * @brief Return the distance travelled inside the present cell, in meters.
- */
 static int32_t currentCellShift(void)
 {
     return ((int32_t) getEncoderAverageDistanceUm() - currentCellStartMicrometers);
 }
 
-/**
- * @brief Mark the entry of a new cell, applying any longitudinal correction.
- */
-static void enteredNextCell(void)
+static void resetOdometryToStart(void)
+{
+    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm();
+}
+
+static void resetOdometryToCenter(void)
+{
+    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm() - MIDDLE_MAZE_DISTANCE_UM;
+}
+
+static void correctNearCellShift(bool isCenter)
 {
     int32_t frontWallCorrection;
 
-    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm() - MIDDLE_MAZE_DISTANCE_UM;
+    const int32_t expectedDistance = isCenter ? MIDDLE_MAZE_DISTANCE_UM : (CELL_DIMENSION_UM - WALL_WIDTH_UM/2);
     
-    // TODO: minus or plus, also apply correction...
     if (sensorIsWallFront()) {
-        frontWallCorrection = (int32_t) getRobotDistanceUm(SENSOR_CENTER) - (int32_t) (MIDDLE_MAZE_DISTANCE_UM);
+        int32_t actualDistance = (int32_t) medianRobotDistanceUm(SENSOR_CENTER, 5);
+        frontWallCorrection = actualDistance - expectedDistance;
         currentCellStartMicrometers += frontWallCorrection;
+        
+        //uprintf("Cell Start: %ld, Front Wall: %ld, Error: %ld\r\n", currentCellStartMicrometers, actualDistance, frontWallCorrection);
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Public API                                                                 */
-/* -------------------------------------------------------------------------- */
+static void correctFarCellShift(void) 
+{
+    int32_t frontWallCorrection;
+
+    if (sensorIsWallFarFront()) {
+        int32_t actualDistance = (int32_t) medianRobotDistanceUm(SENSOR_CENTER, 5);
+        frontWallCorrection = actualDistance - (CELL_DIMENSION_UM + MIDDLE_MAZE_DISTANCE_UM + CORRECT_FRONT_DISTANCE_BIAS_UM);
+        currentCellStartMicrometers += frontWallCorrection;
+        
+        //uprintf("Cell Start: %ld, Front Wall: %ld, Error: %ld\r\n", currentCellStartMicrometers, actualDistance, frontWallCorrection);
+    }
+}
+
+/*--------------------------------------------------------------------
+ * Public API
+ *------------------------------------------------------------------*/
 
 void setStartingPosition(void)
 {
-    currentCellStartMicrometers = (int32_t) getEncoderAverageDistanceUm() - MIDDLE_MAZE_DISTANCE_UM;
+    resetOdometryToCenter();
+    correctNearCellShift(true);
 }
 
 int32_t requiredMicrometersToSpeed(float speed)
@@ -108,35 +136,24 @@ int32_t requiredMicrometersToSpeed(float speed)
                      (2 * acceleration) * MICROMETERS_PER_METER);
 }
 
-float requiredTimeToSpeed(float speed)
+float requiredTimeToSpeed(float currentSpeed, float targetSpeed)
 {
     float acceleration;
-    float targetSpeed = getTargetLinearSpeed();
 
-    acceleration = (targetSpeed > speed) ? -getLinearDeceleration() : getLinearAcceleration();
+    acceleration = (currentSpeed > targetSpeed) ? -getLinearDeceleration() : getLinearAcceleration();
 
-    return (speed - targetSpeed) / acceleration;
+    return (targetSpeed - currentSpeed) / acceleration;
 }
 
-uint32_t requiredTicksToSpeed(float speed, float hz)
+void targetStraightEncoders(int32_t startMicrometers, int32_t distance, float endSpeed)
 {
-    float seconds = requiredTimeToSpeed(speed);
-    return (uint32_t)(seconds * hz);
-}
+    int32_t targetDistance = startMicrometers + distance;
 
-/**
- * @brief Drive a straight segment and reach the target speed at its end.
- *        Positive @p distance moves forward, negative moves backward.
- */
-void targetStraight(int32_t startMicrometers, float distance, float endSpeed)
-{
-    int32_t targetDistance = startMicrometers + (int32_t) (distance);
-
-    /* No rotation while driving straight. */
+    // No rotation while driving straight.
     setIdealAngularSpeed(0.0f);
 
     if (distance > 0) {
-        /* Accelerate */
+        // Accelerate
         setTargetLinearSpeed(getMaxLinearSpeed());
         while ((int32_t) getEncoderAverageDistanceUm() < targetDistance - requiredMicrometersToSpeed(endSpeed))
             //uprintf("%ld, %ld, %ld\r\n", (int32_t) getEncoderAverageDistanceUm(), targetDistance, requiredMicrometersToSpeed(endSpeed));
@@ -147,7 +164,7 @@ void targetStraight(int32_t startMicrometers, float distance, float endSpeed)
             ;
     }
 
-    /* Decelerate / settle to requested endSpeed */
+    // Decelerate / settle to requested endSpeed
     setTargetLinearSpeed(endSpeed);
 
     if (endSpeed == 0.0f) {
@@ -159,81 +176,149 @@ void targetStraight(int32_t startMicrometers, float distance, float endSpeed)
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Wall-alignment helpers                                                     */
-/* -------------------------------------------------------------------------- */
-
-void squareUpByWiggle(float initStepDeg, uint8_t maxIter, float force)
+void targetStraightSpeed(int32_t startMicrometers, int32_t distance, float endSpeed)
 {
-    //uprintf("\r\n[SUWB] Start: step=%.2f deg, maxIter=%u, force=%.2f\r\n", initStepDeg, maxIter, force);
+    int32_t orig_distance = distance;
+    int32_t currentPos    = (int32_t)getEncoderAverageDistanceUm();
+    //uprintf("TS: start=%ld orig_dist=%ld currentPos=%ld\r\n", startMicrometers, orig_distance, currentPos);
+    
+    // Correct the distance by where we are now
+    distance = startMicrometers + orig_distance - currentPos;
+    //uprintf("TS: corrected distance_um=%ld\r\n", distance);
+    
+    // Get direction and distance in meters
+    bool  forward = (distance >= 0);
+    float sign    = forward ? +1.0f : -1.0f;
+    float dist_m  = (float) labs(distance) / MICROMETERS_PER_METER;
+    
+    //uprintf("TS: forward=%d dist_m=%.4f m\r\n", forward, dist_m);
+    
+    // Get speeds
+    float v0   = fabsf(getTargetLinearSpeed());
+    float vend = fabsf(endSpeed);
+    float vmax = getMaxLinearSpeed();
+    float acc    = getLinearAcceleration();
+    float dec    = getLinearDeceleration();
+    
+    //uprintf("TS: v0=%.3f vend=%.3f vmax=%.3f acc=%.3f dec=%.3f\r\n", v0, vend, vmax, acc, dec);
+    
+    // Compute accel / decel times & distances at full cruise
+    float t_acc = fmaxf(0.0f, (vmax - v0) / acc);
+    float d_acc = (v0 + vmax) * 0.5f * t_acc;
 
-    float    yaw        = 0.0f;      /* absolute heading from function entry (deg) */
-    float    step       = initStepDeg;
-    uint32_t bestDist   = getRobotDistanceUm(SENSOR_CENTER);
-    float    bestYawDeg = yaw;
+    float t_dec = fmaxf(0.0f, (vmax - vend) / dec);
+    float d_dec = (vmax + vend) * 0.5f * t_dec;
+    
+    //uprintf("TS: t_acc=%.6f d_acc=%.6f t_dec=%.6f d_dec=%.6f\r\n", t_acc, d_acc, t_dec, d_dec);
+    
+    // Check if distance fits a full trapezoid
+    float t_cruise;
+    float peak_v = vmax;
+    if (d_acc + d_dec > dist_m) {
+        // too short -> triangular: solve for peak_v
+        peak_v = sqrtf((2.0f*acc*dec*dist_m + dec*v0*v0 + acc*vend*vend) / (acc + dec));
+        t_acc = (peak_v - v0) / acc;
+        t_dec = (peak_v - vend) / dec;
+        t_cruise = 0.0f;
+        
+        
+        //uprintf("TS: PROFILE=TRI peak_v=%.3f t_acc=%.6f t_dec=%.6f\r\n", peak_v, t_acc, t_dec);
+    } else {
+        // there's some cruise plateau
+        t_cruise = (dist_m - (d_acc + d_dec)) / vmax;
+        
+        //uprintf("TS: PROFILE=TRAP t_cruise=%.6f\r\n", t_cruise);
+    }
+    
+    // Convert to ?s for busy-wait loops
+    uint64_t usec_acc    = (uint64_t)(t_acc    * MICROSECONDS_PER_SECOND);
+    uint64_t usec_cruise = (uint64_t)(t_cruise * MICROSECONDS_PER_SECOND);
+    uint64_t usec_dec    = (uint64_t)(t_dec    * MICROSECONDS_PER_SECOND);
+    
+    //uprintf("TS: usec_acc=%llu usec_cruise=%llu usec_dec=%llu\r\n", usec_acc, usec_cruise, usec_dec);
+    
+    uint64_t t0 = getTimeInUs();
+    
+    //uprintf("TS: PHASE1: accel to %.3f m/s (until %lluus)\r\n", sign * peak_v, usec_acc);
+    // Accelerate to peak_v
+    setTargetLinearSpeed(sign * peak_v);
+    while (getTimeInUs() - t0 < usec_acc) { /* spin */ }
 
-    //uprintf("[SUWB] Initial: yaw=%.2f deg, dist=%lu um\r\n", yaw, bestDist);
+    //uprintf("TS: END PH1: dt=%lluus enc=%ld\r\n", getTimeInUs() - t0, (int32_t)getEncoderAverageDistanceUm());
+    
+    // Cruise at vmax - if reached
+    if (usec_cruise > 0) {
+        //uprintf("TS: PHASE2: cruise at %.3f m/s (until %lluus)\r\n", sign * vmax, usec_acc + usec_cruise);
+        setTargetLinearSpeed(sign * vmax);
+        while (getTimeInUs() - t0 < usec_acc + usec_cruise) { /* spin */ }
+        //uprintf("TS: END PH2: dt=%lluus enc=%ld\r\n", getTimeInUs() - t0, (int32_t)getEncoderAverageDistanceUm());
+    }
+    
+    // Decelerate to endSpeed
+    //uprintf("TS: PHASE3: decel to %.3f m/s (until %lluus)\r\n", sign * vend, usec_acc + usec_cruise + usec_dec);
+    setTargetLinearSpeed(sign * vend);
+    while (getTimeInUs() - t0 < usec_acc + usec_cruise + usec_dec) { /* spin */ }
+    
+    //uprintf("TS: END PH3: dt=%lluus enc=%ld targetPos=%ld\r\n", getTimeInUs() - t0, (int32_t)getEncoderAverageDistanceUm(), startMicrometers + orig_distance);
+}
+    
 
-    for (uint8_t k = 0; k < maxIter; ++k) {
-        /* ?? 1. measure the distance at the current heading ??????????? */
-        waitForSensorUpdate();                           /* make sure reading is fresh */
-        uint32_t dCenter = getRobotDistanceUm(SENSOR_CENTER);
+/*--------------------------------------------------------------------
+ * Wall-alignment helpers
+ *------------------------------------------------------------------*/
 
-        /* ?? 2. probe +step ????????????????????????????????????????????? */
-        inplaceTurn( step * DEG2RAD, force);
-        yaw += step;
-        waitForSensorUpdate();
-        uint32_t dPlus = getRobotDistanceUm(SENSOR_CENTER);
+void squareUp(float probeAngleDeg, float force, uint32_t numReadings)
+{   
+    const float alpha    = probeAngleDeg * DEG2RAD;
+    const float minError = 0.1f * DEG2RAD;  // stop when <0.1°
+    const int   maxIter  = 3;               // at most a few passes
 
-        /* ?? 3. probe ?step (two half?turns: back to centre, then ?step) ? */
-        inplaceTurn(-2.0f * step * DEG2RAD, force);             /* back to centre           */
-        yaw -= 2.0f * step;
+    for (int i = 0; i < maxIter; ++i) {
+        // Turn +alpha and measure
+        inplaceTurn(+alpha, force);
+        float dL = (float)medianRobotDistanceUm(SENSOR_CENTER, numReadings);
 
-        waitForSensorUpdate();
-        uint32_t dMinus = getRobotDistanceUm(SENSOR_CENTER);
+        // Turn ?2*alpha (to -alpha) and measure
+        inplaceTurn(-2 * alpha, force);
+        float dR = (float)medianRobotDistanceUm(SENSOR_CENTER, numReadings);
 
-        /* ?? 4. decide which of the three positions is best ????????????? */
-        float    offsetDeg   = step;   /* +step, ?step or 0 for centre */
-        uint32_t iterBest    = dCenter;
-
-        if (dPlus < iterBest) { iterBest = dPlus;   offsetDeg = 2.0f * step; }
-        if (dMinus < iterBest){ iterBest = dMinus;  offsetDeg = 0.0f; }
-
-        /* ?? 5. move to the best position of this iteration (if needed) ? */
-        if (offsetDeg != 0.0f) {
-            inplaceTurn(offsetDeg * DEG2RAD, force);
-            yaw += offsetDeg;
-        }
-
-        /* ?? 6. remember the global best so far ????????????????????????? */
-        if (iterBest < bestDist) { bestDist = iterBest; bestYawDeg = yaw; }
-
-        //uprintf("[SUWB] k=%u | step=%.3f | yaw=%.3f | d0=%lu | d+=%lu | d-=%lu | best=%lu @ %.3f\r\n", k, step, yaw, dCenter, dPlus, dMinus, bestDist, bestYawDeg);
-
-        /* ?? 7. shrink the search window ???????????????????????????????? */
-        step *= 0.5f;
-        if (step < 0.05f) {
-            //uprintf("[SUWB] Step below 0.05 deg -> done.\r\n");
+        // Compute angle error: theta = 1/2·asin((dL-dR)/(dL+dR))
+        float sum = dL + dR;
+        if (sum <= 0.0f) {
+            // sensor error guard ? return to original heading and bail out
+            inplaceTurn(+alpha, force);
             break;
         }
+
+        float ratio = (dL - dR) / sum;
+        // clamp to [-1,1] to avoid NaN
+        if      (ratio >  1.0f) ratio =  1.0f;
+        else if (ratio < -1.0f) ratio = -1.0f;
+
+        float theta = 0.5f * asinf(ratio);
+
+        // If already aligned within tolerance, return to zero and finish
+        if (fabsf(theta) < minError) {
+            inplaceTurn(+alpha, force);
+            break;
+        }
+
+        // Apply the correcting turn (bring sensor perpendicular)
+        // we were at -alpha, so turning by alpha?theta brings us to ?theta,
+        // then the next loop?s +alpha will move us to +(alpha-theta)
+        inplaceTurn(alpha - theta, force);
     }
-
-    /* ?? 8. return to the absolute best orientation found ?????????????? */
-    float deltaDeg = bestYawDeg - yaw;
-    inplaceTurn(deltaDeg * DEG2RAD, force);
-
-    //uprintf("[SUWB] Finish: bestYawDeg=%.3f?deg, bestDist=%lu?um ? returning.\r\n", bestYawDeg, bestDist);
 }
 
-void keepFrontWallDistance(float distance)
+void keepFrontWallDistance(int32_t distance)
 {
-    int i;
-    float diff, frontWallDistance;
+    int32_t diff;
+    uint32_t frontWallDistance;
 
     if (!sensorIsWallFront())
         return;
     
-    squareUpByWiggle(10.0, 10, getMaxForce());
+    squareUp(20.0f, 0.2f, 11);
 
     float maxForce = getMaxForce();
     setMaxForce(0.04f);
@@ -242,20 +327,15 @@ void keepFrontWallDistance(float distance)
         sideSensorsCloseControl(false);
         sideSensorsFarControl(false);
 
-        frontWallDistance = 0.0f;
-        for (i = 0; i < 20; ++i) {
-            frontWallDistance += (float) (getRobotDistanceUm(SENSOR_CENTER));
-            waitForSensorUpdate();
-        }
-        frontWallDistance /= 20;
+        frontWallDistance = medianRobotDistanceUm(SENSOR_CENTER, 11);
         diff = frontWallDistance - distance;
         
         //uprintf("diff: %.5f\r\n", diff);
         
-        if (fabsf(diff) < KEEP_FRONT_DISTANCE_TOLERANCE_UM)
+        if (abs(diff) < KEEP_FRONT_DISTANCE_TOLERANCE_UM)
             break;
 
-        targetStraight(getEncoderAverageDistanceUm(), diff, 0.0f);
+        targetStraightEncoders(getEncoderAverageDistanceUm(), diff, 0.0f);
     }
 
     setMaxForce(maxForce);
@@ -264,30 +344,32 @@ void keepFrontWallDistance(float distance)
     resetControlAll();
 }
 
-/* -------------------------------------------------------------------------- */
-/* Basic stopping helpers                                                     */
-/* -------------------------------------------------------------------------- */
+/*--------------------------------------------------------------------
+ * Basic stopping helpers
+ *------------------------------------------------------------------*/
 
 void stopEnd(void)
 {
     sideSensorsCloseControl(true);
     sideSensorsFarControl(false);
 
-    targetStraight(currentCellStartMicrometers, CELL_DIMENSION_UM, 0.0f);
+    targetStraightEncoders(currentCellStartMicrometers, CELL_DIMENSION_UM, 0.0f);
 
     disableWallsControl();
     resetControlErrors();
-    enteredNextCell();
+    
+    resetOdometryToStart();
+    correctNearCellShift(false);
 }
 
 void stopHeadFrontWall(void)
 {
-    const float distance = CELL_DIMENSION_UM - WALL_WIDTH_UM / 2.0f - MOUSE_HEAD_MM * MICROMETERS_PER_MILLIMETER;
+    const int32_t distance = (int32_t) (CELL_DIMENSION_UM - WALL_WIDTH_UM / 2.0f - MOUSE_HEAD_MM * MICROMETERS_PER_MILLIMETER);
 
     sideSensorsCloseControl(true);
     sideSensorsFarControl(false);
 
-    targetStraight(currentCellStartMicrometers, distance, 0.0f);
+    targetStraightEncoders(currentCellStartMicrometers, distance, 0.0f);
 
     disableWallsControl();
     resetControlErrors();
@@ -295,20 +377,21 @@ void stopHeadFrontWall(void)
 
 void stopMiddle(void)
 {
-    const float distance = CELL_DIMENSION_UM / 2.0f;
+    const int32_t distance = (int32_t) (CELL_DIMENSION_UM / 2.0f);
 
     sideSensorsCloseControl(true);
     sideSensorsFarControl(false);
 
-    targetStraight(currentCellStartMicrometers, distance, 0.0f);
+    targetStraightEncoders(currentCellStartMicrometers, distance, 0.0f);
 
     disableWallsControl();
     resetControlErrors();
 }
 
-/* -------------------------------------------------------------------------- */
-/* In-place rotations                                                         */
-/* -------------------------------------------------------------------------- */
+
+/*--------------------------------------------------------------------
+ * In-place rotations
+ *------------------------------------------------------------------*/
 
 void inplaceTurnDeg(float degrees, float force) {
     inplaceTurn(degrees * DEG2RAD, force);
@@ -322,7 +405,7 @@ void inplaceTurn(float radians, float force)
     int signDir = sign(radians);
     radians = fabsf(radians);
 
-    /* Compute trapezoidal angular profile. */
+    // Compute trapezoidal / sinusoidal angular profile.
     angularAcceleration = force * MOUSE_WHEEL_SEPARATION_MM / (MILLIMETERS_PER_METER * MOUSE_MOMENT_OF_INERTIA_KGM2);
     maxAngularVelocity = sqrtf(radians / 2.0f * angularAcceleration);
     if (maxAngularVelocity > MOUSE_MAX_ANGULAR_VELOCITY_RADPS)
@@ -359,31 +442,36 @@ void inplaceTurn(float radians, float force)
     setIdealAngularSpeed(0.0f);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Composite high-level moves                                                 */
-/* -------------------------------------------------------------------------- */
 
-/**
- * Drive one whole cell forward (centre -> centre).
- */
-static void forwardOneCell(float cruiseSpeed, float endSpeed)
+/*--------------------------------------------------------------------
+ * Composite high-level moves
+ *------------------------------------------------------------------*/
+
+static void forwardOneCell(float cruiseSpeed, float endSpeed, bool accountForShift)
 {
     sideSensorsCloseControl(true);
     sideSensorsFarControl(false);
 
     setMaxLinearSpeed(cruiseSpeed);
 
-    /* centre -> centre is 1.5 × CELL when startMicrometers is 0.5?cell behind */
-    targetStraight(currentCellStartMicrometers, CELL_DIMENSION_UM + MIDDLE_MAZE_DISTANCE_UM, endSpeed);
+    int32_t halfDistance = CELL_DIMENSION_UM / 2;
+    
+    if (accountForShift) {
+        halfDistance += SHIFT_DISTANCE_UM / 2;
+    }
+    
+    targetStraightEncoders(currentCellStartMicrometers, halfDistance + MIDDLE_MAZE_DISTANCE_UM, cruiseSpeed);
 
-    enteredNextCell();
+    //uprintf("1: ccsm: %ld, ce: %ld, hd: %ld\r\n", currentCellStartMicrometers, (int32_t) getEncoderAverageDistanceUm(), halfDistance);
+    
+    resetOdometryToStart();
+    correctNearCellShift(false);
+    
+    targetStraightEncoders(currentCellStartMicrometers, halfDistance, endSpeed);
+
+    //uprintf("2: ccsm: %ld, ce: %ld, hd: %ld\r\n", currentCellStartMicrometers, (int32_t) getEncoderAverageDistanceUm(), halfDistance);
 }
 
-/**
- * Perform a 90° pivot in place while sitting in the cell centre.  No
- * longitudinal motion is required because we already have clearance front and
- * back (1/2-cell each way).
- */
 void pivot90(Movement_t dir, float force)
 {
     disableWallsControl();
@@ -394,10 +482,6 @@ void pivot90(Movement_t dir, float force)
         inplaceTurn( M_PI / 2.0f, force);
 }
 
-
-/**
- * Perform a 180° turn (dead-end recovery) while staying centred.
- */
 void pivot180(float force)
 {   
     disableWallsControl();
@@ -407,56 +491,49 @@ void pivot180(float force)
     inplaceTurn(dirSign * M_PI, force);
 }
 
-/**
- * @brief  Move forward *n* cells (centre -> centre).
- *
- * The function accelerates once, cruises through the middle cells and decelerates
- * so that it reaches @p endSpeed exactly at the centre of the last cell.
- */
 void moveForwardCenterCells(uint8_t nCells, float cruiseSpeed, float endSpeed)
 {
     if (nCells == 0) return;
 
     for (uint8_t k = 1; k < nCells; ++k)
-        forwardOneCell(cruiseSpeed, cruiseSpeed);
+        forwardOneCell(cruiseSpeed, cruiseSpeed, false);
 
-    forwardOneCell(cruiseSpeed, endSpeed);
+    forwardOneCell(cruiseSpeed, endSpeed, true);
 }
 
-/**
- * @brief  One-cell step forward.
- */
 void moveForwardCenter(float cruiseSpeed, float endSpeed)
 {
-    forwardOneCell(cruiseSpeed, endSpeed);
+    forwardOneCell(cruiseSpeed, endSpeed, true);
 }
 
-/**
- * @brief  90° left turn, centre-pivot.
- */
 void turnLeftCenter(float force)
 {
     pivot90(MOVE_LEFT, force);
+    
+    resetOdometryToCenter();
 }
 
-/**
- * @brief  90° right turn, centre-pivot.
- */
 void turnRightCenter(float force)
 {
     pivot90(MOVE_RIGHT, force);
+    
+    resetOdometryToCenter();
 }
 
-/**
- * @brief  Dead-end handling: square-up, 180° pivot, step back one cell.
- */
+void turnAroundCenter(float force)
+{
+    pivot180(force);
+    
+    resetOdometryToCenter();
+    currentCellStartMicrometers += (int32_t) SHIFT_AFTER_180_DEG_TURN_UM;
+}
+
 void escapeDeadEnd(float force)
 {
-    if (getRobotDistanceUm(SENSOR_CENTER) < CELL_DIMENSION_UM)
-        keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
+    keepFrontWallDistance(MIDDLE_MAZE_DISTANCE_UM);
 
     pivot180(force);
     
-    setStartingPosition();
-    currentCellStartMicrometers -= (int32_t) SHIFT_AFTER_180_DEG_TURN_UM;
+    resetOdometryToCenter();
+    currentCellStartMicrometers += (int32_t) SHIFT_AFTER_180_DEG_TURN_UM;
 }
